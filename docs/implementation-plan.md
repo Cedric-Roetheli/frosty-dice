@@ -38,8 +38,8 @@ Goal: create the visual foundation of the game.
 table with labeled rows and columns, disabled cell buttons, and text markers for
 Start/A1 and Goal/D7. WebKit checks passed at 320, 360, 375, 390, 768, and 1024 px,
 including 200% text at 320 px, with no horizontal overflow or browser errors.
-Relative asset and module paths also passed under `/frosty-dice/`. Milestone 2
-has not started.
+Relative asset and module paths also passed under `/frosty-dice/`. This milestone
+added rendering only.
 
 Tasks:
 
@@ -61,6 +61,17 @@ The empty board is pleasant and usable on a narrow mobile viewport.
 ## Milestone 2 — Board state and core placement rules
 
 Goal: implement the fundamental Frosty Dice board logic independently of the UI.
+
+**Status: Complete.** `js/game.js` implements the 7 × 4 board representation,
+cell helpers, placement validation, legal-target enumeration, and immutable
+guarded placement. Either valid predecessor suffices, as confirmed in section
+4.4 of `docs/game-rules.md`. All 36 dependency-free pure-logic tests pass in
+`tests/index.html`, including OR behavior in both directions.
+
+Board state and validation were connected to rendering and rejection messages
+while player input remained deferred. WebKit integration checks passed at 320,
+375, 390, and 1024 px, including 200% text at 320 px, with no console errors or horizontal
+overflow. Relative module and test paths passed at `/` and `/frosty-dice/`.
 
 Tasks:
 
@@ -84,6 +95,23 @@ Given a candidate number and board state, the application reliably identifies ev
 ## Milestone 3 — Own-roll flow
 
 Goal: make the core turn playable with physical dice.
+
+**Status: Complete.** The UI provides two touch-friendly 1–6 radio groups,
+confirmation, unique number choices, legal-target highlighting, and guarded
+placement. Pure helpers in `js/game.js` handle number generation, failed-roll
+detection, and immutable own-roll state transitions while reusing Milestone 2
+placement rules.
+
+Every confirmation increases the own-roll count once. The confirmed roll stays
+locked through placement or failure; “Next roll” clears the dice selections and
+prepares the next physical roll without changing the board or counter.
+
+All 66 automated tests pass: 36 placement tests and 30 own-roll tests. Complete
+browser interactions passed in WebKit at 320, 375, 390, and 1024 px, including
+200% text at 320 px. Checks covered rapid/repeated actions, both orientations,
+doubles, failures, one usable orientation, and OR placement. No console errors
+or horizontal overflow occurred. App and test module paths passed at `/` and
+`/frosty-dice/`. Milestone 4 has not started.
 
 Tasks:
 

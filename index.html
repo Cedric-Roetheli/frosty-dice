@@ -14,18 +14,24 @@
       <header class="page-header">
         <h1>Frosty Dice</h1>
         <p>Your game sheet at the table.</p>
+        <p class="roll-counter">Own rolls <strong id="own-roll-count">0</strong></p>
       </header>
 
       <section class="board-sheet" aria-labelledby="board-heading">
         <div class="board-sheet__header">
           <h2 id="board-heading">Your board</h2>
-          <span class="preview-label">Preview</span>
+          <span id="board-mode" class="preview-label">Ready</span>
+        </div>
+        <div id="placement-controls" class="placement-controls" hidden>
+          <h3 id="number-heading">Choose a number</h3>
+          <div id="number-options" class="number-options" role="group" aria-labelledby="number-heading"></div>
+          <p id="placement-help" class="placement-help"></p>
         </div>
         <table class="board" aria-labelledby="board-heading">
           <caption class="visually-hidden">
             Four columns, A through D, and seven rows, 1 through 7.
-            A1 is the start. D7 is the goal. All cells are empty and unavailable
-            in this preview.
+            A1 is the start. D7 is the goal. During a confirmed roll, highlighted
+            cells are legal targets for the selected number.
           </caption>
           <thead id="board-columns"></thead>
           <tbody id="board-rows"></tbody>
@@ -33,6 +39,22 @@
       </section>
 
       <p id="app-status" class="app-status" role="status">Loading board…</p>
+      <section id="roll-panel" class="roll-panel" aria-labelledby="roll-heading">
+        <h2 id="roll-heading">Record own roll</h2>
+        <form id="own-roll-form">
+          <p class="roll-instructions">Roll two physical dice, then choose their values.</p>
+          <fieldset id="die-1-group" class="die-group">
+            <legend>Die 1</legend>
+            <div id="die-1-values" class="dice-values"></div>
+          </fieldset>
+          <fieldset id="die-2-group" class="die-group">
+            <legend>Die 2</legend>
+            <div id="die-2-values" class="dice-values"></div>
+          </fieldset>
+          <button id="confirm-roll" class="action-button" type="submit" disabled>Confirm roll</button>
+        </form>
+        <button id="next-roll" class="action-button" type="button" hidden>Next roll</button>
+      </section>
       <noscript>
         <p>Enable JavaScript to display the board.</p>
       </noscript>

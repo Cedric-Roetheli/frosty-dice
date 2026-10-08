@@ -45,6 +45,11 @@ Example:
 
 Only numbers whose two digits are between 1 and 6 can therefore occur naturally.
 
+Each confirmed own physical roll counts **exactly once** toward the player's own
+counted rolls, including a failed roll. Changing dice selections before
+confirmation, considering either number arrangement, and placing the chosen
+number do not add another counted roll.
+
 ## 3. First placement
 
 A player's first legally placed number is entered in `A1`.
@@ -106,6 +111,27 @@ An occupied cell can therefore support development both:
 - downward, using the vertical rule.
 
 The player is not restricted to one linear path from A1 to D7.
+
+### 4.4 Alternative supporting connections
+
+For a cell other than A1, an occupied neighbor immediately to the left or
+immediately above can support the new placement. **Either valid predecessor is
+sufficient.** Horizontal and vertical conditions are alternatives, not cumulative
+requirements.
+
+Formally:
+
+`legal = validHorizontalConnection || validVerticalConnection`
+
+If both neighbors are occupied, a neighbor that does not satisfy its rule does
+not invalidate a valid connection from the other direction. The target must
+still be empty.
+
+Example:
+
+- `A1 = 16`, `B1 = 24`, and `A2 = 16`
+- Placing `26` at `B2` is legal because `26 > 16` from A2.
+- The invalid vertical connection from B1 (`26 ≠ 24`) does not prevent it.
 
 ## 5. Failed rolls
 
