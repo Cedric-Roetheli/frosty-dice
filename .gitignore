@@ -1,1 +1,11 @@
+# Operating-system metadata
 .DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~

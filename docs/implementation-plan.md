@@ -6,6 +6,11 @@
 
 Goal: establish a clean project that can grow safely.
 
+**Status: Complete.** The minimal shell and documented folder structure are in
+place. Local HTTP and WebKit checks passed at both `/` and `/frosty-dice/`,
+including module loading and layouts at 320 px and 1024 px. No later milestone
+functionality has been implemented.
+
 Tasks:
 
 - Create the agreed folder structure
