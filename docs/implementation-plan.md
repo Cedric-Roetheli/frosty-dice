@@ -9,7 +9,7 @@ Goal: establish a clean project that can grow safely.
 **Status: Complete.** The minimal shell and documented folder structure are in
 place. Local HTTP and WebKit checks passed at both `/` and `/frosty-dice/`,
 including module loading and layouts at 320 px and 1024 px. No later milestone
-functionality has been implemented.
+functionality was included in this foundation work.
 
 Tasks:
 
@@ -33,6 +33,13 @@ A minimal page loads without errors and the repository structure matches the doc
 ## Milestone 1 — Mobile game board
 
 Goal: create the visual foundation of the game.
+
+**Status: Complete.** The empty board is rendered in `js/app.js` as a semantic
+table with labeled rows and columns, disabled cell buttons, and text markers for
+Start/A1 and Goal/D7. WebKit checks passed at 320, 360, 375, 390, 768, and 1024 px,
+including 200% text at 320 px, with no horizontal overflow or browser errors.
+Relative asset and module paths also passed under `/frosty-dice/`. Milestone 2
+has not started.
 
 Tasks:
 

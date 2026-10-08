@@ -6,9 +6,10 @@ with physical dice.
 
 ## Current status
 
-Milestone 0 — Repository foundation is implemented. The page loads a minimal
-application shell and the JavaScript module placeholders. Gameplay is not yet
-implemented; Milestone 1 has not started.
+Milestone 1 — Mobile game board is implemented. The page displays an empty 4 × 7
+board with columns A–D, rows 1–7, and clearly labeled A1 start and D7 goal cells.
+The cells are disabled buttons sized for touch use in later milestones.
+Gameplay is not yet implemented; Milestone 2 has not started.
 
 ## Run locally
 
@@ -19,7 +20,8 @@ python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
 Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) in a modern browser. The page
-should display “Application shell is ready.” Stop the server with `Ctrl+C`.
+should display the empty board and “Board preview only. Play controls will be
+added later.” Stop the server with `Ctrl+C`.
 
 Use an HTTP server rather than opening `index.html` directly, because browsers
 restrict JavaScript module loading from `file://` URLs. Python is only a local
@@ -38,7 +40,7 @@ frosty-dice/
 ├── css/
 │   └── style.css               # Mobile-first presentation
 ├── js/
-│   ├── app.js                  # UI initialization and coordination
+│   ├── app.js                  # Board rendering and UI coordination
 │   ├── game.js                 # Future board model and placement rules
 │   ├── scoring.js              # Future score and street calculations
 │   └── storage.js              # Future local persistence
@@ -68,9 +70,17 @@ release milestone.
 ## Manual checks
 
 1. Start the local server and open the page.
-2. Confirm the title and “Application shell is ready.” message appear.
+2. Confirm there are four labeled columns (A–D), seven labeled rows (1–7), and
+   28 empty cells, with “Start / A1” at the top left and “Goal / D7” at the bottom
+   right.
 3. Confirm the browser console has no errors and the stylesheet plus all four
    JavaScript files load successfully in the Network panel.
 4. Reload the page and confirm the same result.
-5. Check a narrow phone viewport (320–375 px): text should remain readable without
-   horizontal page scrolling.
+5. Check portrait phone widths of 320, 375, and 390 px: all columns and endpoint
+   labels should remain readable without horizontal page scrolling. Vertical
+   scrolling is expected on shorter screens.
+6. Confirm tapping a cell does not change the board. The disabled cells are a
+   visual preview; there is no placement or selection behavior yet.
+7. Check the board on iPhone Safari and Android Chrome, including with larger
+   text settings. A screen reader should identify the table, row and column
+   headers, and the coordinates of the unavailable empty cells.

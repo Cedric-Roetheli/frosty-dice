@@ -11,12 +11,30 @@
   </head>
   <body>
     <main>
-      <h1>Frosty Dice</h1>
-      <p>A companion for your physical dice game at the table.</p>
-      <p>Repository foundation only. Gameplay will be added in later milestones.</p>
-      <p id="app-status" role="status">Loading application shell…</p>
+      <header class="page-header">
+        <h1>Frosty Dice</h1>
+        <p>Your game sheet at the table.</p>
+      </header>
+
+      <section class="board-sheet" aria-labelledby="board-heading">
+        <div class="board-sheet__header">
+          <h2 id="board-heading">Your board</h2>
+          <span class="preview-label">Preview</span>
+        </div>
+        <table class="board" aria-labelledby="board-heading">
+          <caption class="visually-hidden">
+            Four columns, A through D, and seven rows, 1 through 7.
+            A1 is the start. D7 is the goal. All cells are empty and unavailable
+            in this preview.
+          </caption>
+          <thead id="board-columns"></thead>
+          <tbody id="board-rows"></tbody>
+        </table>
+      </section>
+
+      <p id="app-status" class="app-status" role="status">Loading board…</p>
       <noscript>
-        <p>Enable JavaScript to load the application shell.</p>
+        <p>Enable JavaScript to display the board.</p>
       </noscript>
     </main>
   </body>

@@ -3,6 +3,7 @@
   color: #172b3a;
   background-color: #f4f8fb;
   line-height: 1.5;
+  font-synthesis: none;
 }
 
 * {
@@ -11,21 +12,154 @@
 
 body {
   margin: 0;
-  padding: 1.5rem 1rem;
+  padding: 16px;
 }
 
 main {
-  max-width: 36rem;
+  max-width: 26rem;
   margin-inline: auto;
   overflow-wrap: break-word;
 }
 
 h1 {
-  margin: 0 0 1rem;
-  font-size: 2rem;
+  margin: 0;
+  font-size: 1.75rem;
   line-height: 1.2;
 }
 
 p {
-  margin: 0 0 1rem;
+  margin: 0;
+}
+
+.page-header {
+  margin-bottom: 1rem;
+}
+
+.page-header p {
+  margin-top: 0.25rem;
+  color: #496173;
+  font-size: 0.875rem;
+}
+
+.board-sheet {
+  padding: 8px;
+  border: 1px solid #c6d4df;
+  border-radius: 1rem;
+  background-color: #fff;
+}
+
+.board-sheet__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem 0.5rem;
+}
+
+h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.preview-label {
+  padding: 0.125rem 0.5rem;
+  border-radius: 1rem;
+  color: #496173;
+  background-color: #edf3f7;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.board {
+  width: 100%;
+  table-layout: fixed;
+  border-spacing: 4px;
+}
+
+.board th,
+.board td {
+  padding: 0;
+  text-align: center;
+}
+
+.board th {
+  color: #496173;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.board-corner {
+  width: 20px;
+}
+
+.board-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+  width: 100%;
+  min-width: 0;
+  min-height: clamp(3.5rem, 16vw, 4.5rem);
+  padding: 4px;
+  border: 1px solid #b7c7d2;
+  border-radius: 0.5rem;
+  color: #172b3a;
+  background-color: #fff;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  appearance: none;
+}
+
+.board-cell:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.board-cell:focus-visible {
+  outline: 3px solid #275e75;
+  outline-offset: 2px;
+}
+
+.board-cell--start {
+  border: 2px solid #30657d;
+  color: #244f65;
+  background-color: #e9f4fa;
+}
+
+.board-cell--goal {
+  border: 2px solid #35705b;
+  color: #285b48;
+  background-color: #eaf5ef;
+}
+
+.board-cell__marker {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.board-cell__coordinate {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.app-status,
+noscript p {
+  margin-top: 0.75rem;
+  color: #496173;
+  font-size: 0.875rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
