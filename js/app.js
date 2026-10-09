@@ -5,8 +5,11 @@ import {
   confirmOwnRoll,
   createGameState,
   getCellValue,
+  getExternalNumberTargets,
   getRollOptions,
   isValidDieValue,
+  parseExternalNumber,
+  placeExternalNumber,
   placeOwnRollNumber,
   prepareNextOwnRoll,
 } from "./game.js";
@@ -16,6 +19,8 @@ import "./storage.js";
 let game = createGameState();
 let selectedDice = [null, null];
 let selectedNumber = null;
+let takingFailedRoll = false;
+let externalNumber = null;
 
 const rollForm = document.getElementById("own-roll-form");
 const confirmButton = document.getElementById("confirm-roll");
@@ -24,8 +29,17 @@ const rollPanel = document.getElementById("roll-panel");
 const placementControls = document.getElementById("placement-controls");
 const numberOptions = document.getElementById("number-options");
 const appStatus = document.getElementById("app-status");
+const takeButton = document.getElementById("take-failed-roll");
+const externalForm = document.getElementById("external-number-form");
+const externalInput = document.getElementById("external-number");
+const cancelExternalButton = document.getElementById("cancel-external-number");
 
 function currentOptions() {
+  if (takingFailedRoll) {
+    return externalNumber === null
+      ? []
+      : [{ value: externalNumber, targets: getExternalNumberTargets(game, externalNumber) }];
+  }
   if (!game.currentRoll || game.currentRoll.status === "placed") {
     return [];
   }
@@ -34,7 +48,7 @@ function currentOptions() {
 
 function createCell(coordinate, targets) {
   const value = getCellValue(game.board, coordinate);
-  const isTarget = game.currentRoll?.status === "pending" && targets.includes(coordinate);
+  const isTarget = (takingFailedRoll || game.currentRoll?.status === "pending") && targets.includes(coordinate);
   const cell = document.createElement("button");
   cell.type = "button";
   cell.id = `cell-${coordinate}`;
@@ -111,6 +125,21 @@ function renderBoard(options) {
 }
 
 function renderNumberOptions(options) {
+  document.getElementById("number-heading").textContent = takingFailedRoll
+    ? "From an opponent’s failed roll"
+    : "Choose a number";
+  if (takingFailedRoll) {
+    const summary = document.createElement("p");
+    summary.className = "external-number-summary";
+    summary.textContent = options.length > 0
+      ? `${externalNumber} · ${options[0].targets.length} legal ${options[0].targets.length === 1 ? "target" : "targets"}`
+      : "";
+    numberOptions.replaceChildren(summary);
+    document.getElementById("placement-help").textContent = options[0]?.targets.length > 0
+      ? `Tap a highlighted cell to take ${externalNumber}. Own rolls stay unchanged.`
+      : "This number cannot currently be placed.";
+    return;
+  }
   const buttons = options.map((option) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -142,18 +171,28 @@ function render() {
   renderBoard(options);
   renderNumberOptions(options);
   document.getElementById("own-roll-count").textContent = game.ownRollCount;
-  document.getElementById("board-mode").textContent = pending
-    ? `Place ${selectedNumber}`
-    : game.currentRoll?.status === "failed" ? "Failed roll" : "Ready";
+  let boardMode = "Ready";
+  if (takingFailedRoll) {
+    boardMode = externalNumber === null ? "Take failed roll" : `Take ${externalNumber}`;
+  } else if (pending) {
+    boardMode = `Place ${selectedNumber}`;
+  } else if (game.currentRoll?.status === "failed") {
+    boardMode = "Failed roll";
+  }
+  document.getElementById("board-mode").textContent = boardMode;
   placementControls.hidden = options.length === 0;
-  rollPanel.hidden = pending;
+  rollPanel.hidden = pending || takingFailedRoll;
   rollForm.hidden = complete;
   nextButton.hidden = !complete;
   document.getElementById("roll-heading").textContent = complete ? "Next own roll" : "Record own roll";
-  confirmButton.disabled = game.currentRoll !== null || !selectedDice.every(isValidDieValue);
+  confirmButton.disabled = takingFailedRoll || game.currentRoll !== null || !selectedDice.every(isValidDieValue);
   for (const fieldset of rollForm.querySelectorAll("fieldset")) {
-    fieldset.disabled = game.currentRoll !== null;
+    fieldset.disabled = takingFailedRoll || game.currentRoll !== null;
   }
+  takeButton.hidden = takingFailedRoll;
+  takeButton.disabled = pending;
+  document.getElementById("take-help").hidden = !pending;
+  externalForm.hidden = !takingFailedRoll;
 }
 
 function createDiceControls() {
@@ -180,7 +219,7 @@ function createDiceControls() {
 }
 
 rollForm.addEventListener("change", (event) => {
-  if (game.currentRoll !== null) {
+  if (takingFailedRoll || game.currentRoll !== null) {
     return;
   }
   const input = event.target;
@@ -192,7 +231,7 @@ rollForm.addEventListener("change", (event) => {
 
 rollForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  if (game.currentRoll !== null) {
+  if (takingFailedRoll || game.currentRoll !== null) {
     return;
   }
   try {
@@ -217,7 +256,7 @@ rollForm.addEventListener("submit", (event) => {
 
 numberOptions.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-number]");
-  if (!button || button.disabled || game.currentRoll?.status !== "pending") {
+  if (takingFailedRoll || !button || button.disabled || game.currentRoll?.status !== "pending") {
     return;
   }
   selectedNumber = Number(button.dataset.number);
@@ -227,7 +266,29 @@ numberOptions.addEventListener("click", (event) => {
 
 document.getElementById("board-rows").addEventListener("click", (event) => {
   const cell = event.target.closest("button[data-coordinate]");
-  if (!cell || cell.disabled || game.currentRoll?.status !== "pending") {
+  if (!cell || cell.disabled) {
+    return;
+  }
+  if (takingFailedRoll) {
+    if (externalNumber === null) {
+      return;
+    }
+    try {
+      game = placeExternalNumber(game, cell.dataset.coordinate, externalNumber);
+    } catch (error) {
+      appStatus.textContent = error.message;
+      return;
+    }
+    appStatus.textContent = `Took ${externalNumber} at ${cell.dataset.coordinate}. Own rolls unchanged (${game.ownRollCount}).`;
+    takingFailedRoll = false;
+    externalNumber = null;
+    selectedNumber = null;
+    externalForm.reset();
+    render();
+    takeButton.focus();
+    return;
+  }
+  if (game.currentRoll?.status !== "pending") {
     return;
   }
   try {
@@ -243,7 +304,7 @@ document.getElementById("board-rows").addEventListener("click", (event) => {
 });
 
 nextButton.addEventListener("click", () => {
-  if (!game.currentRoll || game.currentRoll.status === "pending") {
+  if (takingFailedRoll || !game.currentRoll || game.currentRoll.status === "pending") {
     return;
   }
   game = prepareNextOwnRoll(game);
@@ -253,6 +314,81 @@ nextButton.addEventListener("click", () => {
   appStatus.textContent = "Roll two physical dice and record their values.";
   render();
   document.getElementById("die-1-1").focus();
+});
+
+takeButton.addEventListener("click", () => {
+  if (takingFailedRoll || game.currentRoll?.status === "pending") {
+    return;
+  }
+  if (game.currentRoll !== null) {
+    game = prepareNextOwnRoll(game);
+    selectedDice = [null, null];
+    rollForm.reset();
+  }
+  takingFailedRoll = true;
+  externalNumber = null;
+  selectedNumber = null;
+  externalForm.reset();
+  externalInput.removeAttribute("aria-invalid");
+  appStatus.textContent = "Enter the number announced by the other player. Your own rolls stay unchanged.";
+  render();
+  externalInput.focus();
+});
+
+externalInput.addEventListener("input", () => {
+  if (!takingFailedRoll) {
+    return;
+  }
+  externalNumber = null;
+  selectedNumber = null;
+  externalInput.removeAttribute("aria-invalid");
+  appStatus.textContent = "Enter two digits from 1 through 6, then show placements.";
+  render();
+});
+
+externalForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!takingFailedRoll) {
+    return;
+  }
+  externalNumber = null;
+  selectedNumber = null;
+  let targets;
+  try {
+    const value = parseExternalNumber(externalInput.value);
+    targets = getExternalNumberTargets(game, value);
+    externalNumber = value;
+    selectedNumber = value;
+  } catch (error) {
+    externalInput.setAttribute("aria-invalid", "true");
+    appStatus.textContent = error.message;
+    render();
+    externalInput.focus();
+    return;
+  }
+  externalInput.removeAttribute("aria-invalid");
+  appStatus.textContent = targets.length === 0
+    ? `${externalNumber} cannot currently be placed on your board. Own rolls unchanged (${game.ownRollCount}).`
+    : `Choose a highlighted cell to take ${externalNumber}. Own rolls unchanged (${game.ownRollCount}).`;
+  render();
+  if (targets.length > 0) {
+    document.getElementById(`cell-${targets[0]}`).focus();
+  } else {
+    externalInput.focus();
+  }
+});
+
+cancelExternalButton.addEventListener("click", () => {
+  if (!takingFailedRoll) {
+    return;
+  }
+  takingFailedRoll = false;
+  externalNumber = null;
+  selectedNumber = null;
+  externalForm.reset();
+  appStatus.textContent = "Roll two physical dice and record their values.";
+  render();
+  takeButton.focus();
 });
 
 createDiceControls();

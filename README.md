@@ -6,13 +6,16 @@ with physical dice.
 
 ## Current status
 
-Milestone 3 — Own-roll flow is implemented. Enter the values of two physical dice,
-confirm the roll, choose a number, and tap a highlighted legal cell. Confirmed
-own rolls count once, including failures. “Next roll” prepares a fresh entry
-after a placement or failed roll.
+Milestone 4 — External number entry is implemented for taking another player's
+failed-roll number. “Take failed roll” accepts the verbally announced number,
+shows legal targets, and adds it without increasing your own-roll count.
+
+The existing own-roll flow still records physical dice, confirms each roll once,
+and lets you choose a number and legal cell. Failed own rolls also count once.
 
 Placement rules follow [the game rules](./docs/game-rules.md), including the
-confirmed OR behavior. Milestone 4 has not started.
+confirmed OR behavior. Stolen-number entry is deferred to Milestone 5, which has
+not started.
 
 ## Run locally
 
@@ -43,8 +46,8 @@ frosty-dice/
 ├── css/
 │   └── style.css               # Mobile-first presentation
 ├── js/
-│   ├── app.js                  # Board rendering and own-roll interaction
-│   ├── game.js                 # Pure board, placement, and own-roll helpers
+│   ├── app.js                  # Board rendering, own rolls, and failed-roll entry
+│   ├── game.js                 # Pure board, roll, and external-number helpers
 │   ├── scoring.js              # Future score and street calculations
 │   └── storage.js              # Future local persistence
 ├── assets/                     # Reserved for static assets
@@ -53,6 +56,7 @@ frosty-dice/
 │   ├── index.html              # Browser test page
 │   ├── game.test.js            # Pure game-logic tests without DOM dependencies
 │   ├── own-roll.test.js        # Dice, roll lifecycle, and counter tests
+│   ├── external-number.test.js # Failed-roll entry and counter regression tests
 │   ├── assert.js               # Shared dependency-free assertions
 │   └── test-runner.js          # Displays test results
 └── docs/
@@ -80,7 +84,7 @@ release milestone.
 
 Start the local server above and open
 [http://127.0.0.1:8000/tests/](http://127.0.0.1:8000/tests/).
-The page should report `66/66 tests passed; 0 failed.` No packages, test framework,
+The page should report `88/88 tests passed; 0 failed.` No packages, test framework,
 or build step are required.
 
 The tests cover board structure, cell lookup, A1-only first placement, horizontal
@@ -89,7 +93,9 @@ and upward rejection, board edges, OR behavior in both directions, legal-target
 enumeration, invalid inputs, and input immutability. The own-roll tests cover
 unique number generation, doubles, valid and invalid dice, legal roll options,
 failed rolls, guarded placement, and counting once through repeated actions.
-Both test modules are independent of the DOM.
+The external-number tests cover strict parsing, shared legal targets, illegal
+placements, unplaceable numbers, zero own-roll increments, and returning to own
+rolls afterward. All three test modules are independent of the DOM.
 
 ## Board state and placement helpers
 
@@ -135,6 +141,29 @@ remain visible; those without targets are disabled. Selected-number text,
 pressed button state, and dashed cell borders identify legal choices. Keyboard
 users can use native radio-group arrow keys and tab through enabled controls.
 
+## Taking another player's failed-roll number
+
+“Take failed roll” is a secondary outlined action. Enter the announced number in
+one field with a numeric keyboard, select “Show placements”, and tap a legal
+cell. The app accepts exactly two digits from 1–6. It does not generate a reverse
+orientation, identify the opponent, or verify the opponent's roll.
+
+- `parseExternalNumber(input)` converts a valid two-character input to a number.
+- `getExternalNumberTargets(state, value)` delegates to `getLegalTargetCells`.
+- `placeExternalNumber(state, coordinate, value)` delegates to guarded placement
+  and returns new state with the same own-roll count.
+
+Editing the field clears the previous targets. Invalid or unplaceable entries
+leave the board and counter unchanged. Cancel returns to normal controls, and
+successful placement does so automatically.
+
+The interface handles one placement at a time: finish a confirmed own-roll
+placement before opening this flow. Opening it after a completed or failed own
+roll prepares the next own entry and clears the old dice without changing its
+count. Unconfirmed own-dice selections are preserved when temporarily switching
+to external entry. This keeps the normal own-roll flow intact and prevents reuse
+of a finished own roll after an external number changes the available targets.
+
 ## Manual checks
 
 1. Start the local server and open the page.
@@ -165,3 +194,29 @@ users can use native radio-group arrow keys and tab through enabled controls.
 10. Check that the console has no errors and the app assets load successfully.
     Refresh should clear the board and counter; persistence belongs to a later
     milestone.
+
+For the external-number flow:
+
+1. Reload, choose “Take failed roll”, and try `17`, `70`, `5`, `123`, `0`, and
+   non-numeric text. Each should show a validation message without adding a
+   number or changing the zero own-roll count. `123` must not become `12`.
+2. Enter `16`, show placements, and confirm only A1 is legal. Edit the field to
+   `33`: the old highlight must clear until you show placements again. Cancel
+   and verify that the board and count remain unchanged.
+3. Take `16` at A1. Normal own-roll controls should return automatically and the
+   counter should remain zero. Record an own 1/6 roll and place 61 at B1; the
+   counter should now be 1, even with repeated taps or number switching.
+4. Take another failed-roll number and enter `33`. With A1=16 and B1=61 it has no
+   target: verify the “cannot currently be placed” message, unchanged board,
+   and count 1. Change to `16` and place it at A2; the count must remain 1.
+5. Take `26` at B2. It is legal through A2's horizontal connection despite the
+   mismatch with B1 above. The counter stays 1. Next record an own 3/3 and place
+   33 at C2; the counter becomes 2. After “Next roll”, record 1/2, which now fails
+   and makes the count 3.
+6. Take `16` at A3 after that own failure. The count stays 3, and the old failed
+   roll must not become available again. Record a new own 1/2: 12 is unavailable
+   but 21 is legal at B3. Place 21 and confirm the count is 4.
+7. Check the single-field numeric keyboard on iPhone Safari and Android Chrome,
+   including narrow widths of 320, 375, and 390 px. Verify keyboard focus,
+   understandable status messages, no horizontal overflow, and no console
+   errors throughout both own and external interactions.

@@ -55,6 +55,18 @@
         </form>
         <button id="next-roll" class="action-button" type="button" hidden>Next roll</button>
       </section>
+      <section id="external-panel" class="external-panel" aria-labelledby="external-heading">
+        <h2 id="external-heading">From the table</h2>
+        <button id="take-failed-roll" class="action-button secondary-button" type="button">Take failed roll</button>
+        <p id="take-help" class="roll-instructions" hidden>Finish placing your confirmed own roll first.</p>
+        <form id="external-number-form" novalidate hidden>
+          <label for="external-number">Number announced by the other player</label>
+          <p id="external-input-help" class="roll-instructions">Two digits, each from 1–6. Your own-roll count stays unchanged.</p>
+          <input id="external-number" name="external-number" class="external-number-input" type="text" inputmode="numeric" pattern="[1-6]{2}" autocomplete="off" enterkeyhint="go" aria-describedby="external-input-help app-status" required>
+          <button id="show-external-targets" class="action-button secondary-button" type="submit">Show placements</button>
+          <button id="cancel-external-number" class="action-button secondary-button" type="button">Cancel</button>
+        </form>
+      </section>
       <noscript>
         <p>Enable JavaScript to display the board.</p>
       </noscript>

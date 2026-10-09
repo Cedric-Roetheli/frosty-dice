@@ -313,6 +313,55 @@ button:focus-visible,
   cursor: default;
 }
 
+.external-panel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #c6d4df;
+}
+
+.external-panel .action-button {
+  margin-top: 0.5rem;
+}
+
+.secondary-button {
+  border-color: #879ead;
+  color: #244f65;
+  background-color: #fff;
+}
+
+#external-number-form > label {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.external-number-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  margin-top: 0.5rem;
+  padding: 8px 12px;
+  border: 1px solid #879ead;
+  border-radius: 0.5rem;
+  color: #172b3a;
+  background-color: #fff;
+  font: inherit;
+  font-size: 1.5rem;
+}
+
+.external-number-input:focus-visible {
+  outline: 3px solid #275e75;
+  outline-offset: 2px;
+}
+
+.external-number-summary {
+  grid-column: 1 / -1;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
 .app-status,
 noscript p {
   margin-top: 0.75rem;

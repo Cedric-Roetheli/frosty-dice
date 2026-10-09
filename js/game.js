@@ -222,3 +222,27 @@ export function prepareNextOwnRoll(state) {
 
   return { ...state, currentRoll: null };
 }
+
+export function parseExternalNumber(input) {
+  if (typeof input !== "string" || input.length !== 2 || !/^[0-9]{2}$/.test(input) || !isValidNumber(Number(input))) {
+    throw new RangeError("Enter two digits, each from 1 through 6, such as 16.");
+  }
+  return Number(input);
+}
+
+export function getExternalNumberTargets(state, value) {
+  assertGameState(state);
+  if (!isValidNumber(value)) {
+    throw new RangeError("Use a two-digit number with each digit from 1 through 6.");
+  }
+  return getLegalTargetCells(state.board, value);
+}
+
+// Taking a verbally announced number changes only the board, never the own-roll count.
+export function placeExternalNumber(state, coordinate, value) {
+  assertGameState(state);
+  if (state.currentRoll?.status === "pending") {
+    throw new Error("Finish placing your confirmed own roll before taking another number.");
+  }
+  return { ...state, board: placeNumber(state.board, coordinate, value) };
+}

@@ -111,7 +111,7 @@ browser interactions passed in WebKit at 320, 375, 390, and 1024 px, including
 200% text at 320 px. Checks covered rapid/repeated actions, both orientations,
 doubles, failures, one usable orientation, and OR placement. No console errors
 or horizontal overflow occurred. App and test module paths passed at `/` and
-`/frosty-dice/`. Milestone 4 has not started.
+`/frosty-dice/`.
 
 Tasks:
 
@@ -132,7 +132,24 @@ A player can play normal turns using physical dice and the website records their
 
 ## Milestone 4 — External number entry
 
-Goal: support numbers acquired through table interaction without networking.
+Goal: support numbers acquired from another player's failed roll through verbal
+table interaction without networking.
+
+**Status: Complete for the approved failed-roll scope.** “Take failed roll” opens
+a single numeric-keyboard field. Pure helpers parse and validate the entered
+number, delegate target calculation and placement to the existing core rules,
+and preserve the own-roll count on every attempt. The UI clears stale highlights
+when the input changes, reports unplaceable numbers, and returns to normal
+controls after a placement or cancellation.
+
+All 88 automated tests pass: 36 placement, 30 own-roll, and 22 external-number
+tests. Mixed own/external interactions passed in WebKit at 320, 375, 390, and
+1024 px, including 200% text at 320 px, with no console errors or horizontal
+overflow. App and test module paths passed at `/` and `/frosty-dice/`.
+
+The current task explicitly excludes stolen-number entry. Those tasks are
+deferred to Milestone 5 alongside the special-action flow. Milestone 5 has not
+started.
 
 ### Failed-roll takeover
 
@@ -144,18 +161,10 @@ Tasks:
 - Place the chosen number
 - Do not increment the own-roll count
 
-### Stolen-number placement
-
-Tasks:
-
-- Add a way to enter a stolen number
-- Validate normal placement rules
-- Do not increment the own-roll count
-- Keep this action distinct enough that the player understands its origin
-
 Exit condition:
 
-Numbers acquired from opponents can be legally added without corrupting the own-roll divisor.
+Numbers acquired from opponents' failed rolls can be legally added without
+increasing the receiving player's own-roll count.
 
 ## Milestone 5 — Schnapszahlen and removal
 
@@ -170,6 +179,15 @@ Tasks:
 - Allow an occupied own cell to be removed when an opponent steals/destroys it
 - Require confirmation before destructive removal
 - Recalculate derived board state after removal
+
+### Stolen-number placement — deferred from Milestone 4
+
+Tasks:
+
+- Add a way to enter a stolen number
+- Validate normal placement rules
+- Do not increment the own-roll count
+- Keep this action distinct enough that the player understands its origin
 
 Blocker:
 
