@@ -189,6 +189,18 @@ Suggested hierarchy:
 
 The screen should feel like a game sheet, not like an administration dashboard.
 
+The mobile layout uses a compact title with score and own-roll count beside it.
+Number choices sit directly below the board so they do not push it downward
+during placement. Own-roll actions use filled buttons; secondary entry actions
+use outlined buttons. Selection checkmarks, explicit selected-number text, and
+dashed `+number` target previews supplement color cues. Street and goal feedback
+stay with the board, while reset remains a quiet footer action.
+
+Removal and reset reviews show the destructive result explicitly, with
+Cancel/Keep before the destructive button. Removal review defaults keyboard
+focus to Cancel and names the selected value and coordinate on the removal
+button. These changes preserve the existing confirmation and gameplay flows.
+
 ### Board
 
 The board should:

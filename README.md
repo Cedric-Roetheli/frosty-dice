@@ -6,7 +6,11 @@ with physical dice.
 
 ## Current status
 
-Milestone 8 — Local persistence is implemented. The game saves automatically
+Milestone 9 — Mobile UX polish is implemented. A compact score/roll header keeps
+the board near the top, number choices sit below it, and selected dice, legal
+targets, Street rows, and destructive reviews have clearer visual cues.
+
+The game saves automatically
 on this browser and restores the board, own-roll count, confirmed roll, and
 unfinished Schnapszahl action when reopened. “New Game / Reset” requires a
 separate confirmation before clearing the game and its save.
@@ -32,7 +36,7 @@ and lets you choose a number and legal cell. Failed own rolls also count once.
 Placement rules follow [the game rules](./docs/game-rules.md), including the
 confirmed OR behavior. Removal clears only the selected cell; all remaining
 cells stay fully active for scoring and future placements. No A1 connectivity
-check is required. Global end-of-game timing remains undecided. Milestone 9 has
+check is required. Global end-of-game timing remains undecided. Milestone 10 has
 not started.
 
 ## Run locally
@@ -172,8 +176,10 @@ counter. This prevents repeated taps from confirming or placing the same roll
 twice, while allowing later physical rolls with identical dice values.
 
 The UI automatically selects the first usable number. Other generated numbers
-remain visible; those without targets are disabled. Selected-number text,
-pressed button state, and dashed cell borders identify legal choices. Keyboard
+remain visible; those without targets are disabled. Number choices appear below
+the board, with explicit “Selected” text and pressed button state. Dashed cells
+show `+number` previews to distinguish legal targets from placed values. Checked
+dice also show a checkmark alongside the native radio state. Keyboard
 users can use native radio-group arrow keys and tab through enabled controls.
 
 ## Taking another player's failed-roll number
@@ -359,3 +365,29 @@ Milestone 8 verification ran the complete pure suite once in JavaScriptCore
 outside a browser: 170 passed, 0 failed.
 Browser persistence and reset checks are left to the user; no browser or visual
 testing was performed for this milestone.
+
+## Mobile interface
+
+The header groups score and own rolls beside a smaller title. The board uses
+compact spacing, readable values, and cell heights of 48–56 px; content can grow
+with larger text. Dice and action controls retain at least 48 px height, and the
+six dice values use the available row width. The page stays a centered game
+sheet on desktop. No animation or additional menus were added.
+
+Own-roll actions use filled buttons; secondary entry actions use outlined
+buttons. Failed rolls have explicit text and a distinct feedback panel.
+Schnapszahl instructions are shorter and grouped with the optional action.
+Street rows use a warm fill, inset border, and ×2 marker. Goal feedback sits with
+the board, while local-save notices appear beneath the action feedback.
+
+Removal review shows the exact number and coordinate on its destructive
+button. The selected cell has a checkmark and pressed state, and focus moves to
+Cancel while the player reviews it. Both removal and reset keep separate
+confirmation controls, with Cancel/Keep first and the destructive choice below.
+The reset entry is a smaller footer action with the same touch height.
+
+Game rules, state transitions, and persistence formats are unchanged. Design
+evaluation is left to the user; no browser automation, screenshot analysis,
+viewport testing, or visual-regression testing was performed for Milestone 9.
+The automated suite ran once in JavaScriptCore: 170 passed, 0 failed. UI module
+syntax also passed without executing DOM code.

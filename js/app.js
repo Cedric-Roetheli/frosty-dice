@@ -36,6 +36,7 @@ const confirmButton = document.getElementById("confirm-roll");
 const nextButton = document.getElementById("next-roll");
 const rollPanel = document.getElementById("roll-panel");
 const placementControls = document.getElementById("placement-controls");
+const placementHelp = document.getElementById("placement-help");
 const numberOptions = document.getElementById("number-options");
 const appStatus = document.getElementById("app-status");
 const takeButton = document.getElementById("take-failed-roll");
@@ -57,6 +58,11 @@ const cancelNewGameButton = document.getElementById("cancel-new-game");
 function showStorageStatus(message) {
   storageStatus.textContent = message;
   storageStatus.hidden = message.length === 0;
+}
+
+function showAppStatus(message, tone = "info") {
+  appStatus.textContent = message;
+  appStatus.dataset.tone = tone;
 }
 
 function updateGame(nextGame) {
@@ -95,6 +101,9 @@ function createCell(coordinate, targets) {
   cell.dataset.coordinate = coordinate;
   cell.className = "board-cell";
   cell.disabled = removingOwnNumber ? value === null : !isTarget;
+  if (value !== null) {
+    cell.classList.add("board-cell--occupied");
+  }
 
   const marker = coordinate === "A1" ? "Start" : coordinate === "D7" ? "Goal" : "";
   const labels = [coordinate];
@@ -111,10 +120,16 @@ function createCell(coordinate, targets) {
   labels.push(value === null ? "empty" : String(value));
   if (removingOwnNumber && value !== null) {
     cell.classList.add("board-cell--removable");
+    cell.setAttribute("aria-pressed", String(removalSelection?.coordinate === coordinate));
     labels.push("select for removal");
     if (removalSelection?.coordinate === coordinate) {
       cell.classList.add("board-cell--removal-selected");
       labels.push("selected for removal");
+      const selection = document.createElement("span");
+      selection.className = "board-cell__selection";
+      selection.textContent = "✓";
+      selection.setAttribute("aria-hidden", "true");
+      cell.append(selection);
     }
   }
 
@@ -123,7 +138,7 @@ function createCell(coordinate, targets) {
     labels.push(`legal target for ${selectedNumber}`);
     const targetLabel = document.createElement("span");
     targetLabel.className = "board-cell__target";
-    targetLabel.textContent = String(selectedNumber);
+    targetLabel.textContent = `+${selectedNumber}`;
     cell.append(targetLabel);
   } else if (value !== null || marker) {
     const valueLabel = document.createElement("span");
@@ -184,7 +199,8 @@ function renderBoard(options, streetRows) {
 function renderNumberOptions(options) {
   document.getElementById("number-heading").textContent = receivingStolenNumber
     ? "Stolen number"
-    : takingFailedRoll ? "From an opponent’s failed roll" : "Choose a number";
+    : takingFailedRoll ? "Opponent’s failed roll"
+      : game.currentRoll?.status === "failed" ? "Rolled numbers" : "Choose a number";
   if (enteringNumber()) {
     const summary = document.createElement("p");
     summary.className = "external-number-summary";
@@ -192,8 +208,8 @@ function renderNumberOptions(options) {
       ? `${externalNumber} · ${options[0].targets.length} legal ${options[0].targets.length === 1 ? "target" : "targets"}`
       : "";
     numberOptions.replaceChildren(summary);
-    document.getElementById("placement-help").textContent = options[0]?.targets.length > 0
-      ? `Tap a highlighted cell to ${receivingStolenNumber ? "place" : "take"} ${externalNumber}. Own rolls stay unchanged.`
+    placementHelp.textContent = options[0]?.targets.length > 0
+      ? `Tap a dashed +${externalNumber} cell. No own roll is added.`
       : "This number cannot currently be placed.";
     return;
   }
@@ -211,13 +227,13 @@ function renderNumberOptions(options) {
     const help = document.createElement("span");
     help.textContent = option.targets.length === 0
       ? "No legal targets"
-      : `${option.targets.length} legal ${option.targets.length === 1 ? "target" : "targets"}`;
+      : `${option.value === selectedNumber ? "✓ Selected · " : ""}${option.targets.length} ${option.targets.length === 1 ? "target" : "targets"}`;
     button.append(value, help);
     return button;
   });
   numberOptions.replaceChildren(...buttons);
-  document.getElementById("placement-help").textContent = game.currentRoll?.status === "pending"
-    ? `Tap a highlighted cell to place ${selectedNumber}.`
+  placementHelp.textContent = game.currentRoll?.status === "pending"
+    ? `Tap a dashed +${selectedNumber} cell to place it.`
     : "No legal targets for this roll.";
 }
 
@@ -256,8 +272,12 @@ function render() {
   } else if (game.currentRoll?.status === "failed") {
     boardMode = "Failed roll";
   }
-  document.getElementById("board-mode").textContent = boardMode;
+  const boardModeLabel = document.getElementById("board-mode");
+  boardModeLabel.textContent = boardMode;
+  boardModeLabel.dataset.tone = removingOwnNumber ? "danger"
+    : game.currentRoll?.status === "failed" && !enteringNumber() ? "warning" : "info";
   placementControls.hidden = options.length === 0;
+  placementHelp.hidden = !enteringNumber() && game.currentRoll?.status === "failed";
   rollPanel.hidden = pending || blockedOwnControls();
   rollForm.hidden = complete;
   nextButton.hidden = !complete;
@@ -278,7 +298,7 @@ function render() {
   cancelExternalButton.textContent = receivingStolenNumber ? "Back to action" : "Cancel";
   schnapszahlPanel.hidden = !specialAction;
   document.getElementById("schnapszahl-message").textContent = specialAction
-    ? `You legally placed ${game.schnapszahlAction.value} from your own roll. You may remove one already-entered number from an opponent’s board and use it if it fits here.`
+    ? `You placed ${game.schnapszahlAction.value} from your own roll. You may remove one opponent number, even if it does not fit here.`
     : "";
   enterStolenButton.hidden = receivingStolenNumber;
   document.getElementById("removal-panel").hidden = pending || enteringNumber() || specialAction;
@@ -288,6 +308,9 @@ function render() {
     ? `Remove ${removalSelection.value} from ${removalSelection.coordinate}? Only this cell will be cleared.`
     : "No cell selected.";
   confirmRemovalButton.disabled = !removalSelection;
+  confirmRemovalButton.textContent = removalSelection
+    ? `Remove ${removalSelection.value} from ${removalSelection.coordinate}`
+    : "Confirm removal";
   newGameButton.hidden = resetConfirmOpen;
   resetConfirmation.hidden = !resetConfirmOpen;
 }
@@ -308,6 +331,11 @@ function createDiceControls() {
       const text = document.createElement("span");
       text.className = "dice-value";
       text.textContent = value;
+      const check = document.createElement("span");
+      check.className = "dice-check";
+      check.textContent = "✓";
+      check.setAttribute("aria-hidden", "true");
+      text.append(check);
       label.append(input, text);
       choices.append(label);
     }
@@ -334,15 +362,18 @@ rollForm.addEventListener("submit", (event) => {
   try {
     updateGame(confirmOwnRoll(game, ...selectedDice));
   } catch (error) {
-    appStatus.textContent = error.message;
+    showAppStatus(error.message, "error");
     return;
   }
   const options = currentOptions();
   selectedNumber = options.find((option) => option.targets.length > 0)?.value ?? null;
   const numbers = options.map((option) => option.value).join(" or ");
-  appStatus.textContent = game.currentRoll.status === "failed"
-    ? `No legal placement — failed roll (${numbers}). Own roll ${game.ownRollCount} counted.`
-    : `Own roll ${game.ownRollCount} counted. Choose ${numbers} and a highlighted cell.`;
+  showAppStatus(
+    game.currentRoll.status === "failed"
+      ? `Failed roll: ${numbers}. No legal target; own roll ${game.ownRollCount} counted.`
+      : `Own roll ${game.ownRollCount} counted. Choose a number, then tap a dashed cell.`,
+    game.currentRoll.status === "failed" ? "warning" : "info",
+  );
   render();
   if (game.currentRoll.status === "pending") {
     numberOptions.querySelector("button[aria-pressed='true']").focus();
@@ -373,7 +404,7 @@ document.getElementById("board-rows").addEventListener("click", (event) => {
     }
     removalSelection = { coordinate: cell.dataset.coordinate, value };
     render();
-    confirmRemovalButton.focus();
+    cancelRemovalButton.focus();
     return;
   }
   if (enteringNumber()) {
@@ -385,10 +416,10 @@ document.getElementById("board-rows").addEventListener("click", (event) => {
         ? placeStolenNumber(game, cell.dataset.coordinate, externalNumber)
         : placeExternalNumber(game, cell.dataset.coordinate, externalNumber));
     } catch (error) {
-      appStatus.textContent = error.message;
+      showAppStatus(error.message, "error");
       return;
     }
-    appStatus.textContent = `${receivingStolenNumber ? "Placed stolen" : "Took"} ${externalNumber} at ${cell.dataset.coordinate}. Own rolls unchanged (${game.ownRollCount}).`;
+    showAppStatus(`${receivingStolenNumber ? "Placed stolen" : "Took"} ${externalNumber} at ${cell.dataset.coordinate}. Own rolls unchanged (${game.ownRollCount}).`, "success");
     const wasStolen = receivingStolenNumber;
     takingFailedRoll = false;
     receivingStolenNumber = false;
@@ -405,10 +436,10 @@ document.getElementById("board-rows").addEventListener("click", (event) => {
   try {
     updateGame(placeOwnRollNumber(game, cell.dataset.coordinate, selectedNumber));
   } catch (error) {
-    appStatus.textContent = error.message;
+    showAppStatus(error.message, "error");
     return;
   }
-  appStatus.textContent = `Placed ${selectedNumber} at ${cell.dataset.coordinate}. Own roll ${game.ownRollCount} counted once.`;
+  showAppStatus(`Placed ${selectedNumber} at ${cell.dataset.coordinate}. Own roll ${game.ownRollCount} counted once.`, "success");
   selectedNumber = null;
   render();
   (game.schnapszahlAction ? enterStolenButton : nextButton).focus();
@@ -422,7 +453,7 @@ nextButton.addEventListener("click", () => {
   selectedDice = [null, null];
   selectedNumber = null;
   rollForm.reset();
-  appStatus.textContent = "Roll two physical dice and record their values.";
+  showAppStatus("Ready for your next physical roll.");
   render();
   document.getElementById("die-1-1").focus();
 });
@@ -441,7 +472,7 @@ takeButton.addEventListener("click", () => {
   selectedNumber = null;
   externalForm.reset();
   externalInput.removeAttribute("aria-invalid");
-  appStatus.textContent = "Enter the number announced by the other player. Your own rolls stay unchanged.";
+  showAppStatus("Enter the announced number. No own roll is added.");
   render();
   externalInput.focus();
 });
@@ -453,7 +484,7 @@ externalInput.addEventListener("input", () => {
   externalNumber = null;
   selectedNumber = null;
   externalInput.removeAttribute("aria-invalid");
-  appStatus.textContent = "Enter two digits from 1 through 6, then show placements.";
+  showAppStatus("Enter two digits from 1–6, then show placements.");
   render();
 });
 
@@ -472,17 +503,20 @@ externalForm.addEventListener("submit", (event) => {
     selectedNumber = value;
   } catch (error) {
     externalInput.setAttribute("aria-invalid", "true");
-    appStatus.textContent = error.message;
+    showAppStatus(error.message, "error");
     render();
     externalInput.focus();
     return;
   }
   externalInput.removeAttribute("aria-invalid");
-  appStatus.textContent = targets.length === 0
-    ? receivingStolenNumber
-      ? `${externalNumber} cannot be placed here. It is destroyed; nothing is added. Finish the action. Own rolls unchanged (${game.ownRollCount}).`
-      : `${externalNumber} cannot currently be placed on your board. Own rolls unchanged (${game.ownRollCount}).`
-    : `Choose a highlighted cell to ${receivingStolenNumber ? "place the stolen" : "take"} ${externalNumber}. Own rolls unchanged (${game.ownRollCount}).`;
+  showAppStatus(
+    targets.length === 0
+      ? receivingStolenNumber
+        ? `${externalNumber} cannot be placed here. It is destroyed; nothing is added. Finish the action. Own rolls unchanged (${game.ownRollCount}).`
+        : `${externalNumber} cannot currently be placed on your board. Own rolls unchanged (${game.ownRollCount}).`
+      : `Tap a dashed +${externalNumber} cell. Own rolls unchanged (${game.ownRollCount}).`,
+    targets.length === 0 ? "warning" : "info",
+  );
   render();
   if (targets.length > 0) {
     document.getElementById(`cell-${targets[0]}`).focus();
@@ -501,7 +535,7 @@ cancelExternalButton.addEventListener("click", () => {
   externalNumber = null;
   selectedNumber = null;
   externalForm.reset();
-  appStatus.textContent = wasStolen ? "Enter a stolen number or finish the Schnapszahl action without placement." : "Roll two physical dice and record their values.";
+  showAppStatus(wasStolen ? "Enter a stolen number or finish the action without placement." : "Ready for your next physical roll.");
   render();
   (wasStolen ? enterStolenButton : takeButton).focus();
 });
@@ -515,7 +549,7 @@ enterStolenButton.addEventListener("click", () => {
   selectedNumber = null;
   externalForm.reset();
   externalInput.removeAttribute("aria-invalid");
-  appStatus.textContent = "Enter the number removed from the opponent’s board. Your own rolls stay unchanged.";
+  showAppStatus("Enter the number removed from the opponent’s board. No own roll is added.");
   render();
   externalInput.focus();
 });
@@ -529,7 +563,7 @@ finishSchnapszahlButton.addEventListener("click", () => {
   externalNumber = null;
   selectedNumber = null;
   externalForm.reset();
-  appStatus.textContent = "Schnapszahl action finished without placement. Own rolls unchanged.";
+  showAppStatus("Schnapszahl action finished without placement. Own rolls unchanged.", "success");
   render();
   nextButton.focus();
 });
@@ -546,9 +580,9 @@ startRemovalButton.addEventListener("click", () => {
   removingOwnNumber = true;
   removalSelection = null;
   selectedNumber = null;
-  appStatus.textContent = "Select the occupied cell stolen or destroyed by another player, then confirm removal.";
+  showAppStatus("Select the stolen or destroyed cell. Review it before confirming removal.", "danger");
   render();
-  document.querySelector(".board-cell:not(:disabled)")?.focus();
+  (document.querySelector(".board-cell:not(:disabled)") ?? cancelRemovalButton).focus();
 });
 
 confirmRemovalButton.addEventListener("click", () => {
@@ -559,12 +593,12 @@ confirmRemovalButton.addEventListener("click", () => {
   try {
     updateGame(removeOwnNumber(game, coordinate));
   } catch (error) {
-    appStatus.textContent = error.message;
+    showAppStatus(error.message, "error");
     return;
   }
   removingOwnNumber = false;
   removalSelection = null;
-  appStatus.textContent = `Removed ${value} from ${coordinate}. Only that cell was cleared. Own rolls unchanged (${game.ownRollCount}).`;
+  showAppStatus(`Removed ${value} from ${coordinate}. Only that cell was cleared. Own rolls unchanged (${game.ownRollCount}).`, "success");
   render();
   startRemovalButton.focus();
 });
@@ -575,7 +609,7 @@ cancelRemovalButton.addEventListener("click", () => {
   }
   removingOwnNumber = false;
   removalSelection = null;
-  appStatus.textContent = "Removal cancelled. Board and own rolls unchanged.";
+  showAppStatus("Removal cancelled. Board and own rolls unchanged.");
   render();
   startRemovalButton.focus();
 });
@@ -614,7 +648,7 @@ document.getElementById("confirm-new-game").addEventListener("click", () => {
   externalForm.reset();
   externalInput.removeAttribute("aria-invalid");
   showStorageStatus("");
-  appStatus.textContent = "New game started. Roll two physical dice and record their values.";
+  showAppStatus("New game started. Record your physical roll.", "success");
   render();
   document.getElementById("die-1-1").focus();
 });
@@ -627,15 +661,15 @@ if (game.currentRoll) {
 }
 if (game.currentRoll?.status === "pending") {
   selectedNumber = currentOptions().find((option) => option.targets.length > 0).value;
-  appStatus.textContent = `Continue own roll ${game.ownRollCount}; it is already counted. Choose a number and a highlighted cell.`;
+  showAppStatus(`Continue own roll ${game.ownRollCount}; already counted. Choose a number and a dashed cell.`);
 } else if (game.schnapszahlAction) {
-  appStatus.textContent = "Your Schnapszahl action is still pending. Enter the stolen number or finish the action.";
+  showAppStatus("Schnapszahl action pending. Enter a stolen number or finish without placement.");
 } else if (game.currentRoll?.status === "failed") {
-  appStatus.textContent = `Failed own roll ${game.ownRollCount} is already counted. Choose Next roll to continue.`;
+  showAppStatus(`Failed own roll ${game.ownRollCount}; already counted. Choose Next roll to continue.`, "warning");
 } else if (game.currentRoll?.status === "placed") {
-  appStatus.textContent = `Own roll ${game.ownRollCount} is complete and counted. Choose Next roll to continue.`;
+  showAppStatus(`Own roll ${game.ownRollCount} complete and counted. Choose Next roll to continue.`, "success");
 } else {
-  appStatus.textContent = "Roll two physical dice and record their values.";
+  showAppStatus("Ready for your physical roll.");
 }
 if (restoredGame.status === "invalid") {
   showStorageStatus("Saved data could not be restored. A new game is shown; the old save is kept until you play or reset.");

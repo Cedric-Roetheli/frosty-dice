@@ -13,12 +13,10 @@
     <main>
       <header class="page-header">
         <h1>Frosty Dice</h1>
-        <p>Your game sheet at the table.</p>
-        <p class="current-score">Score <strong id="current-score">0</strong></p>
-        <p class="roll-counter">Own rolls <strong id="own-roll-count">0</strong></p>
-        <p id="street-bonus" hidden></p>
-        <p id="goal-status" class="goal-status" role="status" hidden></p>
-        <p id="storage-status" role="status" hidden></p>
+        <div class="game-stats">
+          <p class="current-score"><span>Score</span><strong id="current-score">0</strong></p>
+          <p class="roll-counter"><span>Own rolls</span><strong id="own-roll-count">0</strong></p>
+        </div>
       </header>
 
       <section class="board-sheet" aria-labelledby="board-heading">
@@ -40,20 +38,23 @@
           <thead id="board-columns"></thead>
           <tbody id="board-rows"></tbody>
         </table>
+        <p id="street-bonus" class="street-bonus" hidden></p>
+        <p id="goal-status" class="goal-status" role="status" hidden></p>
       </section>
 
-      <p id="app-status" class="app-status" role="status">Loading board…</p>
-      <section id="schnapszahl-panel" class="roll-panel" aria-labelledby="schnapszahl-heading" hidden>
+      <p id="app-status" class="app-status" role="status" aria-atomic="true">Loading board…</p>
+      <p id="storage-status" class="storage-status" role="status" hidden></p>
+      <section id="schnapszahl-panel" class="schnapszahl-panel" aria-labelledby="schnapszahl-heading" hidden>
         <h2 id="schnapszahl-heading">Schnapszahl action</h2>
         <p id="schnapszahl-message" class="roll-instructions"></p>
-        <p class="roll-instructions">Agree at the table which opponent number is removed. You may remove it even if you cannot use it yourself.</p>
-        <button id="enter-stolen-number" class="action-button secondary-button" type="button">Enter stolen number</button>
-        <button id="finish-schnapszahl" class="action-button secondary-button" type="button">Finish action / no placement</button>
+        <p class="roll-instructions">Agree at the table; the opponent removes it on their device.</p>
+        <button id="enter-stolen-number" class="action-button" type="button">Enter stolen number</button>
+        <button id="finish-schnapszahl" class="action-button secondary-button" type="button">Finish without placement</button>
       </section>
       <section id="roll-panel" class="roll-panel" aria-labelledby="roll-heading">
         <h2 id="roll-heading">Record own roll</h2>
         <form id="own-roll-form">
-          <p class="roll-instructions">Roll two physical dice, then choose their values.</p>
+          <p class="roll-instructions">Tap the values of your physical dice.</p>
           <fieldset id="die-1-group" class="die-group">
             <legend>Die 1</legend>
             <div id="die-1-values" class="dice-values"></div>
@@ -72,29 +73,29 @@
         <p id="take-help" class="roll-instructions" hidden>Finish placing your confirmed own roll first.</p>
         <form id="external-number-form" novalidate hidden>
           <label id="external-number-label" for="external-number">Number announced by the other player</label>
-          <p id="external-input-help" class="roll-instructions">Two digits, each from 1–6. Your own-roll count stays unchanged.</p>
+          <p id="external-input-help" class="roll-instructions">Two digits from 1–6. No own roll is added.</p>
           <input id="external-number" name="external-number" class="external-number-input" type="text" inputmode="numeric" pattern="[1-6]{2}" autocomplete="off" enterkeyhint="go" aria-describedby="external-input-help app-status" required>
-          <button id="show-external-targets" class="action-button secondary-button" type="submit">Show placements</button>
+          <button id="show-external-targets" class="action-button" type="submit">Show placements</button>
           <button id="cancel-external-number" class="action-button secondary-button" type="button">Cancel</button>
         </form>
       </section>
       <section id="removal-panel" class="external-panel" aria-labelledby="removal-heading">
         <h2 id="removal-heading">My number was stolen</h2>
         <button id="start-removal" class="action-button secondary-button" type="button">Number stolen from me</button>
-        <div id="removal-controls" hidden>
+        <div id="removal-controls" class="confirmation" hidden>
           <p class="roll-instructions">Select the occupied cell the other player stole or destroyed.</p>
           <p id="removal-selection" class="roll-instructions" role="status">No cell selected.</p>
-          <button id="confirm-removal" class="action-button danger-button" type="button" disabled>Confirm removal</button>
           <button id="cancel-removal" class="action-button secondary-button" type="button">Cancel removal</button>
+          <button id="confirm-removal" class="action-button danger-button" type="button" aria-describedby="removal-selection" disabled>Confirm removal</button>
         </div>
       </section>
-      <section class="external-panel" aria-labelledby="new-game-heading">
-        <h2 id="new-game-heading">New game</h2>
+      <section class="external-panel reset-panel" aria-labelledby="new-game-heading">
+        <h2 id="new-game-heading" class="visually-hidden">New game</h2>
         <button id="new-game" class="action-button secondary-button" type="button">New Game / Reset</button>
-        <div id="reset-confirmation" hidden>
-          <p class="roll-instructions">Start a new game? This clears your board, own-roll count, pending actions, and saved game.</p>
-          <button id="confirm-new-game" class="action-button danger-button" type="button">Confirm new game</button>
+        <div id="reset-confirmation" class="confirmation" hidden>
+          <p id="reset-warning" class="roll-instructions">Start a new game? Your board, own rolls, pending actions, and local save will be cleared.</p>
           <button id="cancel-new-game" class="action-button secondary-button" type="button">Keep current game</button>
+          <button id="confirm-new-game" class="action-button danger-button" type="button" aria-describedby="reset-warning">Clear game and start again</button>
         </div>
       </section>
       <noscript>

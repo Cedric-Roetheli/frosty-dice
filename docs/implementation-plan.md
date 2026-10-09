@@ -303,7 +303,7 @@ cover serialization and schema/state validation, resumed rolls/actions, derived
 values after restore, safe storage failures, and clearing only the game key.
 Browser persistence testing is left to the user; no browser
 automation, screenshots, viewport tests, or visual-regression testing are part
-of this milestone. Milestone 9 has not started.
+of this milestone.
 
 Tasks:
 
@@ -322,6 +322,28 @@ A player can close/reload the page and continue their game without data loss und
 ## Milestone 9 — Mobile UX polish
 
 Goal: make Frosty Dice pleasant at the table.
+
+**Status: Complete for the approved UX scope.**
+
+The header now groups score and own rolls beside a compact title. The board
+uses tighter spacing with readable values and 48–56 px cell heights; number
+choices sit below the board. Checked dice, explicit selected-number text,
+dashed `+number` legal targets, and clearer Street ×2 markers communicate state
+alongside color. Dice and action controls retain at least 48 px height.
+
+Own-roll actions remain primary, secondary entry actions are outlined, and
+feedback distinguishes failures, success, and errors. Schnapszahl instructions
+are shorter. Removal review names its value/coordinate, shows a checked
+selection, and focuses Cancel; removal and reset put Cancel/Keep before the
+explicit destructive button. Game rules, state transitions, and persistence
+formats are unchanged. No animations, menus, or new gameplay were added.
+
+The full automated suite ran once outside a browser in JavaScriptCore:
+170/170 tests passed. UI module syntax also passed without executing DOM code.
+Design evaluation, phone-width checks, and browser accessibility checks are
+left to the user as requested. No automated browser testing, screenshot
+analysis, multiple viewport testing, or visual-regression testing was performed.
+Milestone 10 has not started.
 
 Tasks:
 
