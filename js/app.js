@@ -16,7 +16,7 @@ import {
   prepareNextOwnRoll,
   removeOwnNumber,
 } from "./game.js";
-import "./scoring.js";
+import { getScoreBreakdown } from "./scoring.js";
 import "./storage.js";
 
 let game = createGameState();
@@ -45,6 +45,7 @@ const finishSchnapszahlButton = document.getElementById("finish-schnapszahl");
 const startRemovalButton = document.getElementById("start-removal");
 const confirmRemovalButton = document.getElementById("confirm-removal");
 const cancelRemovalButton = document.getElementById("cancel-removal");
+const scoreFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
 
 function enteringNumber() {
   return takingFailedRoll || receivingStolenNumber;
@@ -116,7 +117,7 @@ function createCell(coordinate, targets) {
   return cell;
 }
 
-function renderBoard(options) {
+function renderBoard(options, streetRows) {
   const targets = options.find((option) => option.value === selectedNumber)?.targets ?? [];
   const headerRow = document.createElement("tr");
   const corner = document.createElement("td");
@@ -137,6 +138,15 @@ function renderBoard(options) {
     const heading = document.createElement("th");
     heading.scope = "row";
     heading.textContent = rowNumber;
+    if (streetRows.includes(rowNumber)) {
+      row.className = "board-row--street";
+      heading.setAttribute("aria-label", `Row ${rowNumber}, Street, row value doubled`);
+      const marker = document.createElement("span");
+      marker.className = "street-marker";
+      marker.textContent = "×2";
+      marker.setAttribute("aria-hidden", "true");
+      heading.append(marker);
+    }
     row.append(heading);
 
     for (const column of columns) {
@@ -194,12 +204,17 @@ function renderNumberOptions(options) {
 
 function render() {
   const options = currentOptions();
+  const scoring = getScoreBreakdown(game.board, game.ownRollCount);
   const pending = game.currentRoll?.status === "pending";
   const complete = game.currentRoll !== null && !pending;
   const specialAction = Boolean(game.schnapszahlAction);
-  renderBoard(options);
+  renderBoard(options, scoring.streetRows);
   renderNumberOptions(options);
   document.getElementById("own-roll-count").textContent = game.ownRollCount;
+  document.getElementById("current-score").textContent = scoreFormat.format(scoring.score);
+  const streetBonus = document.getElementById("street-bonus");
+  streetBonus.hidden = scoring.streetRows.length === 0;
+  streetBonus.textContent = `Street bonus +${scoring.streetBonus} · ${scoring.streetRows.length} ${scoring.streetRows.length === 1 ? "Street" : "Streets"}`;
   let boardMode = "Ready";
   if (removingOwnNumber) {
     boardMode = "Select removal";

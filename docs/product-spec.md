@@ -229,6 +229,12 @@ The UI should make clear:
 
 Do not require the player to calculate the score manually.
 
+All numbers currently present count toward the numerator, including disconnected
+cells and numbers received or stolen from opponents. Complete horizontal Street
+rows contribute twice their row sum. Only own counted rolls form the divisor;
+when that count is zero, display a score of 0. Placements, removals, and confirmed
+own rolls immediately update the derived display.
+
 ## 9. Local persistence
 
 The current game should automatically persist on the player's device using `localStorage`.

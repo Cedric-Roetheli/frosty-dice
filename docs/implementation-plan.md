@@ -178,13 +178,12 @@ without placement. Stolen placement preserves the own-roll count.
 “Number stolen from me” enables occupied-cell selection and shows the selected
 coordinate and value before explicit confirmation. Removal clears exactly that
 cell, leaves every other value untouched, and preserves the own-roll count.
-No connectivity consequences or scoring eligibility have been decided or coded.
+No connectivity consequences were decided or coded in Milestone 5.
 
 All 115 automated tests pass: the prior 88 tests plus 27 focused Schnapszahl,
 stolen-number, and removal tests. Only the three requested main browser flows
 were checked, once each, in WebKit, with no console errors. No screenshot,
-viewport sweep, or visual-regression checks were performed. Milestone 6 has not
-started.
+viewport sweep, or visual-regression checks were performed.
 
 Tasks:
 
@@ -208,7 +207,8 @@ Tasks:
 Deferred rule decision:
 
 Resolve the “broken network after stealing” rule in `docs/game-rules.md` before
-implementing connectivity consequences, scoring eligibility, or repair behavior.
+implementing connectivity consequences or repair behavior. Scoring eligibility
+is now independently confirmed in section 10 of `docs/game-rules.md`.
 The approved Milestone 5 scope is selected-cell removal only and is not blocked
 by that outstanding decision.
 
@@ -219,6 +219,17 @@ The website correctly supports the local-device parts of Schnapszahl attacks wit
 ## Milestone 6 — Scoring and streets
 
 Goal: automate scoring.
+
+**Status: Complete.** Pure functions in `js/scoring.js` detect complete horizontal
+Streets, sum every occupied cell including disconnected values, add each Street
+row's full value as a bonus, and divide by own counted rolls. A zero divisor
+returns a score of 0 without division. The UI derives the score and bonus on each
+render and marks Street rows with a gold inset border and a ×2 label.
+
+The automated suite ran once outside a browser in JavaScriptCore: 133/133 tests
+passed (the prior 115 plus 18 focused scoring tests). No automated browser,
+screenshot, viewport, or visual-regression checks were performed. Milestone 7
+has not started.
 
 Tasks:
 
@@ -231,9 +242,11 @@ Tasks:
 - Make street status visually clear
 - Handle zero-roll state safely
 
-Blocker:
+Confirmed scoring eligibility:
 
-Exact scoring of disconnected cells depends on the unresolved network rule.
+Every number currently present counts toward the numerator, irrespective of
+connectivity. This resolves the earlier scoring blocker without deciding
+placement activity, repairs, or goal connectivity.
 
 Exit condition:
 

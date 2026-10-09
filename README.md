@@ -6,10 +6,14 @@ with physical dice.
 
 ## Current status
 
-Milestone 5 — Schnapszahlen and removal is implemented. A legally placed own-roll
-Schnapszahl enables one optional opponent-removal action at the table and a
-stolen-number entry flow. “Number stolen from me” removes one occupied own cell
-after selection and explicit confirmation.
+Milestone 6 — Scoring and Streets is implemented. The current score is displayed
+above the board, Street rows carry a ×2 marker and gold inset border, and a
+Street-bonus total appears when applicable. Every currently occupied cell counts,
+including disconnected values left after removal.
+
+A legally placed own-roll Schnapszahl still enables an optional table action and
+stolen-number entry. “Number stolen from me” clears one occupied cell after
+explicit confirmation; the score and Street bonus are recalculated afterward.
 
 “Take failed roll” continues to accept a verbally announced number and show legal
 targets. Failed-roll and stolen-number placements do not add an own roll or
@@ -19,8 +23,9 @@ The existing own-roll flow still records physical dice, confirms each roll once,
 and lets you choose a number and legal cell. Failed own rolls also count once.
 
 Placement rules follow [the game rules](./docs/game-rules.md), including the
-confirmed OR behavior. Removal clears only the selected cell; disconnected-cell
-consequences remain unresolved. Milestone 6 has not started.
+confirmed OR behavior. Removal clears only the selected cell. Scoring eligibility
+is resolved; other disconnected-network consequences remain open. Milestone 7
+has not started.
 
 ## Run locally
 
@@ -53,7 +58,7 @@ frosty-dice/
 ├── js/
 │   ├── app.js                  # Board rendering, own rolls, and failed-roll entry
 │   ├── game.js                 # Pure board, roll, and external-number helpers
-│   ├── scoring.js              # Future score and street calculations
+│   ├── scoring.js              # Pure score and Street calculations
 │   └── storage.js              # Future local persistence
 ├── assets/                     # Reserved for static assets
 │   └── .gitkeep                 # Keeps the empty directory in Git
@@ -63,6 +68,7 @@ frosty-dice/
 │   ├── own-roll.test.js        # Dice, roll lifecycle, and counter tests
 │   ├── external-number.test.js # Failed-roll entry and counter regression tests
 │   ├── schnapszahl.test.js     # Own special actions, stolen numbers, and removal
+│   ├── scoring.test.js         # Street bonuses, division, and scoring eligibility
 │   ├── assert.js               # Shared dependency-free assertions
 │   └── test-runner.js          # Displays test results
 └── docs/
@@ -90,7 +96,7 @@ release milestone.
 
 Start the local server above and open
 [http://127.0.0.1:8000/tests/](http://127.0.0.1:8000/tests/).
-The page should report `115/115 tests passed; 0 failed.` No packages, test framework,
+The page should report `133/133 tests passed; 0 failed.` No packages, test framework,
 or build step are required.
 
 The tests cover board structure, cell lookup, A1-only first placement, horizontal
@@ -103,7 +109,9 @@ The external-number tests cover strict parsing, shared legal targets, illegal
 placements, unplaceable numbers, zero own-roll increments, and returning to own
 rolls afterward. The Schnapszahl tests cover source-specific triggering,
 dismissal, guarded stolen placement, unchanged counters, and single-cell removal
-without deleting downstream values. All four test modules are independent of
+without deleting downstream values. Scoring tests cover complete and incomplete
+rows, non-Streets, sums, multiple bonuses, disconnected values, received numbers,
+division, zero rolls, and immutability. All five test modules are independent of
 the DOM.
 
 ## Board state and placement helpers
@@ -124,7 +132,8 @@ Public helpers accept uppercase cell coordinates such as `B2`.
 All rule helpers live in `js/game.js` and are independent of the DOM. They
 support boards created and extended through these helpers. Removal clears only
 the selected cell; the existing placement helpers remain local and do not
-determine disconnected-network consequences or scoring eligibility.
+determine disconnected-network consequences. Scoring independently includes all
+currently present values, as confirmed in the rules.
 
 ## Own-roll state and controls
 
@@ -250,8 +259,8 @@ action without adding a number. The opponent handles deletion on their own devic
 `removeOwnNumber` clears one occupied cell in a copied board and leaves the
 own-roll count unchanged. The UI requires selection, displays the coordinate
 and value, and requires a separate confirmation. Cancel preserves the board.
-Remaining cells retain their values; no network validity, inactivity, scoring,
-repair, or end-game consequences are inferred.
+Remaining cells retain their values. Their points continue to count; no network
+validity, inactivity, repair, or end-game consequences are inferred.
 
 For the final manual UI check:
 
@@ -273,5 +282,23 @@ For the final manual UI check:
    Finish the action without placement; the board remains just A1=66 and count 1.
    Also test dismissing a special action directly and backing out of stolen entry.
 
-Automated verification for this milestone was limited to the full test suite and
+Milestone 5 verification was limited to the full test suite and
 the three main browser flows once each, without screenshots or viewport sweeps.
+
+## Score and Streets
+
+`isStreetRow(row)` detects four occupied A–D cells containing consecutive
+increasing integers. `getScoreBreakdown(board, ownRollCount)` returns the base
+sum, Street bonus, one-based Street row numbers, scoring numerator, divisor, and
+score. `calculateScore` returns the numeric score alone. These helpers are pure
+and do not evaluate connectivity or placement history.
+
+Each Street contributes its full row sum a second time. All other occupied
+values count once, including disconnected and received values. A zero own-roll
+count produces score 0 even when the numerator is positive. The underlying
+calculation retains full precision; the UI formats the score to at most two
+decimal places without storing derived score or Street state.
+
+Milestone 6 verification ran the complete pure suite once in JavaScriptCore
+outside a browser: 133 passed, 0 failed. No automated browser, screenshot,
+viewport, visual-regression, or manual-style UI checks were performed.

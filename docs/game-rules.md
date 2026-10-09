@@ -168,6 +168,9 @@ Street value:
 
 A row that is not four consecutive increasing values receives no street bonus.
 
+Only complete horizontal A–D rows qualify. Incomplete rows, vertical sequences,
+and non-consecutive rows such as `11, 13, 14, 15` are not Streets.
+
 ## 7. Schnapszahlen
 
 The Schnapszahlen are:
@@ -205,8 +208,8 @@ that player's own counted rolls.
 
 For Milestone 5, removal clears only the selected cell. Other entered values
 remain untouched. This temporary scope does not decide their connectivity,
-activity, scoring eligibility, or repair behavior; those questions remain open
-in section 11.1.
+activity, or repair behavior; those questions remain open in section 11.1.
+Scoring eligibility is confirmed in section 10: all numbers still present count.
 
 ## 8. Numbers received without an own roll
 
@@ -233,9 +236,19 @@ The core scoring rule is:
 
 `Score = scoring numerator / number of the player's own counted rolls`
 
-The scoring numerator consists of the player's scoring board values, with street bonuses applied.
+**Every number currently present on the player's board counts toward the score,
+even if that cell has become disconnected from A1 after a removal.**
 
-Numbers obtained from opponents can contribute to the board value but do not create an additional own roll in the divisor.
+The scoring numerator is the sum of all currently occupied cells, with each
+Street's entire row value counted twice. Multiple Streets are each doubled.
+Connectivity does not affect either base points or Street bonuses.
+
+Numbers received from opponents' failed rolls or stolen from opponents count
+normally in the numerator. They do not create an additional own roll or
+retroactively change the own-roll divisor.
+
+When the number of own counted rolls is zero, display a score of `0` without
+dividing by zero, including when the board already contains received numbers.
 
 The player with the highest final score wins.
 
@@ -249,8 +262,10 @@ If an opponent removes a number that disconnects cells farther along a branch fr
 
 - Do the disconnected numbers remain on the board?
 - Are they temporarily inactive?
-- Do they count toward the score?
 - Can the connection later be repaired?
+
+Scoring is resolved independently of these remaining questions: every number
+currently present counts, including disconnected cells, as defined in section 10.
 
 ### 11.2 End-of-game timing
 
@@ -264,10 +279,6 @@ When one player reaches D7:
 ### 11.3 Multiple opponents wanting the same failed roll
 
 If several opponents can use a failed roll, priority/order has not yet been defined.
-
-### 11.4 Exact scoring eligibility
-
-The treatment of disconnected or otherwise inactive cells in the final scoring numerator depends on the unresolved network rule above.
 
 ## 12. Rules that must not be assumed
 
