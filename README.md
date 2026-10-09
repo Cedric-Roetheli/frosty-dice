@@ -1,4 +1,4 @@
-# Frosty Dice
+# Frosty Dice :)
 
 A mobile-first browser companion for a physical multiplayer dice game. Each
 player uses their own phone as a game sheet while playing together at the table
