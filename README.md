@@ -6,10 +6,14 @@ with physical dice.
 
 ## Current status
 
-Milestone 7 — Goal detection is implemented. A clear notice appears whenever
-D7 is occupied, including after own-roll, failed-roll takeover, and stolen-number
-placement. Removing another cell does not undo this notice; removing D7 clears
-current goal detection.
+Milestone 8 — Local persistence is implemented. The game saves automatically
+on this browser and restores the board, own-roll count, confirmed roll, and
+unfinished Schnapszahl action when reopened. “New Game / Reset” requires a
+separate confirmation before clearing the game and its save.
+
+A clear notice appears whenever D7 is occupied, including after own-roll,
+failed-roll takeover, and stolen-number placement. Removing another cell does
+not undo this notice; removing D7 clears current goal detection.
 
 The score, Street markers, and bonuses continue to update from the current
 board. Every present number counts, including values disconnected after removal.
@@ -28,7 +32,7 @@ and lets you choose a number and legal cell. Failed own rolls also count once.
 Placement rules follow [the game rules](./docs/game-rules.md), including the
 confirmed OR behavior. Removal clears only the selected cell; all remaining
 cells stay fully active for scoring and future placements. No A1 connectivity
-check is required. Global end-of-game timing remains undecided. Milestone 8 has
+check is required. Global end-of-game timing remains undecided. Milestone 9 has
 not started.
 
 ## Run locally
@@ -40,8 +44,8 @@ python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
 Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) in a modern browser. The page
-should display an empty board, an own-roll count of zero, and two rows of dice
-values. Stop the server with `Ctrl+C`.
+should restore any saved game, or display an empty board and zero own rolls on
+first use. Stop the server with `Ctrl+C`.
 
 Use an HTTP server rather than opening `index.html` directly, because browsers
 restrict JavaScript module loading from `file://` URLs. Python is only a local
@@ -63,7 +67,7 @@ frosty-dice/
 │   ├── app.js                  # Board rendering, own rolls, and failed-roll entry
 │   ├── game.js                 # Pure board, roll, and external-number helpers
 │   ├── scoring.js              # Pure score and Street calculations
-│   └── storage.js              # Future local persistence
+│   └── storage.js              # Versioned local saves, validation, and restoration
 ├── assets/                     # Reserved for static assets
 │   └── .gitkeep                 # Keeps the empty directory in Git
 ├── tests/
@@ -74,6 +78,7 @@ frosty-dice/
 │   ├── schnapszahl.test.js     # Own special actions, stolen numbers, and removal
 │   ├── scoring.test.js         # Street bonuses, division, and scoring eligibility
 │   ├── goal.test.js            # Goal detection and active cells after removal
+│   ├── storage.test.js         # Save validation, round trips, and storage failures
 │   ├── assert.js               # Shared dependency-free assertions
 │   └── test-runner.js          # Displays test results
 └── docs/
@@ -101,7 +106,7 @@ release milestone.
 
 Start the local server above and open
 [http://127.0.0.1:8000/tests/](http://127.0.0.1:8000/tests/).
-The page should report `145/145 tests passed; 0 failed.` No packages, test framework,
+The page should report `170/170 tests passed; 0 failed.` No packages, test framework,
 or build step are required.
 
 The tests cover board structure, cell lookup, A1-only first placement, horizontal
@@ -118,7 +123,11 @@ without deleting downstream values. Scoring tests cover complete and incomplete
 rows, non-Streets, sums, multiple bonuses, disconnected values, received numbers,
 division, zero rolls, and immutability. Goal tests cover current D7 occupancy,
 all placement sources, removal and re-placement, and active predecessors after
-A1 removal. All six test modules are independent of the DOM.
+A1 removal. Storage tests cover canonical serialization, schema and state
+validation, resumed roll counting, unfinished actions, recalculated derived
+values, missing/corrupt saves, storage exceptions, and clearing only the game
+key. All seven test modules are independent of the DOM; storage operations use
+an in-memory test double.
 
 ## Board state and placement helpers
 
@@ -192,7 +201,8 @@ of a finished own roll after an external number changes the available targets.
 
 ## Manual checks
 
-1. Start the local server and open the page.
+1. Start the local server and open the page. Confirm “New Game / Reset” if a
+   previous game is saved before starting these fresh-game scenarios.
 2. Confirm the empty 4 × 7 board, Start/A1, Goal/D7, and zero own rolls. Confirmation
    stays disabled until both dice are selected. Change either selection and
    verify the counter remains zero.
@@ -208,10 +218,10 @@ of a finished own roll after an external number changes the available targets.
 6. Use “Next roll” to record another physical 3/3. This separate failed roll should
    increase the counter to 4. Next, record 1/6 and place 16 at A2 (count 5), then
    record 2/6 and place 26 at B2 (count 6), exercising the OR rule.
-7. Reload for a fresh board. Record 6/1 and place 61 at A1. On the next 1/6 roll,
+7. Confirm a New Game for a fresh board. Record 6/1 and place 61 at A1. On the next 1/6 roll,
    16 should remain visible but disabled, while 61 can be placed at A2. This roll
    must not be declared failed.
-8. Reload and record 3/3 on the empty board. Only 33 should appear and it should
+8. Confirm a New Game and record 3/3 on the empty board. Only 33 should appear and it should
    be placeable at A1. Its legal own-roll placement should then show the
    Schnapszahl action. Finish that optional action to return to the own-roll flow.
 9. Repeat the interactions in iPhone Safari and Android Chrome, at 320, 375, and
@@ -219,12 +229,12 @@ of a finished own roll after an external number changes the available targets.
    no horizontal scrolling, keyboard focus, and screen-reader labels for dice,
    number choices, and legal target cells. Vertical scrolling is expected.
 10. Check that the console has no errors and the app assets load successfully.
-    Refresh should clear the board and counter; persistence belongs to a later
-    milestone.
+    Refresh should restore the board and counter, including any confirmed roll
+    or unfinished Schnapszahl action.
 
 For the external-number flow:
 
-1. Reload, choose “Take failed roll”, and try `17`, `70`, `5`, `123`, `0`, and
+1. Confirm a New Game, choose “Take failed roll”, and try `17`, `70`, `5`, `123`, `0`, and
    non-numeric text. Each should show a validation message without adding a
    number or changing the zero own-roll count. `123` must not become `12`.
 2. Enter `16`, show placements, and confirm only A1 is legal. Edit the field to
@@ -271,7 +281,7 @@ recalculation or path repair is required. Global end-game timing remains open.
 
 For the final manual UI check:
 
-1. Reload and record own 1/1. Before placement there should be no special prompt.
+1. Confirm a New Game and record own 1/1. Before placement there should be no special prompt.
    Place 11 at A1 and confirm that the prompt permits removing one opponent
    number verbally, including a number that cannot fit here.
 2. Enter a stolen `16`, show placements, and place it at B1. The counter stays 1,
@@ -282,10 +292,10 @@ For the final manual UI check:
 4. Try cancelling removal, selecting another occupied cell before confirmation,
    and tapping empty cells. Cancellation must preserve every value and empty
    cells must not be selectable.
-5. Reload, take a failed-roll `33` at A1, and confirm no special action appears.
-   Reload again, take `66` at A1, then record own 3/3: it fails, counts once, and
+5. Confirm a New Game, take a failed-roll `33` at A1, and confirm no special action appears.
+   Start another New Game, take `66` at A1, then record own 3/3: it fails, counts once, and
    must not show a special action.
-6. Reload, record own 6/6, and place 66 at A1. Try stolen `11`: it cannot fit.
+6. Confirm a New Game, record own 6/6, and place 66 at A1. Try stolen `11`: it cannot fit.
    Finish the action without placement; the board remains just A1=66 and count 1.
    Also test dismissing a special action directly and backing out of stolen entry.
 
@@ -321,3 +331,31 @@ The notice does not end the table game or enforce stopping turns.
 Milestone 7 verification ran the complete pure suite once in JavaScriptCore
 outside a browser: 145 passed, 0 failed. No browser or visual testing was
 performed.
+
+## Local persistence and reset
+
+`js/storage.js` stores a JSON envelope under `frosty-dice.game` with schema
+`version: 1`. Only `board`, `ownRollCount`, `currentRoll` (dice and status), and
+`schnapszahlAction` (the placed double) are saved. Confirmed rolls stay counted
+and locked after reload; unfinished placements and special actions can resume.
+Unconfirmed dice selections, external-number drafts, and removal selections
+are temporary UI state. Score, Streets, legal targets, and goal detection are
+recalculated from the restored canonical state.
+
+Saving follows every canonical state change, including roll confirmation,
+placement from any source, failed own rolls, removal, finishing a special
+action, and preparing the next roll. No manual Save button is needed. Missing
+saves start normally. Invalid or incompatible data shows a fresh game and a
+notice; the old record is retained until a new state is saved or reset is
+confirmed. Unavailable storage or quota errors show a notice without stopping
+play. Saves are local to this browser and site origin; no game data is sent away.
+
+“New Game / Reset” opens an explicit confirmation. “Keep current game” cancels
+without changing state or storage. Confirmation removes only this game's key
+and returns the UI to its empty initial state. If the saved record cannot be
+cleared, the current game is kept and the interface reports the failure.
+
+Milestone 8 verification ran the complete pure suite once in JavaScriptCore
+outside a browser: 170 passed, 0 failed.
+Browser persistence and reset checks are left to the user; no browser or visual
+testing was performed for this milestone.

@@ -18,6 +18,7 @@
         <p class="roll-counter">Own rolls <strong id="own-roll-count">0</strong></p>
         <p id="street-bonus" hidden></p>
         <p id="goal-status" class="goal-status" role="status" hidden></p>
+        <p id="storage-status" role="status" hidden></p>
       </header>
 
       <section class="board-sheet" aria-labelledby="board-heading">
@@ -85,6 +86,15 @@
           <p id="removal-selection" class="roll-instructions" role="status">No cell selected.</p>
           <button id="confirm-removal" class="action-button danger-button" type="button" disabled>Confirm removal</button>
           <button id="cancel-removal" class="action-button secondary-button" type="button">Cancel removal</button>
+        </div>
+      </section>
+      <section class="external-panel" aria-labelledby="new-game-heading">
+        <h2 id="new-game-heading">New game</h2>
+        <button id="new-game" class="action-button secondary-button" type="button">New Game / Reset</button>
+        <div id="reset-confirmation" hidden>
+          <p class="roll-instructions">Start a new game? This clears your board, own-roll count, pending actions, and saved game.</p>
+          <button id="confirm-new-game" class="action-button danger-button" type="button">Confirm new game</button>
+          <button id="cancel-new-game" class="action-button secondary-button" type="button">Keep current game</button>
         </div>
       </section>
       <noscript>

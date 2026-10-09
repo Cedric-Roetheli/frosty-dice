@@ -253,6 +253,24 @@ The current game should automatically persist on the player's device using `loca
 
 Refreshing or closing the browser should not normally lose the game.
 
+Persist a versioned record containing only the board, own counted rolls,
+confirmed own-roll dice/status, and any unfinished Schnapszahl action. Restore
+these automatically and recalculate score, Streets, legal targets, and goal
+status. Unconfirmed dice selections and temporary input/removal drafts are not
+saved.
+
+Save automatically after canonical state changes, including confirmation of a
+failed own roll, all placement sources, removal, and finishing an action. Missing
+saves start a new game. Malformed or incompatible saves must not crash the app;
+show a notice and a fresh game, keeping the old record until play saves new state
+or the player confirms reset. Storage access and quota failures show a notice
+while allowing the current in-memory game to continue.
+
+Provide “New Game / Reset” with a separate explicit confirmation and a way to
+keep the current game. Confirmation clears the board, own-roll count, pending
+actions, temporary UI state, and this game's saved record. If clearing storage
+fails, keep the current game and report the failure.
+
 No data should leave the device in V1.
 
 ## 10. Mobile-first requirements

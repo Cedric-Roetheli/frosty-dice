@@ -263,7 +263,7 @@ while the existing score display and interaction controls remain available.
 The full automated suite ran once outside a browser in JavaScriptCore:
 145/145 tests passed (the prior 133 plus 12 focused goal and active-cell tests).
 No browser automation, screenshots, viewport tests, or visual-regression tests
-were performed. Milestone 8 has not started.
+were performed.
 
 Tasks:
 
@@ -285,6 +285,25 @@ Goal detection matches the final confirmed rules.
 ## Milestone 8 — Local persistence
 
 Goal: make the website safe to use during a real game.
+
+**Status: Complete.** `js/storage.js` implements schema-versioned serialization, validation, and safe
+localStorage access. Canonical saves contain the board, own-roll count,
+confirmed roll dice/status, and unfinished Schnapszahl action. The UI saves
+each canonical transition and restores automatically, recalculating score,
+Streets, legal targets, and goal status through the existing pure helpers.
+
+“New Game / Reset” requires a separate confirmation, clears only this game's
+storage key, and returns all game/UI state to the initial state. Missing saves
+start normally; corrupt/incompatible saves and storage failures show notices
+without crashing. A reset that cannot clear storage keeps the current game.
+
+The full automated suite ran once outside a browser in JavaScriptCore:
+170/170 tests passed (the prior 145 plus 25 focused storage tests). The new tests
+cover serialization and schema/state validation, resumed rolls/actions, derived
+values after restore, safe storage failures, and clearing only the game key.
+Browser persistence testing is left to the user; no browser
+automation, screenshots, viewport tests, or visual-regression testing are part
+of this milestone. Milestone 9 has not started.
 
 Tasks:
 

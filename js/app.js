@@ -18,16 +18,18 @@ import {
   removeOwnNumber,
 } from "./game.js";
 import { getScoreBreakdown } from "./scoring.js";
-import "./storage.js";
+import { clearSavedGame, loadGame, saveGame } from "./storage.js";
 
-let game = createGameState();
-let selectedDice = [null, null];
+const restoredGame = loadGame();
+let game = restoredGame.state;
+let selectedDice = game.currentRoll ? [...game.currentRoll.dice] : [null, null];
 let selectedNumber = null;
 let takingFailedRoll = false;
 let externalNumber = null;
 let receivingStolenNumber = false;
 let removingOwnNumber = false;
 let removalSelection = null;
+let resetConfirmOpen = false;
 
 const rollForm = document.getElementById("own-roll-form");
 const confirmButton = document.getElementById("confirm-roll");
@@ -47,6 +49,22 @@ const startRemovalButton = document.getElementById("start-removal");
 const confirmRemovalButton = document.getElementById("confirm-removal");
 const cancelRemovalButton = document.getElementById("cancel-removal");
 const scoreFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+const storageStatus = document.getElementById("storage-status");
+const newGameButton = document.getElementById("new-game");
+const resetConfirmation = document.getElementById("reset-confirmation");
+const cancelNewGameButton = document.getElementById("cancel-new-game");
+
+function showStorageStatus(message) {
+  storageStatus.textContent = message;
+  storageStatus.hidden = message.length === 0;
+}
+
+function updateGame(nextGame) {
+  game = nextGame;
+  showStorageStatus(saveGame(game)
+    ? ""
+    : "Local saving is unavailable. Changes may not survive a reload.");
+}
 
 function enteringNumber() {
   return takingFailedRoll || receivingStolenNumber;
@@ -270,6 +288,8 @@ function render() {
     ? `Remove ${removalSelection.value} from ${removalSelection.coordinate}? Only this cell will be cleared.`
     : "No cell selected.";
   confirmRemovalButton.disabled = !removalSelection;
+  newGameButton.hidden = resetConfirmOpen;
+  resetConfirmation.hidden = !resetConfirmOpen;
 }
 
 function createDiceControls() {
@@ -312,7 +332,7 @@ rollForm.addEventListener("submit", (event) => {
     return;
   }
   try {
-    game = confirmOwnRoll(game, ...selectedDice);
+    updateGame(confirmOwnRoll(game, ...selectedDice));
   } catch (error) {
     appStatus.textContent = error.message;
     return;
@@ -361,9 +381,9 @@ document.getElementById("board-rows").addEventListener("click", (event) => {
       return;
     }
     try {
-      game = receivingStolenNumber
+      updateGame(receivingStolenNumber
         ? placeStolenNumber(game, cell.dataset.coordinate, externalNumber)
-        : placeExternalNumber(game, cell.dataset.coordinate, externalNumber);
+        : placeExternalNumber(game, cell.dataset.coordinate, externalNumber));
     } catch (error) {
       appStatus.textContent = error.message;
       return;
@@ -383,7 +403,7 @@ document.getElementById("board-rows").addEventListener("click", (event) => {
     return;
   }
   try {
-    game = placeOwnRollNumber(game, cell.dataset.coordinate, selectedNumber);
+    updateGame(placeOwnRollNumber(game, cell.dataset.coordinate, selectedNumber));
   } catch (error) {
     appStatus.textContent = error.message;
     return;
@@ -398,7 +418,7 @@ nextButton.addEventListener("click", () => {
   if (blockedOwnControls() || !game.currentRoll || game.currentRoll.status === "pending") {
     return;
   }
-  game = prepareNextOwnRoll(game);
+  updateGame(prepareNextOwnRoll(game));
   selectedDice = [null, null];
   selectedNumber = null;
   rollForm.reset();
@@ -412,7 +432,7 @@ takeButton.addEventListener("click", () => {
     return;
   }
   if (game.currentRoll !== null) {
-    game = prepareNextOwnRoll(game);
+    updateGame(prepareNextOwnRoll(game));
     selectedDice = [null, null];
     rollForm.reset();
   }
@@ -504,7 +524,7 @@ finishSchnapszahlButton.addEventListener("click", () => {
   if (!game.schnapszahlAction) {
     return;
   }
-  game = finishSchnapszahlAction(game);
+  updateGame(finishSchnapszahlAction(game));
   receivingStolenNumber = false;
   externalNumber = null;
   selectedNumber = null;
@@ -519,7 +539,7 @@ startRemovalButton.addEventListener("click", () => {
     return;
   }
   if (game.currentRoll !== null) {
-    game = prepareNextOwnRoll(game);
+    updateGame(prepareNextOwnRoll(game));
     selectedDice = [null, null];
     rollForm.reset();
   }
@@ -537,7 +557,7 @@ confirmRemovalButton.addEventListener("click", () => {
   }
   const { coordinate, value } = removalSelection;
   try {
-    game = removeOwnNumber(game, coordinate);
+    updateGame(removeOwnNumber(game, coordinate));
   } catch (error) {
     appStatus.textContent = error.message;
     return;
@@ -560,6 +580,68 @@ cancelRemovalButton.addEventListener("click", () => {
   startRemovalButton.focus();
 });
 
+newGameButton.addEventListener("click", () => {
+  resetConfirmOpen = true;
+  render();
+  cancelNewGameButton.focus();
+});
+
+cancelNewGameButton.addEventListener("click", () => {
+  resetConfirmOpen = false;
+  render();
+  newGameButton.focus();
+});
+
+document.getElementById("confirm-new-game").addEventListener("click", () => {
+  if (!resetConfirmOpen) {
+    return;
+  }
+  if (!clearSavedGame()) {
+    showStorageStatus("The saved game could not be cleared. Your current game was kept; try again or cancel.");
+    return;
+  }
+  // Do not immediately save an empty record: reset deliberately removes the save.
+  game = createGameState();
+  selectedDice = [null, null];
+  selectedNumber = null;
+  takingFailedRoll = false;
+  externalNumber = null;
+  receivingStolenNumber = false;
+  removingOwnNumber = false;
+  removalSelection = null;
+  resetConfirmOpen = false;
+  rollForm.reset();
+  externalForm.reset();
+  externalInput.removeAttribute("aria-invalid");
+  showStorageStatus("");
+  appStatus.textContent = "New game started. Roll two physical dice and record their values.";
+  render();
+  document.getElementById("die-1-1").focus();
+});
+
 createDiceControls();
+if (game.currentRoll) {
+  for (let die = 1; die <= 2; die += 1) {
+    document.getElementById(`die-${die}-${game.currentRoll.dice[die - 1]}`).checked = true;
+  }
+}
+if (game.currentRoll?.status === "pending") {
+  selectedNumber = currentOptions().find((option) => option.targets.length > 0).value;
+  appStatus.textContent = `Continue own roll ${game.ownRollCount}; it is already counted. Choose a number and a highlighted cell.`;
+} else if (game.schnapszahlAction) {
+  appStatus.textContent = "Your Schnapszahl action is still pending. Enter the stolen number or finish the action.";
+} else if (game.currentRoll?.status === "failed") {
+  appStatus.textContent = `Failed own roll ${game.ownRollCount} is already counted. Choose Next roll to continue.`;
+} else if (game.currentRoll?.status === "placed") {
+  appStatus.textContent = `Own roll ${game.ownRollCount} is complete and counted. Choose Next roll to continue.`;
+} else {
+  appStatus.textContent = "Roll two physical dice and record their values.";
+}
+if (restoredGame.status === "invalid") {
+  showStorageStatus("Saved data could not be restored. A new game is shown; the old save is kept until you play or reset.");
+} else if (restoredGame.status === "unavailable") {
+  showStorageStatus("Local storage is unavailable. Changes may not survive a reload.");
+} else if (restoredGame.status === "restored") {
+  showStorageStatus("Saved game restored.");
+}
 render();
-appStatus.textContent = "Roll two physical dice and record their values.";
