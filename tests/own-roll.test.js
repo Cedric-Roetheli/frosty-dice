@@ -8,9 +8,11 @@ import {
   getRollOptions,
   isFailedRoll,
   isValidDieValue,
+  placeExternalNumber,
   placeNumber,
   placeOwnRollNumber,
   prepareNextOwnRoll,
+  removeOwnNumber,
 } from "../js/game.js";
 import { assert, assertDeepEqual, assertEqual, assertThrows } from "./assert.js";
 
@@ -88,6 +90,39 @@ export function runOwnRollTests() {
       { value: 26, targets: ["C1", "B2"] },
       { value: 62, targets: ["C1", "B2"] },
     ]);
+  });
+
+  test("An own roll with only a leftward target is usable and counts once", () => {
+    let game = gameWithStart(1, 6, 16);
+    game = placeExternalNumber(game, "B1", 24);
+    game = removeOwnNumber(game, "A1");
+    assertDeepEqual(getRollOptions(game.board, 1, 1), [{ value: 11, targets: ["A1"] }]);
+    assert(!isFailedRoll(game.board, 1, 1));
+    const confirmed = confirmOwnRoll(game, 1, 1);
+    assertEqual(confirmed.currentRoll.status, "pending");
+    assertEqual(confirmed.ownRollCount, 2);
+    assertThrows(() => placeOwnRollNumber(confirmed, "C1", 11), "greater than 24");
+    const placed = placeOwnRollNumber(confirmed, "A1", 11);
+    assertEqual(getCellValue(placed.board, "A1"), 11);
+    assertEqual(placed.ownRollCount, 2);
+    assertDeepEqual(placed.schnapszahlAction, { value: 11 });
+    assertThrows(() => confirmOwnRoll(placed, 1, 1), "already confirmed");
+  });
+
+  test("Own-roll options and guarded placement use an equal lower neighbor", () => {
+    let game = gameWithStart(1, 6, 16);
+    game = placeExternalNumber(game, "A2", 16);
+    game = removeOwnNumber(game, "A1");
+    const confirmed = confirmOwnRoll(game, 1, 6);
+    assertDeepEqual(getRollOptions(confirmed.board, 1, 6), [
+      { value: 16, targets: ["A1", "A3"] },
+      { value: 61, targets: ["B2"] },
+    ]);
+    assertThrows(() => placeOwnRollNumber(confirmed, "B1", 16), "orthogonally adjacent");
+    const placed = placeOwnRollNumber(confirmed, "A1", 16);
+    assertEqual(getCellValue(placed.board, "A1"), 16);
+    assertEqual(getCellValue(placed.board, "A2"), 16);
+    assertEqual(placed.ownRollCount, 2);
   });
 
   test("One unusable orientation does not make an otherwise usable roll fail", () => {

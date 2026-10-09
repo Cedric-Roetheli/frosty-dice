@@ -112,10 +112,34 @@ export function runSchnapszahlTests() {
     assertDeepEqual(original.schnapszahlAction, { value: 11 });
   });
 
+  test("A stolen number uses a larger right neighbor and consumes only its special action", () => {
+    let game = placeExternalNumber(createGameState(), "A1", 16);
+    game = placeExternalNumber(game, "B1", 24);
+    game = removeOwnNumber(game, "A1");
+    game = placeOwnRollNumber(confirmOwnRoll(game, 3, 3), "C1", 33);
+    assertDeepEqual(getExternalNumberTargets(game, 16), ["A1"]);
+    const placed = placeStolenNumber(game, "A1", 16);
+    assertEqual(getCellValue(placed.board, "A1"), 16);
+    assertEqual(placed.schnapszahlAction, null);
+    assertEqual(placed.ownRollCount, 1);
+  });
+
+  test("A stolen number can be placed above an equal lower neighbor without adding a roll", () => {
+    let game = placeExternalNumber(createGameState(), "A1", 16);
+    game = placeExternalNumber(game, "A2", 16);
+    game = removeOwnNumber(game, "A1");
+    game = placeOwnRollNumber(confirmOwnRoll(game, 3, 3), "B2", 33);
+    assertDeepEqual(getExternalNumberTargets(game, 16), ["A1", "A3"]);
+    const placed = placeStolenNumber(game, "A1", 16);
+    assertEqual(getCellValue(placed.board, "A1"), 16);
+    assertEqual(placed.schnapszahlAction, null);
+    assertEqual(placed.ownRollCount, 1);
+  });
+
   test("A stolen number must obey horizontal, vertical, and occupied-cell rules", () => {
     const game = ownDouble(22);
     assertThrows(() => placeStolenNumber(game, "B1", 16), "greater than 22");
-    assertThrows(() => placeStolenNumber(game, "A2", 33), "match 22");
+    assertThrows(() => placeStolenNumber(game, "A2", 33), "equal to 22 above");
     assertThrows(() => placeStolenNumber(game, "A1", 33), "cannot be overwritten");
     assertEqual(game.ownRollCount, 1);
     assertDeepEqual(game.schnapszahlAction, { value: 22 });

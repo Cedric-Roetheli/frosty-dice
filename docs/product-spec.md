@@ -235,8 +235,8 @@ The website should explain why an action cannot be completed.
 Examples:
 
 - “26 cannot be placed on your current board.”
-- “Vertical placements must match the number above.”
-- “Horizontal placements must be greater than the number to the left.”
+- “C2 needs an occupied orthogonally adjacent cell (left, right, above, or below).”
+- “C2 must be smaller than 44 to the right or equal to 22 below.”
 - “No legal placement — failed roll.”
 
 Avoid silent failure.

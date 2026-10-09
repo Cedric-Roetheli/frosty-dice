@@ -64,7 +64,7 @@ export function hasReachedGoal(board) {
   return isCellOccupied(board, "D7");
 }
 
-// Placement depends only on current immediate predecessors. Removal does not
+// Placement depends only on current orthogonally adjacent cells. Removal does not
 // deactivate other cells or require an A1 connectivity check.
 export function validatePlacement(board, coordinate, value) {
   if (!isValidBoard(board)) {
@@ -91,26 +91,38 @@ export function validatePlacement(board, coordinate, value) {
   }
 
   const leftValue = column > 0 ? board[row][column - 1] : null;
+  const rightValue = column < BOARD_COLUMNS.length - 1 ? board[row][column + 1] : null;
   const valueAbove = row > 0 ? board[row - 1][column] : null;
-  const validHorizontalConnection = leftValue !== null && value > leftValue;
-  const validVerticalConnection = valueAbove !== null && value === valueAbove;
+  const valueBelow = row < BOARD_ROW_COUNT - 1 ? board[row + 1][column] : null;
+  const validLeftConnection = leftValue !== null && value > leftValue;
+  const validRightConnection = rightValue !== null && value < rightValue;
+  const validUpperConnection = valueAbove !== null && value === valueAbove;
+  const validLowerConnection = valueBelow !== null && value === valueBelow;
 
-  if (validHorizontalConnection || validVerticalConnection) {
+  if (validLeftConnection || validRightConnection || validUpperConnection || validLowerConnection) {
     return { legal: true, reason: null };
   }
-  if (leftValue === null && valueAbove === null) {
-    return { legal: false, reason: `${coordinate} needs an occupied cell immediately to its left or above.` };
+
+  const requirements = [];
+  if (leftValue !== null) {
+    requirements.push(`greater than ${leftValue} to the left`);
   }
-  if (leftValue === null) {
-    return { legal: false, reason: `Vertical placement in ${coordinate} must match ${valueAbove} above.` };
+  if (rightValue !== null) {
+    requirements.push(`smaller than ${rightValue} to the right`);
   }
-  if (valueAbove === null) {
-    return { legal: false, reason: `Horizontal placement in ${coordinate} must be greater than ${leftValue} to the left.` };
+  if (valueAbove !== null) {
+    requirements.push(`equal to ${valueAbove} above`);
+  }
+  if (valueBelow !== null) {
+    requirements.push(`equal to ${valueBelow} below`);
+  }
+  if (requirements.length === 0) {
+    return { legal: false, reason: `${coordinate} needs an occupied orthogonally adjacent cell (left, right, above, or below).` };
   }
 
   return {
     legal: false,
-    reason: `${coordinate} must be greater than ${leftValue} to the left or equal to ${valueAbove} above.`,
+    reason: `${coordinate} must be ${requirements.join(" or ")}.`,
   };
 }
 

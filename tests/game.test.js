@@ -145,6 +145,18 @@ export function runGameTests() {
     assert(canPlaceNumber(boardWith(["A1", 11]), "B1", 12));
   });
 
+  test("A larger right neighbor supports leftward placement with a strict inequality", () => {
+    const board = createEmptyBoard();
+    board[0][1] = 24; // B1 remains after A1 was removed.
+    assert(canPlaceNumber(board, "A1", 16));
+    assertDeepEqual(getLegalTargetCells(board, 16), ["A1"]);
+    assertEqual(getCellValue(placeNumber(board, "A1", 16), "A1"), 16);
+    for (const value of [24, 26]) {
+      assert(!canPlaceNumber(board, "A1", value));
+      assertThrows(() => placeNumber(board, "A1", value), "smaller than 24 to the right");
+    }
+  });
+
   test("A1=16 allows A2=16 vertically", () => {
     const board = boardWith(["A1", 16]);
     assert(canPlaceNumber(board, "A2", 16));
@@ -154,7 +166,7 @@ export function runGameTests() {
   test("A1=16 rejects a different vertical value A2=24", () => {
     const board = boardWith(["A1", 16]);
     assert(!canPlaceNumber(board, "A2", 24));
-    assertThrows(() => placeNumber(board, "A2", 24), "match 16");
+    assertThrows(() => placeNumber(board, "A2", 24), "equal to 16 above");
   });
 
   test("B1 and A2 can branch independently from A1 in either placement order", () => {
@@ -176,34 +188,43 @@ export function runGameTests() {
     }
   });
 
-  test("Horizontal placement cannot skip an empty immediate predecessor", () => {
+  test("Horizontal placement cannot skip an empty immediate neighbor", () => {
     const board = boardWith(["A1", 16]);
     assert(!canPlaceNumber(board, "C1", 24));
     assert(!canPlaceNumber(board, "D1", 61));
-    assertThrows(() => placeNumber(board, "C1", 24), "immediately to its left or above");
+    assertThrows(() => placeNumber(board, "C1", 24), "orthogonally adjacent");
   });
 
-  test("Vertical placement cannot skip an empty immediate predecessor", () => {
+  test("Vertical placement cannot skip an empty immediate neighbor", () => {
     const board = boardWith(["A1", 16]);
     assert(!canPlaceNumber(board, "A3", 16));
     assert(!canPlaceNumber(board, "A7", 16));
-    assertThrows(() => placeNumber(board, "A3", 16), "immediately to its left or above");
+    assertThrows(() => placeNumber(board, "A3", 16), "orthogonally adjacent");
   });
 
   test("A diagonal neighbor cannot support placement", () => {
-    const board = boardWith(["A1", 16]);
-    assert(!canPlaceNumber(board, "B2", 16));
-    assert(!canPlaceNumber(board, "B2", 24));
-    assertThrows(() => placeNumber(board, "B2", 24), "immediately to its left or above");
+    for (const [row, column] of [[0, 0], [0, 2], [2, 0], [2, 2]]) {
+      const board = createEmptyBoard();
+      board[row][column] = 33;
+      for (const value of [22, 33, 44]) {
+        assert(!canPlaceNumber(board, "B2", value));
+        assert(!getLegalTargetCells(board, value).includes("B2"));
+        assertThrows(() => placeNumber(board, "B2", value), "orthogonally adjacent");
+      }
+    }
   });
 
-  test("A cell below the target cannot support upward placement", () => {
+  test("An equal lower neighbor supports upward placement", () => {
     const board = boardWith(["A1", 16], ["A2", 16], ["A3", 16], ["B3", 33], ["C3", 44]);
-    assert(!canPlaceNumber(board, "C2", 44));
-    assertThrows(() => placeNumber(board, "C2", 44), "immediately to its left or above");
+    assert(canPlaceNumber(board, "C2", 44));
+    assert(getLegalTargetCells(board, 44).includes("C2"));
+    assertEqual(getCellValue(placeNumber(board, "C2", 44), "C2"), 44);
+    assert(!canPlaceNumber(board, "C2", 43));
+    assertThrows(() => placeNumber(board, "C2", 43), "equal to 44 below");
+    assert(!canPlaceNumber(board, "C1", 44)); // C2 is still empty in the input.
   });
 
-  test("Row 1 progresses only through its immediate left cell", () => {
+  test("Row 1 places using in-bounds neighboring cells", () => {
     let board = boardWith(["A1", 16], ["B1", 24]);
     assert(canPlaceNumber(board, "C1", 35));
     assert(!canPlaceNumber(board, "D1", 46));
@@ -212,11 +233,11 @@ export function runGameTests() {
     assertEqual(getCellValue(placeNumber(board, "D1", 46), "D1"), 46);
   });
 
-  test("Column A has no horizontal predecessor or row-wrapping connection", () => {
+  test("Column A does not wrap to column D", () => {
     const board = boardWith(["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14]);
     assert(canPlaceNumber(board, "A2", 11));
     assert(!canPlaceNumber(board, "A2", 24));
-    assertThrows(() => placeNumber(board, "A2", 24), "match 11");
+    assertThrows(() => placeNumber(board, "A2", 24), "equal to 11 above");
   });
 
   test("Row 7 and column D use the same immediate placement rules", () => {
@@ -254,6 +275,60 @@ export function runGameTests() {
     const board = boardWith(["A1", 16], ["B1", 24], ["A2", 16]);
     assert(!canPlaceNumber(board, "B2", 16));
     assertThrows(() => placeNumber(board, "B2", 16), "greater than 16 to the left or equal to 24 above");
+  });
+
+  test("OR: any one of four relationships suffices despite three incompatible neighbors", () => {
+    for (const [left, right, above, below] of [
+      [16, 11, 22, 44], // Only left is valid for 33.
+      [66, 46, 22, 44], // Only right is valid.
+      [66, 11, 33, 44], // Only upper is valid.
+      [66, 11, 22, 33], // Only lower is valid.
+    ]) {
+      const board = createEmptyBoard();
+      board[1][0] = left;
+      board[1][2] = right;
+      board[0][1] = above;
+      board[2][1] = below;
+      assert(canPlaceNumber(board, "B2", 33));
+      assert(getLegalTargetCells(board, 33).includes("B2"));
+      assertEqual(getCellValue(placeNumber(board, "B2", 33), "B2"), 33);
+    }
+  });
+
+  test("OR: four incompatible occupied neighbors cannot support a placement", () => {
+    const board = createEmptyBoard();
+    board[1][0] = 66;
+    board[1][2] = 11;
+    board[0][1] = 22;
+    board[2][1] = 44;
+    assert(!canPlaceNumber(board, "B2", 33));
+    assertThrows(() => placeNumber(board, "B2", 33), "greater than 66 to the left or smaller than 11 to the right or equal to 22 above or equal to 44 below");
+  });
+
+  test("A nonempty board still requires an occupied orthogonal neighbor, including at A1", () => {
+    const board = createEmptyBoard();
+    board[3][2] = 22;
+    for (const coordinate of ["A1", "C1", "A4", "C7", "D7"]) {
+      assert(!canPlaceNumber(board, coordinate, 22));
+      assertThrows(() => placeNumber(board, coordinate, 22), "orthogonally adjacent");
+    }
+  });
+
+  test("Enumeration includes leftward and upward targets in row order", () => {
+    const board = createEmptyBoard();
+    board[3][2] = 22;
+    assertDeepEqual(getLegalTargetCells(board, 16), ["B4"]);
+    assertDeepEqual(getLegalTargetCells(board, 22), ["C3", "C5"]);
+    assertDeepEqual(getLegalTargetCells(board, 33), ["D4"]);
+  });
+
+  test("Reverse connections at board corners stay in bounds and never wrap rows", () => {
+    const board = createEmptyBoard();
+    board[6][3] = 46;
+    assertDeepEqual(getLegalTargetCells(board, 24), ["C7"]);
+    assertDeepEqual(getLegalTargetCells(board, 46), ["D6"]);
+    assert(!canPlaceNumber(board, "A7", 61));
+    assert(!canPlaceNumber(board, "A6", 46));
   });
 
   test("Enumeration returns all valid targets across branches in row order", () => {
@@ -327,12 +402,12 @@ export function runGameTests() {
     assertEqual(JSON.stringify(board), before);
   });
 
-  test("Validation explains first-placement, horizontal, vertical, and missing-predecessor failures", () => {
+  test("Validation explains first-placement, horizontal, vertical, and missing-neighbor failures", () => {
     assert(validatePlacement(createEmptyBoard(), "B1", 16).reason.includes("first number"));
     const board = boardWith(["A1", 16]);
     assert(validatePlacement(board, "B1", 12).reason.includes("greater than 16"));
-    assert(validatePlacement(board, "A2", 24).reason.includes("match 16"));
-    assert(validatePlacement(board, "B2", 26).reason.includes("immediately to its left or above"));
+    assert(validatePlacement(board, "A2", 24).reason.includes("equal to 16 above"));
+    assert(validatePlacement(board, "B2", 26).reason.includes("orthogonally adjacent"));
     assertDeepEqual(validatePlacement(board, "B1", 24), { legal: true, reason: null });
   });
 

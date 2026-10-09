@@ -92,6 +92,23 @@ Exit condition:
 
 Given a candidate number and board state, the application reliably identifies every legal placement.
 
+### Later playtesting update — Four-direction placement
+
+The shared validator now follows the updated section 4 of `game-rules.md`,
+using OR logic across occupied left, right, upper, and lower neighbors. The
+completely empty board still starts at A1. This supersedes the original
+left/upper-only placement behavior recorded in Milestone 2.
+
+Own rolls, failed-roll takeover, stolen numbers, and target highlighting reuse
+that validator. Regression tests cover reverse placement, disagreeing neighbors,
+board edges, the start exception, counters, and restored completed roll history.
+No other gameplay or UI behavior is changed by this rule update.
+
+The full automated suite ran once outside a browser in JavaScriptCore:
+183/183 tests passed (the prior 170 plus 13 focused regression tests).
+No browser automation, screenshots, viewport tests, or visual-regression tests
+were performed.
+
 ## Milestone 3 — Own-roll flow
 
 Goal: make the core turn playable with physical dice.

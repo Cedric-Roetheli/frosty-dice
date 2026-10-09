@@ -9,6 +9,7 @@ import {
   placeExternalNumber,
   placeOwnRollNumber,
   prepareNextOwnRoll,
+  removeOwnNumber,
 } from "../js/game.js";
 import { assert, assertDeepEqual, assertEqual, assertThrows } from "./assert.js";
 
@@ -109,10 +110,32 @@ export function runExternalNumberTests() {
     const original = gameWithOwnStart(1, 6, 16);
     assertThrows(() => placeExternalNumber(original, "B1", 16), "greater than 16");
     assertThrows(() => placeExternalNumber(original, "B1", 12), "greater than 16");
-    assertThrows(() => placeExternalNumber(original, "A2", 24), "match 16");
+    assertThrows(() => placeExternalNumber(original, "A2", 24), "equal to 16 above");
     assertEqual(getCellValue(placeExternalNumber(original, "A2", 16).board, "A2"), 16);
     assertEqual(getCellValue(placeExternalNumber(original, "B1", 61).board, "B1"), 61);
     assertEqual(original.ownRollCount, 1);
+  });
+
+  test("A failed-roll number can use a larger right neighbor without counting an own roll", () => {
+    let game = gameWithOwnStart(1, 6, 16);
+    game = placeExternalNumber(game, "B1", 24);
+    game = removeOwnNumber(game, "A1");
+    assertDeepEqual(getExternalNumberTargets(game, 16), ["A1"]);
+    assertDeepEqual(getExternalNumberTargets(game, 16), getLegalTargetCells(game.board, 16));
+    const placed = placeExternalNumber(game, "A1", 16);
+    assertEqual(getCellValue(placed.board, "A1"), 16);
+    assertEqual(placed.ownRollCount, 1);
+  });
+
+  test("A failed-roll number can use an equal lower neighbor without triggering an action", () => {
+    let game = gameWithOwnStart(2, 2, 22);
+    game = placeExternalNumber(game, "A2", 22);
+    game = removeOwnNumber(game, "A1");
+    assertDeepEqual(getExternalNumberTargets(game, 22), ["A1", "A3"]);
+    const placed = placeExternalNumber(game, "A1", 22);
+    assertEqual(getCellValue(placed.board, "A1"), 22);
+    assertEqual(placed.schnapszahlAction, null);
+    assertEqual(placed.ownRollCount, 1);
   });
 
   test("Rejected external placements preserve the whole input state", () => {
@@ -145,7 +168,7 @@ export function runExternalNumberTests() {
     const game = gameWithOwnStart(6, 6, 66);
     const before = JSON.stringify(game);
     assertDeepEqual(getExternalNumberTargets(game, 33), []);
-    assertThrows(() => placeExternalNumber(game, "A2", 33), "match 66");
+    assertThrows(() => placeExternalNumber(game, "A2", 33), "equal to 66 above");
     assertEqual(JSON.stringify(game), before);
     assertEqual(game.ownRollCount, 1);
   });

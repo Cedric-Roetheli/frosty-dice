@@ -54,80 +54,75 @@ number do not add another counted roll.
 
 ## 3. First placement
 
-A player's first legally placed number is entered in `A1`.
+On a completely empty board, the first number must be placed in `A1`.
+Once the board contains any numbers, use the four-direction adjacency rule in
+section 4, including for an empty A1. If all numbers have been removed, the
+empty-board A1 start rule applies again.
 
 ## 4. Legal placement
 
-The board grows from already occupied cells. Branching is allowed.
+An empty cell can receive a number when it forms a valid relationship with at
+least one occupied orthogonally adjacent cell: left, right, above, or below.
+Branching is allowed. Diagonal cells and cells farther away cannot support a
+placement. The completely empty board uses the A1 exception in section 3.
 
 ### 4.1 Horizontal placement
 
-Moving one column to the right means:
+An occupied horizontal neighbor may support placement from either side:
 
-- `A → B`
-- `B → C`
-- `C → D`
+- **Left neighbor:** the new number must be **strictly greater** than the
+  number immediately to its left: `newValue > leftValue`.
+- **Right neighbor:** the new number must be **strictly smaller** than the
+  number immediately to its right: `newValue < rightValue`.
 
-The new number must be **strictly greater** than the number immediately to its left.
-
-It does not need to be exactly one greater.
+Any strictly larger/smaller value satisfies the corresponding relationship;
+the difference does not have to be exactly 1. Consecutive +1 values are relevant
+only to Streets.
 
 Examples:
 
-- `16 → 24` is legal.
-- `16 → 61` is legal.
-- `16 → 16` is not legal horizontally.
-- `26 → 25` is not legal horizontally.
-
-Formally:
-
-`newValue > leftValue`
+- `[16] [empty]`: placing `24` or `61` on the right is legal.
+- `[empty] [24]`: placing `16` on the left is legal.
+- Equal horizontal values do not satisfy either horizontal relationship.
+- A new `25` to the right of `26` does not satisfy the left-neighbor rule.
 
 ### 4.2 Vertical placement
 
-Moving one row downward means:
+An occupied vertical neighbor may support placement from either direction:
 
-- `1 → 2`
-- `2 → 3`
-- …
-- `6 → 7`
-
-The new number must be **exactly equal** to the number immediately above it.
+- **Upper neighbor:** the new number must be **exactly equal** to the number
+  immediately above it: `newValue === valueAbove`.
+- **Lower neighbor:** the new number must be **exactly equal** to the number
+  immediately below it: `newValue === valueBelow`.
 
 Examples:
 
 - `A1 = 16`, `A2 = 16` is legal.
-- `A1 = 16`, `A2 = 26` is not legal.
-
-Formally:
-
-`newValue === valueAbove`
+- With `C3 = 22`, a new `22` can be placed at either `C2` or `C4`.
+- A new `26` below `16` does not satisfy the upper-neighbor rule.
 
 ### 4.3 Branching
 
 A player's network may branch.
 
-An occupied cell can therefore support development both:
-
-- to the right, using the horizontal rule; and
-- downward, using the vertical rule.
+An occupied cell can support development left or right using the corresponding
+horizontal relationship, and above or below using equality.
 
 The player is not restricted to one linear path from A1 to D7.
 
 ### 4.4 Alternative supporting connections
 
-For a cell other than A1, an occupied neighbor immediately to the left or
-immediately above can support the new placement. **Either valid predecessor is
-sufficient.** Horizontal and vertical conditions are alternatives, not cumulative
-requirements.
+Once the board contains numbers, **one valid occupied orthogonal neighbor is
+sufficient**, including when placing in an empty A1. The four neighboring
+relationships are alternatives, not cumulative requirements.
 
 Formally:
 
-`legal = validHorizontalConnection || validVerticalConnection`
+`legal = validLeftConnection || validRightConnection || validUpperConnection || validLowerConnection`
 
-If both neighbors are occupied, a neighbor that does not satisfy its rule does
-not invalidate a valid connection from the other direction. The target must
-still be empty.
+If multiple neighbors are occupied, an incompatible relationship does not
+invalidate a valid relationship with another neighbor. The target must still
+be empty.
 
 Example:
 
@@ -144,8 +139,8 @@ counts toward scoring, and can still serve as the immediate predecessor for
 future legal horizontal or vertical placements.
 
 The game does not require recalculating connectivity back to A1 after removals.
-Placement validation continues to depend on the current immediate left and/or
-upper neighbor according to sections 4.1, 4.2, and 4.4.
+Placement validation uses the current immediate left, right, upper, and lower
+neighbors according to sections 4.1, 4.2, and 4.4.
 
 ## 5. Failed rolls
 

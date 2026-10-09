@@ -263,6 +263,25 @@ export function runStorageTests() {
     assertThrows(() => placeOwnRollNumber(restored, "A1", 12), "finished roll");
   });
 
+  test("Restored completed roll history stays counted while new targets use four directions", () => {
+    let state = placeExternalNumber(createGameState(), "A1", 16);
+    state = placeExternalNumber(state, "B1", 24);
+    state = removeOwnNumber(state, "A1");
+    // This roll was a failure under the previous placement rule.
+    state.ownRollCount = 1;
+    state.currentRoll = { dice: [1, 1], status: "failed" };
+    const restored = deserializeGame(serializeGame(state));
+    assertEqual(restored.currentRoll.status, "failed");
+    assertEqual(restored.ownRollCount, 1);
+    assertDeepEqual(getRollOptions(restored.board, 1, 1), [{ value: 11, targets: ["A1"] }]);
+    assertThrows(() => placeOwnRollNumber(restored, "A1", 11), "finished roll");
+    const confirmed = confirmOwnRoll(prepareNextOwnRoll(restored), 1, 1);
+    assertEqual(confirmed.currentRoll.status, "pending");
+    const placed = placeOwnRollNumber(confirmed, "A1", 11);
+    assertEqual(placed.ownRollCount, 2);
+    assertEqual(getCellValue(deserializeGame(serializeGame(placed)).board, "A1"), 11);
+  });
+
   test("Serialization and validation do not mutate frozen game state", () => {
     const state = confirmOwnRoll(createGameState(), 1, 6);
     const before = JSON.stringify(state);

@@ -33,8 +33,9 @@ trigger a Schnapszahl action. Removing a cell does not change the own-roll count
 The existing own-roll flow still records physical dice, confirms each roll once,
 and lets you choose a number and legal cell. Failed own rolls also count once.
 
-Placement rules follow [the game rules](./docs/game-rules.md), including the
-confirmed OR behavior. Removal clears only the selected cell; all remaining
+Placement rules follow [the game rules](./docs/game-rules.md): any valid left,
+right, upper, or lower relationship suffices. Only a completely empty board
+requires its first placement at A1. Removal clears only the selected cell; all remaining
 cells stay fully active for scoring and future placements. No A1 connectivity
 check is required. Global end-of-game timing remains undecided. Milestone 10 has
 not started.
@@ -110,12 +111,13 @@ release milestone.
 
 Start the local server above and open
 [http://127.0.0.1:8000/tests/](http://127.0.0.1:8000/tests/).
-The page should report `170/170 tests passed; 0 failed.` No packages, test framework,
+The page should report `183/183 tests passed; 0 failed.` No packages, test framework,
 or build step are required.
 
 The tests cover board structure, cell lookup, A1-only first placement, horizontal
-and vertical rules, branching, occupied cells, missing predecessors, diagonal
-and upward rejection, board edges, OR behavior in both directions, legal-target
+and vertical rules in all four directions, branching, occupied cells, missing
+immediate neighbors, diagonal rejection, board edges, OR behavior when occupied
+neighbors disagree, legal-target
 enumeration, invalid inputs, and input immutability. The own-roll tests cover
 unique number generation, doubles, valid and invalid dice, legal roll options,
 failed rolls, guarded placement, and counting once through repeated actions.
@@ -132,6 +134,16 @@ validation, resumed roll counting, unfinished actions, recalculated derived
 values, missing/corrupt saves, storage exceptions, and clearing only the game
 key. All seven test modules are independent of the DOM; storage operations use
 an in-memory test double.
+
+The placement-rule update adds focused reverse-direction coverage for own,
+failed-roll, and stolen-number flows, including refilling A1 after removal.
+Restored completed rolls remain counted and finished, while new legal targets
+are derived using the current rule. Save format, scoring, and goal detection
+are unchanged.
+
+The updated suite ran once in JavaScriptCore: 183 passed, 0 failed. No browser
+automation, screenshots, viewport tests, or visual-regression tests were performed
+for this rule change.
 
 ## Board state and placement helpers
 
@@ -153,6 +165,13 @@ support boards created and extended through these helpers. Removal clears only
 the selected cell; the existing placement helpers remain local and do not
 require A1 connectivity after removal. All remaining cells stay active and
 continue to score and support placements, as confirmed in the rules.
+
+On a nonempty board, the new value must be greater than an occupied immediate
+left neighbor, smaller than an occupied immediate right neighbor, equal to an
+occupied upper neighbor, or equal to an occupied lower neighbor. One valid
+relationship suffices; incompatible neighbors do not veto it. An empty cell
+without an occupied orthogonal neighbor cannot receive a number. On a completely
+empty board, A1 alone is a legal target for any valid number.
 
 ## Own-roll state and controls
 
