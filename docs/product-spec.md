@@ -154,9 +154,14 @@ Suggested interaction:
 1. Select an occupied cell.
 2. Choose “Number stolen / remove”.
 3. Confirm the destructive action.
-4. Recalculate board validity, score, streets, and goal status.
+4. Update the board, then recalculate derived information once the corresponding
+   rules and implementation milestones are complete.
 
 The consequences for disconnected branches are still an open game-rule question and must follow `game-rules.md` once decided.
+
+Milestone 5 clears only the confirmed cell and preserves all other values and
+the own-roll count. It does not implement connectivity consequences, scoring,
+streets, or goal behavior.
 
 ## 5. Main screen
 

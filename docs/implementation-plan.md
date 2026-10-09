@@ -147,9 +147,8 @@ tests. Mixed own/external interactions passed in WebKit at 320, 375, 390, and
 1024 px, including 200% text at 320 px, with no console errors or horizontal
 overflow. App and test module paths passed at `/` and `/frosty-dice/`.
 
-The current task explicitly excludes stolen-number entry. Those tasks are
-deferred to Milestone 5 alongside the special-action flow. Milestone 5 has not
-started.
+Milestone 4 was limited to failed-roll numbers. Stolen-number entry was deferred
+to Milestone 5 alongside the special-action flow.
 
 ### Failed-roll takeover
 
@@ -170,6 +169,23 @@ increasing the receiving player's own-roll count.
 
 Goal: support the special attack mechanic locally.
 
+**Status: Complete for the approved local-device scope.** A legal own-roll
+Schnapszahl placement creates one optional special action. Failed-roll takeover
+and stolen-number placement do not trigger it. The player can enter a stolen
+number using the shared input and core placement helpers, or finish the action
+without placement. Stolen placement preserves the own-roll count.
+
+“Number stolen from me” enables occupied-cell selection and shows the selected
+coordinate and value before explicit confirmation. Removal clears exactly that
+cell, leaves every other value untouched, and preserves the own-roll count.
+No connectivity consequences or scoring eligibility have been decided or coded.
+
+All 115 automated tests pass: the prior 88 tests plus 27 focused Schnapszahl,
+stolen-number, and removal tests. Only the three requested main browser flows
+were checked, once each, in WebKit, with no console errors. No screenshot,
+viewport sweep, or visual-regression checks were performed. Milestone 6 has not
+started.
+
 Tasks:
 
 - Detect `11, 22, 33, 44, 55, 66`
@@ -189,9 +205,12 @@ Tasks:
 - Do not increment the own-roll count
 - Keep this action distinct enough that the player understands its origin
 
-Blocker:
+Deferred rule decision:
 
-Before finalizing consequences of removing a connecting cell, resolve the “broken network after stealing” rule in `docs/game-rules.md`.
+Resolve the “broken network after stealing” rule in `docs/game-rules.md` before
+implementing connectivity consequences, scoring eligibility, or repair behavior.
+The approved Milestone 5 scope is selected-cell removal only and is not blocked
+by that outstanding decision.
 
 Exit condition:
 

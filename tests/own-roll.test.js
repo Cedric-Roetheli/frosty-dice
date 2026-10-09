@@ -2,6 +2,7 @@ import {
   confirmOwnRoll,
   createEmptyBoard,
   createGameState,
+  finishSchnapszahlAction,
   generateRollNumbers,
   getCellValue,
   getRollOptions,
@@ -15,7 +16,7 @@ import { assert, assertDeepEqual, assertEqual, assertThrows } from "./assert.js"
 
 function gameWithStart(die1, die2, value) {
   const confirmed = confirmOwnRoll(createGameState(), die1, die2);
-  return prepareNextOwnRoll(placeOwnRollNumber(confirmed, "A1", value));
+  return prepareNextOwnRoll(finishSchnapszahlAction(placeOwnRollNumber(confirmed, "A1", value)));
 }
 
 export function runOwnRollTests() {
@@ -113,7 +114,7 @@ export function runOwnRollTests() {
   });
 
   test("A new game has an empty board, zero own rolls, and no confirmed roll", () => {
-    assertDeepEqual(createGameState(), { board: createEmptyBoard(), ownRollCount: 0, currentRoll: null });
+    assertDeepEqual(createGameState(), { board: createEmptyBoard(), ownRollCount: 0, currentRoll: null, schnapszahlAction: null });
   });
 
   test("Confirming a usable roll counts once before placement without changing the board", () => {

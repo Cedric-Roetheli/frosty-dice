@@ -329,6 +329,26 @@ button:focus-visible,
   background-color: #fff;
 }
 
+.danger-button {
+  border-color: #7d3d23;
+  background-color: #7d3d23;
+}
+
+.board-cell--removable {
+  cursor: pointer;
+}
+
+.board-cell--removal-selected {
+  border: 2px solid #7d3d23;
+  color: #66311b;
+  background-color: #fff0e7;
+}
+
+#schnapszahl-panel .action-button,
+#removal-controls .action-button {
+  margin-top: 0.5rem;
+}
+
 #external-number-form > label {
   display: block;
   margin-top: 0.5rem;

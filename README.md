@@ -6,16 +6,21 @@ with physical dice.
 
 ## Current status
 
-Milestone 4 — External number entry is implemented for taking another player's
-failed-roll number. “Take failed roll” accepts the verbally announced number,
-shows legal targets, and adds it without increasing your own-roll count.
+Milestone 5 — Schnapszahlen and removal is implemented. A legally placed own-roll
+Schnapszahl enables one optional opponent-removal action at the table and a
+stolen-number entry flow. “Number stolen from me” removes one occupied own cell
+after selection and explicit confirmation.
+
+“Take failed roll” continues to accept a verbally announced number and show legal
+targets. Failed-roll and stolen-number placements do not add an own roll or
+trigger a Schnapszahl action. Removing a cell does not change the own-roll count.
 
 The existing own-roll flow still records physical dice, confirms each roll once,
 and lets you choose a number and legal cell. Failed own rolls also count once.
 
 Placement rules follow [the game rules](./docs/game-rules.md), including the
-confirmed OR behavior. Stolen-number entry is deferred to Milestone 5, which has
-not started.
+confirmed OR behavior. Removal clears only the selected cell; disconnected-cell
+consequences remain unresolved. Milestone 6 has not started.
 
 ## Run locally
 
@@ -57,6 +62,7 @@ frosty-dice/
 │   ├── game.test.js            # Pure game-logic tests without DOM dependencies
 │   ├── own-roll.test.js        # Dice, roll lifecycle, and counter tests
 │   ├── external-number.test.js # Failed-roll entry and counter regression tests
+│   ├── schnapszahl.test.js     # Own special actions, stolen numbers, and removal
 │   ├── assert.js               # Shared dependency-free assertions
 │   └── test-runner.js          # Displays test results
 └── docs/
@@ -84,7 +90,7 @@ release milestone.
 
 Start the local server above and open
 [http://127.0.0.1:8000/tests/](http://127.0.0.1:8000/tests/).
-The page should report `88/88 tests passed; 0 failed.` No packages, test framework,
+The page should report `115/115 tests passed; 0 failed.` No packages, test framework,
 or build step are required.
 
 The tests cover board structure, cell lookup, A1-only first placement, horizontal
@@ -95,7 +101,10 @@ unique number generation, doubles, valid and invalid dice, legal roll options,
 failed rolls, guarded placement, and counting once through repeated actions.
 The external-number tests cover strict parsing, shared legal targets, illegal
 placements, unplaceable numbers, zero own-roll increments, and returning to own
-rolls afterward. All three test modules are independent of the DOM.
+rolls afterward. The Schnapszahl tests cover source-specific triggering,
+dismissal, guarded stolen placement, unchanged counters, and single-cell removal
+without deleting downstream values. All four test modules are independent of
+the DOM.
 
 ## Board state and placement helpers
 
@@ -113,12 +122,14 @@ Public helpers accept uppercase cell coordinates such as `B2`.
   validation reason. It never mutates the input board.
 
 All rule helpers live in `js/game.js` and are independent of the DOM. They
-support boards created and extended through these helpers. Removal and
-disconnected-network behavior remain unresolved and are not implemented.
+support boards created and extended through these helpers. Removal clears only
+the selected cell; the existing placement helpers remain local and do not
+determine disconnected-network consequences or scoring eligibility.
 
 ## Own-roll state and controls
 
-Game state contains `board`, `ownRollCount`, and `currentRoll`. Before confirmation,
+Game state contains `board`, `ownRollCount`, `currentRoll`, and `schnapszahlAction`.
+Before confirmation,
 dice selections belong to the UI and do not change game state. A confirmed roll
 stores the two physical dice values and a status of `pending`, `placed`, or
 `failed`. Legal targets are derived from the board and dice.
@@ -186,7 +197,8 @@ of a finished own roll after an external number changes the available targets.
    16 should remain visible but disabled, while 61 can be placed at A2. This roll
    must not be declared failed.
 8. Reload and record 3/3 on the empty board. Only 33 should appear and it should
-   be placeable at A1 normally, without a special stealing action.
+   be placeable at A1. Its legal own-roll placement should then show the
+   Schnapszahl action. Finish that optional action to return to the own-roll flow.
 9. Repeat the interactions in iPhone Safari and Android Chrome, at 320, 375, and
    390 px and with enlarged text. Check legible values, comfortable touch targets,
    no horizontal scrolling, keyboard focus, and screen-reader labels for dice,
@@ -211,7 +223,8 @@ For the external-number flow:
    and count 1. Change to `16` and place it at A2; the count must remain 1.
 5. Take `26` at B2. It is legal through A2's horizontal connection despite the
    mismatch with B1 above. The counter stays 1. Next record an own 3/3 and place
-   33 at C2; the counter becomes 2. After “Next roll”, record 1/2, which now fails
+   33 at C2; the counter becomes 2. Finish the Schnapszahl action, then use
+   “Next roll” to record 1/2, which now fails
    and makes the count 3.
 6. Take `16` at A3 after that own failure. The count stays 3, and the old failed
    roll must not become available again. Record a new own 1/2: 12 is unavailable
@@ -220,3 +233,45 @@ For the external-number flow:
    including narrow widths of 320, 375, and 390 px. Verify keyboard focus,
    understandable status messages, no horizontal overflow, and no console
    errors throughout both own and external interactions.
+
+## Schnapszahl and removal controls
+
+`isSchnapszahl` detects the six valid doubles. Only `placeOwnRollNumber` creates
+`schnapszahlAction`, and only after guarded legal placement. The action records
+the placed own number until `placeStolenNumber` consumes it or
+`finishSchnapszahlAction` dismisses it. Neither operation adds an own roll. A
+stolen Schnapszahl does not create another action.
+
+Agree verbally which opponent number is removed. The app does not contain an
+opponent board or check whether that removed number fits here before allowing
+the table action. Enter it if desired; if it has no legal targets, finish the
+action without adding a number. The opponent handles deletion on their own device.
+
+`removeOwnNumber` clears one occupied cell in a copied board and leaves the
+own-roll count unchanged. The UI requires selection, displays the coordinate
+and value, and requires a separate confirmation. Cancel preserves the board.
+Remaining cells retain their values; no network validity, inactivity, scoring,
+repair, or end-game consequences are inferred.
+
+For the final manual UI check:
+
+1. Reload and record own 1/1. Before placement there should be no special prompt.
+   Place 11 at A1 and confirm that the prompt permits removing one opponent
+   number verbally, including a number that cannot fit here.
+2. Enter a stolen `16`, show placements, and place it at B1. The counter stays 1,
+   the special action finishes, and it cannot place a second stolen number.
+3. Choose “Number stolen from me”, select A1, and verify the review says 11 from
+   A1 while the board is still unchanged. Confirm: A1 clears, B1 remains 16, and
+   the own-roll counter stays 1.
+4. Try cancelling removal, selecting another occupied cell before confirmation,
+   and tapping empty cells. Cancellation must preserve every value and empty
+   cells must not be selectable.
+5. Reload, take a failed-roll `33` at A1, and confirm no special action appears.
+   Reload again, take `66` at A1, then record own 3/3: it fails, counts once, and
+   must not show a special action.
+6. Reload, record own 6/6, and place 66 at A1. Try stolen `11`: it cannot fit.
+   Finish the action without placement; the board remains just A1=66 and count 1.
+   Also test dismissing a special action directly and backing out of stolen entry.
+
+Automated verification for this milestone was limited to the full test suite and
+the three main browser flows once each, without screenshots or viewport sweeps.

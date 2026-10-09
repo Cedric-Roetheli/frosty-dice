@@ -60,8 +60,8 @@ export function isCellOccupied(board, coordinate) {
   return getCellValue(board, coordinate) !== null;
 }
 
-// Validate placements on boards created and extended through these helpers.
-// Removal and disconnected-network behavior are outside this milestone.
+// Placement validation remains local; connectivity consequences after removal
+// are unresolved and are not evaluated here.
 export function validatePlacement(board, coordinate, value) {
   if (!isValidBoard(board)) {
     return { legal: false, reason: "The board must have seven rows of four empty cells or valid numbers." };
@@ -170,7 +170,7 @@ export function isFailedRoll(board, die1, die2) {
 }
 
 export function createGameState() {
-  return { board: createEmptyBoard(), ownRollCount: 0, currentRoll: null };
+  return { board: createEmptyBoard(), ownRollCount: 0, currentRoll: null, schnapszahlAction: null };
 }
 
 function assertGameState(state) {
@@ -185,6 +185,9 @@ export function confirmOwnRoll(state, die1, die2) {
   assertGameState(state);
   if (state.currentRoll !== null) {
     throw new Error("This roll is already confirmed. Finish it and start the next roll.");
+  }
+  if (state.schnapszahlAction) {
+    throw new Error("Finish the Schnapszahl action before recording another own roll.");
   }
   if (state.ownRollCount === Number.MAX_SAFE_INTEGER) {
     throw new RangeError("The own-roll count cannot be increased further.");
@@ -211,6 +214,7 @@ export function placeOwnRollNumber(state, coordinate, value) {
     ...state,
     board: placeNumber(state.board, coordinate, value),
     currentRoll: { ...state.currentRoll, status: "placed" },
+    schnapszahlAction: isSchnapszahl(value) ? { value } : null,
   };
 }
 
@@ -218,6 +222,9 @@ export function prepareNextOwnRoll(state) {
   assertGameState(state);
   if (state.currentRoll?.status === "pending") {
     throw new Error("Place this confirmed roll before starting another roll.");
+  }
+  if (state.schnapszahlAction) {
+    throw new Error("Finish the Schnapszahl action before starting the next roll.");
   }
 
   return { ...state, currentRoll: null };
@@ -244,5 +251,43 @@ export function placeExternalNumber(state, coordinate, value) {
   if (state.currentRoll?.status === "pending") {
     throw new Error("Finish placing your confirmed own roll before taking another number.");
   }
+  if (state.schnapszahlAction) {
+    throw new Error("Finish the Schnapszahl action before taking a failed-roll number.");
+  }
   return { ...state, board: placeNumber(state.board, coordinate, value) };
+}
+
+export function isSchnapszahl(value) {
+  return [11, 22, 33, 44, 55, 66].includes(value);
+}
+
+export function finishSchnapszahlAction(state) {
+  assertGameState(state);
+  return { ...state, schnapszahlAction: null };
+}
+
+export function placeStolenNumber(state, coordinate, value) {
+  assertGameState(state);
+  if (!state.schnapszahlAction) {
+    throw new Error("A legally placed own-roll Schnapszahl is required to receive a stolen number.");
+  }
+  return {
+    ...state,
+    board: placeNumber(state.board, coordinate, value),
+    schnapszahlAction: null,
+  };
+}
+
+// Clear exactly the chosen occupied cell. Do not traverse or change other cells.
+export function removeOwnNumber(state, coordinate) {
+  assertGameState(state);
+  if (state.currentRoll?.status === "pending" || state.schnapszahlAction) {
+    throw new Error("Finish the current own-roll action before removing a number.");
+  }
+  if (getCellValue(state.board, coordinate) === null) {
+    throw new Error(`${coordinate} is empty and cannot be removed.`);
+  }
+  const nextBoard = state.board.map((row) => [...row]);
+  nextBoard[Number(coordinate[1]) - 1][BOARD_COLUMNS.indexOf(coordinate[0])] = null;
+  return { ...state, board: nextBoard };
 }

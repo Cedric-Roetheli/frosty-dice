@@ -174,7 +174,12 @@ The Schnapszahlen are:
 
 `11, 22, 33, 44, 55, 66`
 
-A Schnapszahl triggers its special effect only if the player can legally place the rolled Schnapszahl on their own board.
+A Schnapszahl triggers its special effect only after the player actually legally
+places it on their own board from their **own physical roll**. Merely rolling it,
+or having a potential legal target, does not trigger the effect.
+
+A Schnapszahl received from another player's failed roll or as a stolen number
+does not trigger this special action.
 
 After legally placing it, the player may remove one already-entered number from an opponent's board.
 
@@ -191,6 +196,17 @@ Therefore the Schnapszahl effect may be used either:
 - purely to slow or disrupt an opponent.
 
 The removed opponent handles the deletion on their own device. The active player handles any legal stolen-number placement on their own device.
+
+### 7.2 A number is removed from my board
+
+The affected player selects the occupied cell on their own device and explicitly
+confirms its removal. Empty cells cannot be removed. Removal does not change
+that player's own counted rolls.
+
+For Milestone 5, removal clears only the selected cell. Other entered values
+remain untouched. This temporary scope does not decide their connectivity,
+activity, scoring eligibility, or repair behavior; those questions remain open
+in section 11.1.
 
 ## 8. Numbers received without an own roll
 

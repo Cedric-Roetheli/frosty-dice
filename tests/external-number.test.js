@@ -1,6 +1,7 @@
 import {
   confirmOwnRoll,
   createGameState,
+  finishSchnapszahlAction,
   getCellValue,
   getExternalNumberTargets,
   getLegalTargetCells,
@@ -13,7 +14,7 @@ import { assert, assertDeepEqual, assertEqual, assertThrows } from "./assert.js"
 
 function gameWithOwnStart(die1, die2, value) {
   const confirmed = confirmOwnRoll(createGameState(), die1, die2);
-  return prepareNextOwnRoll(placeOwnRollNumber(confirmed, "A1", value));
+  return prepareNextOwnRoll(finishSchnapszahlAction(placeOwnRollNumber(confirmed, "A1", value)));
 }
 
 export function runExternalNumberTests() {
@@ -216,7 +217,7 @@ export function runExternalNumberTests() {
   test("An old failed own roll cannot be reused when an external number opens new targets", () => {
     let game = gameWithOwnStart(1, 1, 11);
     game = placeOwnRollNumber(confirmOwnRoll(game, 6, 6), "B1", 66);
-    game = confirmOwnRoll(prepareNextOwnRoll(game), 3, 3);
+    game = confirmOwnRoll(prepareNextOwnRoll(finishSchnapszahlAction(game)), 3, 3);
     assertEqual(game.currentRoll.status, "failed");
     assertEqual(game.ownRollCount, 3);
     game = placeExternalNumber(game, "A2", 11);
