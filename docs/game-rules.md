@@ -15,7 +15,9 @@ The board has:
 - Start: `A1`
 - Goal: `D7`
 
-Players roll two standard six-sided dice and use the two dice values to form a two-digit number. They build a connected, branching network of numbers from A1 toward D7.
+Players roll two standard six-sided dice and use the two dice values to form a
+two-digit number. They grow a branching network of numbers from A1 toward D7.
+Cells remain active after other cells are removed, as defined in section 4.5.
 
 The game combines:
 
@@ -133,6 +135,18 @@ Example:
 - Placing `26` at `B2` is legal because `26 > 16` from A2.
 - The invalid vertical connection from B1 (`26 ≠ 24`) does not prevent it.
 
+### 4.5 Removal and connectivity
+
+Once a number has been legally placed, it remains a fully active board cell
+unless that specific cell is later removed. Removal of another cell may break
+its former connection to A1, but the remaining cell stays on the board, still
+counts toward scoring, and can still serve as the immediate predecessor for
+future legal horizontal or vertical placements.
+
+The game does not require recalculating connectivity back to A1 after removals.
+Placement validation continues to depend on the current immediate left and/or
+upper neighbor according to sections 4.1, 4.2, and 4.4.
+
 ## 5. Failed rolls
 
 If neither possible number from the active player's own roll can be legally placed anywhere on that player's board, the roll is a **failed roll**.
@@ -206,10 +220,9 @@ The affected player selects the occupied cell on their own device and explicitly
 confirms its removal. Empty cells cannot be removed. Removal does not change
 that player's own counted rolls.
 
-For Milestone 5, removal clears only the selected cell. Other entered values
-remain untouched. This temporary scope does not decide their connectivity,
-activity, or repair behavior; those questions remain open in section 11.1.
-Scoring eligibility is confirmed in section 10: all numbers still present count.
+Removal clears only the selected cell. All other entered values remain untouched
+and fully active, including cells whose former connection to A1 has been broken.
+They continue to score and support placements as defined in sections 4.5 and 10.
 
 ## 8. Numbers received without an own roll
 
@@ -226,7 +239,17 @@ They do not add an additional own roll to the score divisor.
 
 The target cell is `D7`.
 
-A player is considered to have reached the goal when D7 is reached through the player's valid network originating from A1.
+The goal is reached when the player legally places a number in D7. No additional
+connectivity check back to A1 is required. A number already present in D7 means
+that player has reached the goal, regardless of whether it came from an own roll,
+an opponent's failed roll, or a stolen number.
+
+Removal elsewhere does not undo this detection while D7 remains occupied.
+Removing D7 makes it empty and the goal is no longer currently detected.
+
+This identifies only that player's current goal status. Global end-of-game
+timing remains undecided; reaching D7 does not define when the table game ends
+or whether other players finish a round.
 
 Because branching is allowed, the player may occupy more cells than are required for a single shortest path.
 
@@ -255,17 +278,6 @@ The player with the highest final score wins.
 ## 11. Open rule questions
 
 The following mechanics have not yet been fully decided. They must be resolved through design discussion or playtesting before the implementation assumes a specific answer.
-
-### 11.1 Broken network after stealing
-
-If an opponent removes a number that disconnects cells farther along a branch from A1:
-
-- Do the disconnected numbers remain on the board?
-- Are they temporarily inactive?
-- Can the connection later be repaired?
-
-Scoring is resolved independently of these remaining questions: every number
-currently present counts, including disconnected cells, as defined in section 10.
 
 ### 11.2 End-of-game timing
 

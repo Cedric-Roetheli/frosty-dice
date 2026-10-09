@@ -6,10 +6,13 @@ with physical dice.
 
 ## Current status
 
-Milestone 6 — Scoring and Streets is implemented. The current score is displayed
-above the board, Street rows carry a ×2 marker and gold inset border, and a
-Street-bonus total appears when applicable. Every currently occupied cell counts,
-including disconnected values left after removal.
+Milestone 7 — Goal detection is implemented. A clear notice appears whenever
+D7 is occupied, including after own-roll, failed-roll takeover, and stolen-number
+placement. Removing another cell does not undo this notice; removing D7 clears
+current goal detection.
+
+The score, Street markers, and bonuses continue to update from the current
+board. Every present number counts, including values disconnected after removal.
 
 A legally placed own-roll Schnapszahl still enables an optional table action and
 stolen-number entry. “Number stolen from me” clears one occupied cell after
@@ -23,9 +26,10 @@ The existing own-roll flow still records physical dice, confirms each roll once,
 and lets you choose a number and legal cell. Failed own rolls also count once.
 
 Placement rules follow [the game rules](./docs/game-rules.md), including the
-confirmed OR behavior. Removal clears only the selected cell. Scoring eligibility
-is resolved; other disconnected-network consequences remain open. Milestone 7
-has not started.
+confirmed OR behavior. Removal clears only the selected cell; all remaining
+cells stay fully active for scoring and future placements. No A1 connectivity
+check is required. Global end-of-game timing remains undecided. Milestone 8 has
+not started.
 
 ## Run locally
 
@@ -69,6 +73,7 @@ frosty-dice/
 │   ├── external-number.test.js # Failed-roll entry and counter regression tests
 │   ├── schnapszahl.test.js     # Own special actions, stolen numbers, and removal
 │   ├── scoring.test.js         # Street bonuses, division, and scoring eligibility
+│   ├── goal.test.js            # Goal detection and active cells after removal
 │   ├── assert.js               # Shared dependency-free assertions
 │   └── test-runner.js          # Displays test results
 └── docs/
@@ -96,7 +101,7 @@ release milestone.
 
 Start the local server above and open
 [http://127.0.0.1:8000/tests/](http://127.0.0.1:8000/tests/).
-The page should report `133/133 tests passed; 0 failed.` No packages, test framework,
+The page should report `145/145 tests passed; 0 failed.` No packages, test framework,
 or build step are required.
 
 The tests cover board structure, cell lookup, A1-only first placement, horizontal
@@ -111,8 +116,9 @@ rolls afterward. The Schnapszahl tests cover source-specific triggering,
 dismissal, guarded stolen placement, unchanged counters, and single-cell removal
 without deleting downstream values. Scoring tests cover complete and incomplete
 rows, non-Streets, sums, multiple bonuses, disconnected values, received numbers,
-division, zero rolls, and immutability. All five test modules are independent of
-the DOM.
+division, zero rolls, and immutability. Goal tests cover current D7 occupancy,
+all placement sources, removal and re-placement, and active predecessors after
+A1 removal. All six test modules are independent of the DOM.
 
 ## Board state and placement helpers
 
@@ -132,8 +138,8 @@ Public helpers accept uppercase cell coordinates such as `B2`.
 All rule helpers live in `js/game.js` and are independent of the DOM. They
 support boards created and extended through these helpers. Removal clears only
 the selected cell; the existing placement helpers remain local and do not
-determine disconnected-network consequences. Scoring independently includes all
-currently present values, as confirmed in the rules.
+require A1 connectivity after removal. All remaining cells stay active and
+continue to score and support placements, as confirmed in the rules.
 
 ## Own-roll state and controls
 
@@ -259,8 +265,9 @@ action without adding a number. The opponent handles deletion on their own devic
 `removeOwnNumber` clears one occupied cell in a copied board and leaves the
 own-roll count unchanged. The UI requires selection, displays the coordinate
 and value, and requires a separate confirmation. Cancel preserves the board.
-Remaining cells retain their values. Their points continue to count; no network
-validity, inactivity, repair, or end-game consequences are inferred.
+Remaining cells retain their values, stay active, and continue to count toward
+the score. Placement checks use current immediate neighbors. No connectivity
+recalculation or path repair is required. Global end-game timing remains open.
 
 For the final manual UI check:
 
@@ -302,3 +309,15 @@ decimal places without storing derived score or Street state.
 Milestone 6 verification ran the complete pure suite once in JavaScriptCore
 outside a browser: 133 passed, 0 failed. No automated browser, screenshot,
 viewport, visual-regression, or manual-style UI checks were performed.
+
+## Goal detection
+
+`hasReachedGoal(board)` is a pure read of D7 occupancy. It does not depend on the
+placement source, own-roll count, or connection to A1. Goal status is derived
+rather than stored as a historical achievement. All existing placement and
+removal flows rerender the same local goal notice, alongside the current score.
+The notice does not end the table game or enforce stopping turns.
+
+Milestone 7 verification ran the complete pure suite once in JavaScriptCore
+outside a browser: 145 passed, 0 failed. No browser or visual testing was
+performed.

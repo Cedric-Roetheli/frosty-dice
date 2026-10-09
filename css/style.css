@@ -61,6 +61,15 @@ p {
   font-variant-numeric: tabular-nums;
 }
 
+.page-header .goal-status {
+  padding: 0.5rem;
+  border: 1px solid #35705b;
+  border-radius: 0.5rem;
+  color: #285b48;
+  background-color: #eaf5ef;
+  font-weight: 600;
+}
+
 .roll-counter strong {
   margin-left: 0.25rem;
   font-size: 1.125rem;

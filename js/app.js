@@ -8,6 +8,7 @@ import {
   getCellValue,
   getExternalNumberTargets,
   getRollOptions,
+  hasReachedGoal,
   isValidDieValue,
   parseExternalNumber,
   placeExternalNumber,
@@ -205,6 +206,13 @@ function renderNumberOptions(options) {
 function render() {
   const options = currentOptions();
   const scoring = getScoreBreakdown(game.board, game.ownRollCount);
+  const goalReached = hasReachedGoal(game.board);
+  const goalStatus = document.getElementById("goal-status");
+  const goalMessage = goalReached ? "You have reached the goal at D7!" : "";
+  goalStatus.hidden = !goalReached;
+  if (goalStatus.textContent !== goalMessage) {
+    goalStatus.textContent = goalMessage;
+  }
   const pending = game.currentRoll?.status === "pending";
   const complete = game.currentRoll !== null && !pending;
   const specialAction = Boolean(game.schnapszahlAction);

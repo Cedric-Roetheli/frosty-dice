@@ -20,7 +20,7 @@ export function isValidCell(coordinate) {
   return typeof coordinate === "string" && coordinate.length === 2 && /^[A-D][1-7]$/.test(coordinate);
 }
 
-// Shape and value validation only; this does not decide disconnected-network rules.
+// Shape and value validation only; remaining cells stay active after removals.
 export function isValidBoard(board) {
   if (!Array.isArray(board) || board.length !== BOARD_ROW_COUNT) {
     return false;
@@ -60,8 +60,12 @@ export function isCellOccupied(board, coordinate) {
   return getCellValue(board, coordinate) !== null;
 }
 
-// Placement validation remains local; connectivity consequences after removal
-// are unresolved and are not evaluated here.
+export function hasReachedGoal(board) {
+  return isCellOccupied(board, "D7");
+}
+
+// Placement depends only on current immediate predecessors. Removal does not
+// deactivate other cells or require an A1 connectivity check.
 export function validatePlacement(board, coordinate, value) {
   if (!isValidBoard(board)) {
     return { legal: false, reason: "The board must have seven rows of four empty cells or valid numbers." };

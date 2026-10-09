@@ -157,11 +157,23 @@ Suggested interaction:
 4. Update the board, then recalculate derived information once the corresponding
    rules and implementation milestones are complete.
 
-The consequences for disconnected branches are still an open game-rule question and must follow `game-rules.md` once decided.
+All other legally placed cells remain fully active after removal, including
+cells whose former connection to A1 is broken. They continue to score and
+support legal placements using current immediate neighbors.
 
-Milestone 5 clears only the confirmed cell and preserves all other values and
-the own-roll count. It does not implement connectivity consequences, scoring,
-streets, or goal behavior.
+Removal clears only the confirmed cell and preserves the own-roll count. The
+current score, Streets, and goal notice are derived again from the resulting
+board.
+
+### 4.6 Reaching D7
+
+Display a clear notice while D7 contains a number legally placed through any of
+the own-roll, failed-roll takeover, or stolen-number flows. No A1 connectivity
+check is required. Removing other cells leaves this notice intact; removing D7
+clears the current goal notice.
+
+The notice identifies only this player's current goal status. Global
+end-of-game timing remains undecided and is not enforced by the interface.
 
 ## 5. Main screen
 

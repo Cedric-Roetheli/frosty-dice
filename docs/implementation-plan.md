@@ -204,13 +204,12 @@ Tasks:
 - Do not increment the own-roll count
 - Keep this action distinct enough that the player understands its origin
 
-Deferred rule decision:
+Later clarification in Milestone 7:
 
-Resolve the “broken network after stealing” rule in `docs/game-rules.md` before
-implementing connectivity consequences or repair behavior. Scoring eligibility
-is now independently confirmed in section 10 of `docs/game-rules.md`.
-The approved Milestone 5 scope is selected-cell removal only and is not blocked
-by that outstanding decision.
+Remaining cells stay fully active after another cell is removed. They continue
+to score and support placements from immediate neighbors, without recalculating
+A1 connectivity. This permanently confirms the selected-cell-only removal
+behavior; no path repair or deactivation is needed.
 
 Exit condition:
 
@@ -228,8 +227,7 @@ render and marks Street rows with a gold inset border and a ×2 label.
 
 The automated suite ran once outside a browser in JavaScriptCore: 133/133 tests
 passed (the prior 115 plus 18 focused scoring tests). No automated browser,
-screenshot, viewport, or visual-regression checks were performed. Milestone 7
-has not started.
+screenshot, viewport, or visual-regression checks were performed.
 
 Tasks:
 
@@ -245,8 +243,8 @@ Tasks:
 Confirmed scoring eligibility:
 
 Every number currently present counts toward the numerator, irrespective of
-connectivity. This resolves the earlier scoring blocker without deciding
-placement activity, repairs, or goal connectivity.
+connectivity. Milestone 7 subsequently confirms that remaining cells are also
+fully active for placements and that D7 occupancy alone detects the goal.
 
 Exit condition:
 
@@ -256,16 +254,29 @@ For all resolved rule cases, the displayed score matches manual calculation.
 
 Goal: reliably identify reaching D7.
 
+**Status: Complete.** Pure `hasReachedGoal(board)` derives the player's current
+goal status from D7 occupancy. All three legal placement sources use this same
+detection. Removal elsewhere preserves the goal while D7 remains occupied;
+removing D7 clears current detection. A small UI notice updates on every render,
+while the existing score display and interaction controls remain available.
+
+The full automated suite ran once outside a browser in JavaScriptCore:
+145/145 tests passed (the prior 133 plus 12 focused goal and active-cell tests).
+No browser automation, screenshots, viewport tests, or visual-regression tests
+were performed. Milestone 8 has not started.
+
 Tasks:
 
-- Determine whether D7 is validly reached from A1
-- Show a clear completion state
-- Preserve final score information
-- Avoid declaring completion from an invalid/disconnected target
+- Determine whether D7 is currently occupied
+- Show a clear notice that this player has reached D7
+- Keep current score information visible
+- Retain goal detection after removal elsewhere and clear it after removal of D7
 
-Blocker:
+Scope boundary:
 
-Finalize the broken-network rule and overall end-of-game timing in `docs/game-rules.md`.
+Connectivity is resolved: remaining cells stay active, and no A1 connectivity
+check is needed. Global end-of-game timing remains undecided; this milestone
+detects and displays the local player's goal only.
 
 Exit condition:
 
