@@ -9,16 +9,20 @@ The redesign's first step changes the pure rules, canonical state, scoring,
 local-save format, and unit tests. The active player uses four physical dice;
 the core accepts a number without tracking its origin, rolls, or turns.
 
-The existing interface now uses the redesigned API through a compatibility
-repair. Both entry widgets call the same guarded placement helper. Pair previews
-are temporary UI state; values/statuses restore through the versioned loader.
+The board is now the main input interface. Select an empty cell, type the desired
+two-digit dice number, and press Place or submit with the keyboard. The shared
+game operation validates only that attempted move; the interface does not
+suggest numbers or highlight legal targets. Illegal attempts preserve the board
+and draft for correction. Cancel, Escape, or a tap elsewhere discards the draft.
+
+Successful placements update the score, Streets, and goal and save automatically.
+Values/statuses restore through the unchanged versioned loader. New Game / Reset
+still requires confirmation. Selection and drafts are temporary UI state.
 Currently frozen cells show the supplied ice-cube image beneath their value;
 thawed cells show a quiet Thawed marker without an ice cube.
-Obsolete counter/removal actions are hidden.
-The layout is unchanged; only frozen-cell styling has been added. The full UI
-redesign is still deferred.
-No browser automation or visual testing is part of this repair. No commit or
-push is made.
+Obsolete roll/source/counter/Schnapszahl/removal controls have been removed.
+The board layout and frozen-cell treatment are preserved; broad visual polish
+is deferred. No browser automation or visual testing is part of this task.
 
 Read [AGENTS.md](./AGENTS.md) and the [specifications](./docs/) before changes.
 The [game rules](./docs/game-rules.md) define mechanics and the
@@ -125,6 +129,11 @@ save/render/reload checks, ice-cube rendering with bounded fallback dimensions,
 and rejection of mixed save formats. These coordinator tests use document and
 storage doubles; no browser or visual testing was performed.
 
+After replacing the old entry widgets with cell-first interaction, the full
+suite ran once in JavaScriptCore: **159/159 passed** (122 unchanged core tests
+and 37 coordinator tests). No browser automation, screenshots, or viewport
+tests were performed. The game, scoring, and storage modules are unchanged.
+
 - `tests/game.test.js`: board/state helpers and placement regressions.
 - `tests/frozen-prime.test.js`: prime/contact rules, freeze movement, permanent
   damage, thawed usability, and immutable state.
@@ -132,9 +141,9 @@ storage doubles; no browser or visual testing was performed.
 - `tests/scoring.test.js`: sums, frozen exclusions, and Street bonuses.
 - `tests/goal.test.js`: goal detection with normal/frozen D7.
 - `tests/storage.test.js`: status restoration, legacy migration/fallback, and storage failures.
-- `tests/app-initialization.test.js`: coordinator startup and compatibility regressions,
-  plus both actual input paths for A1=23 → B1=31 → A2=23, saving, rendering,
-  restoration, and continuation through thawed B1 to C1=46.
+- `tests/app-initialization.test.js`: cell-first selection/submission, error
+  correction, cancellation, occupied-cell guards, score/Street/goal feedback,
+  save restoration/reset, and A1=23 → B1=31 → A2=23 → C1=46 integration.
 - `tests/fixtures.js` and `tests/assert.js`: dependency-free test helpers.
 
 ## GitHub Pages

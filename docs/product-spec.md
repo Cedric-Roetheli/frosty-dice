@@ -7,9 +7,10 @@ Each player uses their own phone as a game sheet. Players communicate verbally
 and roll physical dice; the website does not replace either activity.
 
 The redesigned mechanics are defined in [game-rules.md](./game-rules.md).
-The core refactor is complete, followed by a minimal compatibility repair to
-the existing interface. Its layout remains unchanged, with a small frozen-cell
-image treatment; the full UI redesign is deferred.
+The core refactor and compatibility repairs are complete. Gameplay now uses
+cell-first entry: the player chooses a cell and number, and the app validates
+that attempted move. The board layout and frozen-cell treatment stay familiar;
+broad visual polish and release evaluation remain deferred.
 
 ## 2. Physical play
 
@@ -28,7 +29,8 @@ The app should:
 
 - Represent the player's 4 × 7 board with value and normal/frozen/thawed cell status.
 - Validate two-digit numbers whose digits are each from 1 through 6.
-- Identify legal targets using usable orthogonal neighbors and the A1 start rule.
+- Validate submitted placements using usable orthogonal neighbors and the A1 start rule.
+- Let players reason about moves themselves, without target highlighting or number suggestions.
 - Apply prime freezing only after legal placement, thawing the previous frozen cell.
 - Calculate a plain sum with Street bonuses, excluding all ever-frozen values.
 - Detect the goal only when D7 is occupied and not frozen.
@@ -48,8 +50,9 @@ At most one cell is currently frozen. Thawed cells are usable but permanently
 scoreless. This status depends on placement order and must be stored rather than
 recalculated from current neighboring values.
 
-Score, Streets, legal targets, and goal status are derived from the board.
-Neither dice-entry drafts nor turn/source metadata belong in persistent state.
+Score, Streets, and goal status are derived from the board. Cell selection and
+number drafts stay in the UI and are not persisted. The interface does not
+calculate legal-target lists or track turn/source metadata.
 
 Version 3 stores explicit cell statuses. Version-2 boolean cell records with at
 most one frozen cell migrate to normal/frozen statuses in memory; the next
@@ -68,6 +71,19 @@ storage layer. Game data stays on the local device.
 ## 5. Placement and feedback
 
 A placement changes the board only after the shared rule validator accepts it.
+Every empty cell can be selected, including cells that cannot support the next
+move. Selection and typing reveal no information about placement legality.
+Only submission calls the shared guarded placement operation. There are no
+suggested numbers, precomputed target lists, or legal-cell indicators.
+
+An illegal submission leaves the board and saved data unchanged. Keep the
+selected cell and entered value available for correction or cancellation.
+Explain a sole usable neighboring relationship briefly; if several neighboring
+relationships all fail, use a general explanation rather than implying that
+every relationship must be satisfied. The first-placement rule receives its
+own short A1 explanation. Invalid input is rejected without truncating a pasted
+value into a different valid number.
+
 Frozen cells remain occupied but cannot support a later placement; thawed cells
 can support it. An illegal attempt never thaws a cell or changes the board.
 The app must not infer rules from the
@@ -79,25 +95,37 @@ regain points. Frozen and thawed cells both prevent Street scoring. A thawed
 D7 reaches the local goal even though it scores 0. Global end-of-game timing
 remains undecided.
 
-## 6. Existing UI compatibility and later redesign
+## 6. Cell-first game sheet
 
-Retain a simple game-sheet layout with compact score, readable board labels,
-clear legal targets, and touch-friendly number entry. Compatibility wiring uses
-the shared generic APIs, keeps input previews outside canonical state, and
-derives score/goal/Street displays from the board. Currently frozen cells show
-the supplied `assets/icecube.png` beneath a readable value and retain an
-accessible label explaining their status. Thawed values show no ice cube, using
-a quiet Thawed marker and a label explaining their usability and permanent zero
-points. Removed actions and counters remain hidden. This targeted frozen-cell
-treatment does not include a general layout or input redesign.
+The board is the primary input interface. Empty cells are touch-friendly buttons
+with no visible text, including when selected. Column and row headings identify
+their positions; accessible cell labels retain their coordinates. Occupied
+normal, frozen, and thawed cells cannot open entry or be overwritten. Selecting
+an empty cell shows a restrained border and a compact form directly below the
+board, with the selected coordinate in the input label. Selection is not a
+statement that the move is legal.
 
-The next UI task can redesign the interface and remove the obsolete hidden
-markup. Frozen values should remain readable without implying that they score
-or support placement.
+Use one numeric-keyboard text input for the player's chosen number, with Place
+and Cancel controls. Only two digits from 1–6 are accepted. The native form
+supports Enter/Done submission where the browser supports it. Do not present a
+dropdown, dice controls, orientations, or number suggestions. After success,
+save automatically, clear the draft and selection, close the form, and derive
+the updated score, Streets, and goal from the board.
 
-Do not redesign the interface or add new flows during the compatibility repair.
-New-game confirmation remains required. Startup regression tests use a document
-test double; browser automation and visual testing are excluded from this task.
+Cancel, Escape, or a tap outside the form safely discards a draft. Selecting
+another empty cell starts a fresh draft there; tapping the already selected
+cell keeps its draft. Moving to entry dismisses a pending reset confirmation.
+New Game / Reset remains accessible and requires explicit confirmation.
+
+Keep the score compact, and show Street and goal feedback when applicable.
+Currently frozen cells retain `assets/icecube.png` beneath a readable value,
+with bounded dimensions and an accessible status label. Thawed cells have no
+ice cube and retain their quiet Thawed marker and permanent zero-point label.
+
+Remove the obsolete roll, external-number, Schnapszahl, stealing/removal, and
+counter markup, handlers, and exclusive styling. Broader visual redesign is
+deferred. Coordinator tests use a document/storage test double; browser
+automation, screenshot tests, and viewport tests are excluded from this task.
 
 ## 7. Technical constraints
 

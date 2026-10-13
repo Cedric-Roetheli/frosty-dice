@@ -92,15 +92,34 @@ passed**, including 14 coordinator tests and 20 storage tests. No browser
 automation, screenshots, viewport tests, commit, or push was performed. The
 image was supplied by the user; no asset generation or image editing was used.
 
-## Step 2 — UI redesign and integration
+## Step 2 — Cell-first interaction and integration
 
-**UI redesign not started.** The compatibility repair already adapts the
-existing interface to the source-neutral core. Redesign its interaction and
-presentation, remove obsolete hidden markup, and refine frozen-cell feedback
-in the next task. Preserve local save/reset safety and accessibility.
+The approved interaction is a cell-first digital game sheet. Select any empty
+cell, enter a two-digit dice number, and submit it to the existing shared rule
+operation. Do not calculate or display legal targets, suggest numbers, or
+validate a placement during selection or typing. Occupied cells are read-only.
 
-Decide the exact mobile interaction in that task. Do not add layout changes,
-new flows, or presentation-specific state to the core in Step 1.
+On success, apply the existing state transition, save, update the derived
+displays, and close/clear entry. On rejection, preserve the board and draft and
+explain the failure briefly without implying cumulative neighbor requirements.
+Cancel/outside taps/Escape discard only the draft. Keep confirmed reset.
+
+Remove old roll/source/counter/Schnapszahl/removal UI and its exclusive CSS/JS.
+Keep the compact score, Street/goal feedback, touch sizes, board layout, and
+working ice-cube treatment. Broad visual polish is outside this task. The game,
+scoring, and storage modules and all engine tests remain unchanged.
+
+Replace obsolete coordinator tests with cell selection, submission, correction,
+cancellation, occupied-cell safety, shared freeze/thaw, score, goal, persistence,
+and reset regressions. Run the suite once without browser automation,
+screenshots, viewport tests, commit, or push.
+
+**Status: Complete for this interaction scope.** The full suite ran once in
+JavaScriptCore: **159/159 passed**, comprising 122 unchanged core tests and
+37 coordinator tests. The game, scoring, and storage modules are unchanged.
+HTML references, relative paths, and module imports were checked without a
+browser. Broad visual polish remains deferred. No browser automation,
+screenshots, viewport tests, commit, or push was performed.
 
 ## Step 3 — Manual evaluation and release
 
