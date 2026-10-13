@@ -194,6 +194,33 @@ one Undo snapshot. There is still no Edit or number-removal feature.
 
 ## 9. Technical constraints
 
+The experimental background pass uses the supplied background_sky.png and
+background_meadow.png unchanged as non-interactive decorative CSS layers.
+The sky stays fixed; the meadow spans the full document height and scrolls with
+the page so its ground continues below the fold. The meadow's painted horizon is anchored independently of sky position
+and both scales; controls are grouped at the top of style.css. The composition
+stays behind the game sheet even when entry or reset makes the page longer.
+The second targeted iteration moves the horizon from 72% to 95% of the stable
+viewport height. The header has no opaque backing: title, Score label/value,
+and Undo are white over the sky. Undo retains its 48px target, transparent fill,
+and a subdued disabled appearance. Other UI geometry, colors, and surfaces remain.
+
+The third targeted iteration keeps the 95% stable-viewport horizon unchanged.
+Theme metadata and root/body canvas fallbacks use the sampled upper sky color,
+`#03020e`. The page and decorative layers have a `100dvh` minimum with a `100vh`
+fallback, while composition still uses `svh`. Existing safe-area padding stays.
+If the meadow PNG runs out, its full-page underlay continues with matching green
+`#24691e`, avoiding a light canvas beneath the scene. New Game / Reset text and
+its keyboard focus outline are white, with its transparent background, size,
+position, and confirmation flow unchanged.
+
+Active Prime Ice and Attack Ice share 100% width/height and `object-fit: fill`,
+intentionally stretching the artwork to the cell proportions instead of scaling
+and cropping it. `--ice-image-fit` controls this experimental fit centrally.
+Both images remain clipped inside existing cell bounds, behind numbers and
+markers. Cells, grid dimensions, interactions, and Prime-thawed treatment do not
+change. General visual redesign and PNG optimization remain deferred.
+
 Use HTML, CSS, and vanilla JavaScript with relative asset/module paths. Keep
 rule logic independent from DOM code and storage mechanics in storage.js.
 Introduce no dependencies, framework, build system, PWA, or networking feature.

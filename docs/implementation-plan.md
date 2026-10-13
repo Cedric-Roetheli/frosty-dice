@@ -192,6 +192,60 @@ version. Static imports, shell IDs, asset paths, and whitespace checks passed.
 No browser automation, screenshots, viewport tests, commit, or push was performed.
 The supplied icecube2.png is used unchanged.
 
+## Experimental illustrated background and full-cell ice
+
+Use the two supplied portrait PNGs as fixed decorative CSS layers with a
+shared aspect-preserving base size, separate scales, and a tunable painted
+horizon. Keep the meadow plants and sky transition together without layout
+changes. Add only the approved light backing behind header/score text.
+
+Both active ice assets use the same cover/scale rule, clipped to existing cell
+bounds with numbers above the artwork. Keep thawed visuals, UI geometry, game
+logic, persistence, and artwork files unchanged. Update the stylesheet cache
+version so the visual pass is loaded. Broader UI work remains deferred.
+
+Run the existing suite once without browser automation, screenshots, viewport
+tests, or visual regression tests. Composition and ice cropping will be
+evaluated manually on phones. Do not commit or push.
+
+**Status: Implemented for this experimental pass.** The unchanged automated
+suite ran once in JavaScriptCore: **253/253 passed**. CSS asset paths and diff
+whitespace checks passed. PNGs, JavaScript, tests, and the previous README URL
+cleanup are unchanged. No browser automation, screenshots, viewport tests,
+commit, or push was performed. Manual visual evaluation remains pending.
+
+## Targeted visual iteration 2 — Lower horizon, sky header, stretched ice
+
+Move the existing horizon control from 72% to 95% of stable viewport height.
+Remove the header backing and use white title/Score/Undo styling, keeping
+typography, geometry, and the 48px Undo target. Retain subtle disabled feedback.
+Replace the shared oversized cover/transform with 100% width/height and a
+central `--ice-image-fit: fill` setting. Keep cell clipping and numbers above
+the artwork; do not change other UI, assets, rules, or JavaScript behavior.
+
+**Status: Implemented for manual iPhone evaluation.** Update the stylesheet
+cache version. Static scope/path and diff checks only; the suite was not run
+because application logic is unchanged. No browser automation, screenshots,
+visual tests, commit, or push. The next composition evaluation is manual.
+
+## Targeted visual iteration 3 — Safari canvas and meadow continuation
+
+Add `theme-color: #03020e`, matching the sampled upper sky, and use it for the
+root/body canvas fallback without changing the viewport metadata or sky image.
+Give the page and decorative layers a `100dvh` minimum with a `100vh` fallback.
+Keep composition and its 95% horizon based on stable viewport height.
+
+Keep the sky fixed and let the meadow's decorative layer span the full body
+height, extending the PNG naturally down the page. Below the painting, continue
+its underlay with matching green `#24691e`. Preserve safe-area padding, board,
+header, ice, and all interaction geometry. Make only the exposed New Game /
+Reset text and focus outline white; retain confirmation styling and behavior.
+
+**Status: Implemented for manual iPhone Safari evaluation.** Updated the CSS
+cache version and performed static scope/path/metadata and whitespace checks.
+No full suite was run for these HTML/CSS-only changes. No browser automation,
+screenshots, visual tests, commit, or push. Assets and application logic are unchanged.
+
 ## Step 3 — Manual evaluation and release
 
 **Not started.** After UI integration, evaluate the physical game and interface

@@ -3,6 +3,8 @@
 A mobile-first companion for a physical tabletop dice game. Each player uses
 an independent phone as their game sheet. There is no backend or synchronization.
 
+Play Frosty Dice: [https://frostydice.com](https://frostydice.com).
+
 ## Current work
 
 The redesign's first step changes the pure rules, canonical state, scoring,

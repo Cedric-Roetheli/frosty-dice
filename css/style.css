@@ -1,18 +1,85 @@
 :root {
   font-family: system-ui, sans-serif;
   color: #172b3a;
-  background-color: #f4f8fb;
+  background-color: var(--background-sky-color);
   line-height: 1.5;
   font-synthesis: none;
+
+  /* Experimental scene controls. Larger horizon values move the meadow down. */
+  /* Keep the sky fallback in sync with index.html's theme-color. */
+  --background-sky-color: #03020e;
+  --background-ground-color: #24691e;
+  --background-viewport-height: 100vh;
+  --background-min-height: 100vh;
+  --background-horizon: calc(var(--background-viewport-height) * 0.95);
+  --background-meadow-scale: 1;
+  --background-sky-scale: 1;
+  --background-sky-position: 50% 0px;
+  /* Fill stretches both ice assets to the cell; use contain/cover to revert the fit. */
+  --ice-image-fit: fill;
+
+  /* Both background canvases are 1440 × 3200; keep their aspect ratio. */
+  --background-artwork-width: max(100vw, calc(var(--background-viewport-height) * 0.45));
+}
+
+@supports (height: 100svh) {
+  :root { --background-viewport-height: 100svh; }
+}
+
+/* Fill the current viewport without moving the stable painted horizon. */
+@supports (height: 100dvh) {
+  :root { --background-min-height: 100dvh; }
 }
 
 * { box-sizing: border-box; }
 
 [hidden] { display: none !important; }
 
+html { min-height: 100%; }
+
 body {
+  position: relative;
+  min-height: var(--background-min-height);
   margin: 0;
   padding: 12px max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background-color: var(--background-sky-color);
+  isolation: isolate;
+}
+
+/* Decorative layers: no layout space, extra scroll extent, or touch targets. */
+body::before,
+body::after {
+  content: "";
+  inset: 0;
+  min-height: var(--background-min-height);
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+body::before {
+  position: fixed;
+  z-index: -2;
+  background-color: var(--background-sky-color);
+  background-image: url("../assets/background_sky.png");
+  background-size: calc(var(--background-artwork-width) * var(--background-sky-scale)) auto;
+  background-position: var(--background-sky-position);
+}
+
+body::after {
+  /* Follow the full document height so painted ground continues below the fold. */
+  position: absolute;
+  z-index: -1;
+  --meadow-width: calc(var(--background-artwork-width) * var(--background-meadow-scale));
+  /* Clip the solid continuation below the horizon; keep plants visible above it. */
+  padding-top: var(--background-horizon);
+  background-color: var(--background-ground-color);
+  /* Painted ground begins at y=2259: 2259 / 1440 anchors that edge, not the PNG top. */
+  /* The empty final layer lets the color use content-box without clipping the PNG. */
+  background-image: url("../assets/background_meadow.png"), none;
+  background-origin: border-box;
+  background-clip: border-box, content-box;
+  background-size: var(--meadow-width) auto;
+  background-position: center calc(var(--background-horizon) - var(--meadow-width) * 1.56875);
 }
 
 main {
@@ -38,6 +105,7 @@ p { margin: 0; }
   justify-content: space-between;
   gap: 0.5rem 1rem;
   margin-bottom: 0.75rem;
+  color: #fff;
 }
 
 .game-stats {
@@ -51,10 +119,12 @@ p { margin: 0; }
   width: 48px;
   min-height: 48px;
   padding: 0;
-  border: 1px solid #879ead;
+  border: 1px solid rgb(255 255 255 / 55%);
   border-radius: 50%;
-  color: #244f65;
-  background-color: #fff;
+  color: #fff;
+  -webkit-text-fill-color: currentColor;
+  background-color: transparent;
+  appearance: none;
   font: inherit;
   font-size: 1.5rem;
   cursor: pointer;
@@ -62,23 +132,23 @@ p { margin: 0; }
 }
 
 .undo-button:disabled {
-  border-color: transparent;
-  color: #879ead;
-  background-color: #edf3f7;
-  opacity: 0.6;
+  border-color: rgb(255 255 255 / 25%);
+  opacity: 0.65;
   cursor: default;
 }
+
+.undo-button:focus-visible { outline-color: #fff; }
 
 .game-stats p {
   display: flex;
   flex-direction: column;
-  color: #496173;
+  color: #fff;
   font-size: 0.75rem;
   line-height: 1.25;
 }
 
 .game-stats strong {
-  color: #172b3a;
+  color: #fff;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
@@ -191,9 +261,15 @@ p { margin: 0; }
   inset: 0;
   width: 100%;
   height: 100%;
-  padding: 2px;
-  object-fit: contain;
+  padding: 0;
+  object-fit: var(--ice-image-fit);
   pointer-events: none;
+}
+
+.board-cell--frozen,
+.board-cell--attack-iced {
+  overflow: hidden;
+  isolation: isolate;
 }
 
 .board-cell--frozen .board-cell__value,
@@ -353,12 +429,14 @@ noscript p {
 .reset-panel #new-game {
   width: auto;
   border-color: transparent;
-  color: #496173;
+  color: #fff;
   background-color: transparent;
   font-size: 0.875rem;
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
+
+.reset-panel #new-game:focus-visible { outline-color: #fff; }
 
 .confirmation {
   margin-top: 0.5rem;
