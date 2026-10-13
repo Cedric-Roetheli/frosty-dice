@@ -71,7 +71,7 @@ Responsibilities:
 - `index.html`: semantic application shell
 - `css/style.css`: mobile-first presentation
 - `js/app.js`: UI state, event handling, rendering, and coordination
-- `js/game.js`: board model, dice combinations, legal placement rules, connectivity, special-rule detection
+- `js/game.js`: board model, chosen-pair number combinations, legal placement rules, prime freezing, goal detection
 - `js/scoring.js`: score and street calculations
 - `js/storage.js`: local persistence and restoration
 - `docs/`: specifications and implementation plan
@@ -97,12 +97,16 @@ The structure may evolve when there is a concrete reason, but keep the codebase 
 
 Represent enough state to reconstruct the player's current game locally. At minimum this is expected to include:
 
-- Board contents
-- Number of the player's own counted rolls
+- Board contents, including each occupied cell's value and normal/frozen/thawed status
 - Any additional state required by confirmed game rules
 - A schema/version identifier if persistence evolves
 
 Derived information such as legal moves, streets, and score should generally be calculated from authoritative state rather than stored redundantly.
+
+The redesigned game has no roll counter or source-specific turn/action state.
+Freeze/thaw status depends on placement history and must be stored, never
+inferred by retroactively checking the current neighbors. At most one cell is
+currently frozen; thawed cells are usable but permanently scoreless.
 
 ## Persistence
 
@@ -138,10 +142,10 @@ Examples:
 
 - `feat: render mobile game board`
 - `feat: validate horizontal and vertical placements`
-- `feat: add own-roll input flow`
+- `feat: add number entry`
 - `feat: calculate street bonus`
 - `fix: restore saved game after reload`
-- `docs: clarify stolen-number behavior`
+- `feat: apply frozen-prime rule`
 
 Do not commit generated junk, editor-specific files, secrets, or unnecessary dependencies.
 

@@ -1,63 +1,44 @@
-import {
-  createGameState,
-  generateRollNumbers,
-  getRollOptions,
-  isSchnapszahl,
-  isValidBoard,
-  isValidDieValue,
-} from "./game.js";
+import { BOARD_COLUMNS, BOARD_ROW_COUNT, cloneBoard, createGameState, isValidBoard } from "./game.js";
 
 export const STORAGE_KEY = "frosty-dice.game";
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 3;
 
 function isStorageRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 export function isValidStoredState(state) {
-  if (!isStorageRecord(state) || !isValidBoard(state.board)
-      || !Number.isSafeInteger(state.ownRollCount) || state.ownRollCount < 0) {
-    return false;
-  }
-
-  const roll = state.currentRoll;
-  if (roll !== null) {
-    if (!isStorageRecord(roll) || !Array.isArray(roll.dice) || roll.dice.length !== 2
-        || !isValidDieValue(roll.dice[0]) || !isValidDieValue(roll.dice[1])
-        || !["pending", "placed", "failed"].includes(roll.status) || state.ownRollCount === 0) {
-      return false;
-    }
-    if (roll.status === "pending"
-        && !getRollOptions(state.board, ...roll.dice).some((option) => option.targets.length > 0)) {
-      return false;
-    }
-  }
-
-  const action = state.schnapszahlAction;
-  if (action !== null) {
-    if (!isStorageRecord(action) || !isSchnapszahl(action.value)
-        || roll === null || roll.status !== "placed"
-        || !generateRollNumbers(...roll.dice).includes(action.value)
-        || !state.board.some((row) => row.includes(action.value))) {
-      return false;
-    }
-  }
-  return true;
+  // Do not silently discard a legacy flag that could contradict permanent damage.
+  return isStorageRecord(state) && isValidBoard(state.board)
+    && state.board.every((row) => row.every((cell) => cell === null
+      || !Object.prototype.hasOwnProperty.call(cell, "frozen")));
 }
 
 // Whitelist canonical state; never serialize score, targets, goal, or UI drafts.
 function canonicalStoredState(state) {
-  return {
-    board: state.board.map((row) => [...row]),
-    ownRollCount: state.ownRollCount,
-    currentRoll: state.currentRoll === null ? null : {
-      dice: [...state.currentRoll.dice],
-      status: state.currentRoll.status,
-    },
-    schnapszahlAction: state.schnapszahlAction === null ? null : {
-      value: state.schnapszahlAction.value,
-    },
-  };
+  return { board: cloneBoard(state.board) };
+}
+
+function migrateVersion2State(state) {
+  if (!isStorageRecord(state) || !Array.isArray(state.board) || state.board.length !== BOARD_ROW_COUNT) return null;
+  const board = [];
+  for (const row of state.board) {
+    if (!Array.isArray(row) || row.length !== BOARD_COLUMNS.length) return null;
+    const entries = [];
+    for (const cell of row) {
+      if (cell === null) {
+        entries.push(null);
+      } else {
+        if (!isStorageRecord(cell) || typeof cell.frozen !== "boolean"
+            || Object.prototype.hasOwnProperty.call(cell, "status")) return null;
+        entries.push({ value: cell.value, status: cell.frozen ? "frozen" : "normal" });
+      }
+    }
+    board.push(entries);
+  }
+  const migrated = { board };
+  // Multiple old freezes have no chronology: never guess which one is current.
+  return isValidStoredState(migrated) ? migrated : null;
 }
 
 export function serializeGame(state) {
@@ -73,10 +54,10 @@ export function deserializeGame(serialized) {
       return null;
     }
     const payload = JSON.parse(serialized);
-    if (!isStorageRecord(payload) || payload.version !== SAVE_VERSION || !isValidStoredState(payload.state)) {
-      return null;
-    }
-    return canonicalStoredState(payload.state);
+    if (!isStorageRecord(payload)) return null;
+    const state = payload.version === SAVE_VERSION ? payload.state
+      : payload.version === 2 ? migrateVersion2State(payload.state) : null;
+    return isValidStoredState(state) ? canonicalStoredState(state) : null;
   } catch {
     return null;
   }

@@ -1,182 +1,123 @@
-import {
-  confirmOwnRoll,
-  createEmptyBoard,
-  createGameState,
-  placeExternalNumber,
-  placeOwnRollNumber,
-  placeStolenNumber,
-  removeOwnNumber,
-} from "../js/game.js";
+import { createEmptyBoard } from "../js/game.js";
 import { calculateScore, getScoreBreakdown, isStreetRow } from "../js/scoring.js";
+import { boardFixture, freezeBoardSnapshot, placedBoard } from "./fixtures.js";
 import { assert, assertDeepEqual, assertEqual, assertThrows } from "./assert.js";
 
-function scoringBoard(...rows) {
-  const board = createEmptyBoard();
-  rows.forEach((row, index) => { board[index] = [...row]; });
-  return board;
+function normalStreetRow(...values) {
+  return values.map((value) => value === null ? null : { value, status: "normal" });
 }
 
 export function runScoringTests() {
   const results = [];
   function test(name, action) {
-    try {
-      action();
-      results.push({ name, passed: true });
-    } catch (error) {
-      results.push({ name, passed: false, message: error.message });
-    }
+    try { action(); results.push({ name, passed: true }); }
+    catch (error) { results.push({ name, passed: false, message: error.message }); }
   }
 
-  test("11, 12, 13, 14 is a complete increasing Street", () => {
-    assert(isStreetRow([11, 12, 13, 14]));
+  test("Four consecutive increasing normal cells form a Street", () => {
+    assert(isStreetRow(normalStreetRow(11, 12, 13, 14)));
   });
 
-  test("A non-consecutive full row is not a Street", () => {
-    assert(!isStreetRow([11, 13, 14, 15]));
-  });
-
-  test("Incomplete and sparse rows are not Streets", () => {
-    assert(!isStreetRow([11, 12, 13, null]));
-    assert(!isStreetRow([11, 12, 13]));
-    assert(!isStreetRow(Array(4)));
-    assert(!isStreetRow([null, null, null, null]));
-  });
-
-  test("Decreasing, unordered, and repeated values are not Streets", () => {
-    assert(!isStreetRow([14, 13, 12, 11]));
-    assert(!isStreetRow([11, 13, 12, 14]));
-    assert(!isStreetRow([11, 12, 12, 13]));
-  });
-
-  test("Street detection rejects rows outside the board's number format", () => {
-    assert(!isStreetRow([16, 17, 18, 19]));
-    assert(!isStreetRow(["11", 12, 13, 14]));
-    assert(!isStreetRow([11, 12, 13, 14, 15]));
-    assert(!isStreetRow(null));
-  });
-
-  test("An empty board has zero base points, bonus, numerator, and score", () => {
-    assertDeepEqual(getScoreBreakdown(createEmptyBoard(), 0), {
-      baseSum: 0, streetBonus: 0, streetRows: [], numerator: 0, ownRollCount: 0, score: 0,
-    });
-  });
-
-  test("A normal board sums every occupied cell without a Street bonus", () => {
-    const result = getScoreBreakdown(scoringBoard([16, 24, null, null], [16, 26, null, null]), 2);
-    assertEqual(result.baseSum, 82);
-    assertEqual(result.streetBonus, 0);
-    assertEqual(result.numerator, 82);
-    assertEqual(result.score, 41);
-    assertDeepEqual(result.streetRows, []);
-  });
-
-  test("A Street's entire row sum of 50 contributes 100 to the numerator", () => {
-    const result = getScoreBreakdown(scoringBoard([11, 12, 13, 14]), 2);
-    assertEqual(result.baseSum, 50);
-    assertEqual(result.streetBonus, 50);
-    assertEqual(result.numerator, 100);
-    assertEqual(result.score, 50);
-    assertDeepEqual(result.streetRows, [1]);
-  });
-
-  test("Multiple Streets are independently doubled and other cells count once", () => {
-    const result = getScoreBreakdown(scoringBoard(
-      [11, 12, 13, 14],
-      [33, null, null, null],
-      [21, 22, 23, 24],
-    ), 4);
-    assertEqual(result.baseSum, 173);
-    assertEqual(result.streetBonus, 140);
-    assertEqual(result.numerator, 313);
-    assertEqual(result.score, 78.25);
-    assertDeepEqual(result.streetRows, [1, 3]);
-  });
-
-  test("A vertical consecutive sequence receives no Street bonus", () => {
-    const result = getScoreBreakdown(scoringBoard(
-      [11, null, null, null], [12, null, null, null],
-      [13, null, null, null], [14, null, null, null],
-    ), 1);
-    assertEqual(result.numerator, 50);
-    assertEqual(result.streetBonus, 0);
-    assertDeepEqual(result.streetRows, []);
-  });
-
-  test("Occupied cells disconnected by removing A1 still count", () => {
-    let game = placeOwnRollNumber(confirmOwnRoll(createGameState(), 1, 6), "A1", 16);
-    game = placeExternalNumber(game, "B1", 24);
-    game = removeOwnNumber(game, "A1");
-    const result = getScoreBreakdown(game.board, game.ownRollCount);
-    assertEqual(result.baseSum, 24);
-    assertEqual(result.numerator, 24);
-    assertEqual(result.score, 24);
-    assertEqual(game.ownRollCount, 1);
-  });
-
-  test("A disconnected complete Street still receives its full doubled value", () => {
-    const board = createEmptyBoard();
-    board[4] = [31, 32, 33, 34];
-    const result = getScoreBreakdown(board, 2);
-    assertEqual(result.baseSum, 130);
-    assertEqual(result.streetBonus, 130);
-    assertEqual(result.numerator, 260);
-    assertEqual(result.score, 130);
-    assertDeepEqual(result.streetRows, [5]);
-  });
-
-  test("Score divides by own rolls and preserves calculation precision", () => {
-    const board = scoringBoard([16, null, null, null]);
-    assertEqual(calculateScore(board, 2), 8);
-    assertEqual(calculateScore(board, 3), 16 / 3);
-  });
-
-  test("Zero own rolls returns finite zero even with board points and a Street", () => {
-    const board = scoringBoard([11, 12, 13, 14]);
-    const result = getScoreBreakdown(board, 0);
-    assertEqual(result.numerator, 100);
-    assertEqual(result.score, 0);
-    assert(Number.isFinite(result.score));
-    assertEqual(calculateScore(board, 0), 0);
-  });
-
-  test("Received and stolen values score normally without changing the divisor", () => {
-    let game = placeOwnRollNumber(confirmOwnRoll(createGameState(), 1, 1), "A1", 11);
-    game = placeStolenNumber(game, "B1", 12);
-    game = placeExternalNumber(game, "C1", 13);
-    game = placeExternalNumber(game, "D1", 14);
-    assertEqual(game.ownRollCount, 1);
-    assertEqual(calculateScore(game.board, game.ownRollCount), 100);
-    const removed = removeOwnNumber(game, "B1");
-    const result = getScoreBreakdown(removed.board, removed.ownRollCount);
-    assertEqual(result.baseSum, 38);
-    assertEqual(result.streetBonus, 0);
-    assertEqual(result.score, 38);
-    assertEqual(removed.ownRollCount, 1);
-    assertDeepEqual(result.streetRows, []);
-  });
-
-  test("Scoring does not mutate frozen board data or store derived state", () => {
-    const board = scoringBoard([11, 12, 13, 14]);
-    const before = JSON.stringify(board);
-    board.forEach(Object.freeze);
-    Object.freeze(board);
-    const result = getScoreBreakdown(board, 2);
-    result.streetRows.push(7);
-    assertEqual(JSON.stringify(board), before);
-    assertDeepEqual(getScoreBreakdown(board, 2).streetRows, [1]);
-  });
-
-  test("Invalid own-roll divisors are rejected", () => {
-    for (const count of [-1, 1.5, "2", null, NaN, Infinity]) {
-      assertThrows(() => calculateScore(createEmptyBoard(), count), "non-negative integer");
+  test("Non-consecutive, repeated, or decreasing rows are not Streets", () => {
+    for (const values of [[11, 13, 14, 15], [11, 12, 12, 13], [14, 13, 12, 11]]) {
+      assert(!isStreetRow(normalStreetRow(...values)));
     }
   });
 
-  test("Malformed board data cannot silently produce a score", () => {
-    const board = createEmptyBoard();
-    board[0][0] = 17;
-    for (const invalid of [null, [], createEmptyBoard().slice(1), board]) {
-      assertThrows(() => calculateScore(invalid, 1), "seven rows");
+  test("Incomplete or malformed rows are not Streets", () => {
+    for (const row of [normalStreetRow(11, 12, 13, null), normalStreetRow(11, 12, 13),
+      Array(4), normalStreetRow(16, 17, 18, 19), [11, 12, 13, 14], null]) {
+      assert(!isStreetRow(row));
+    }
+  });
+
+  test("Frozen and thawed primes disqualify an otherwise consecutive Street", () => {
+    for (const status of ["frozen", "thawed"]) {
+      const row = normalStreetRow(11, 12, 13, 14);
+      row[2].status = status;
+      assert(!isStreetRow(row));
+    }
+  });
+
+  test("An empty board scores zero with no bonus", () => {
+    assertDeepEqual(getScoreBreakdown(createEmptyBoard()), { baseSum: 0, streetBonus: 0, streetRows: [], score: 0 });
+  });
+
+  test("A normal board scores its full sum without division", () => {
+    const board = placedBoard(["A1", 16], ["B1", 24], ["A2", 16], ["B2", 26]);
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 82, streetBonus: 0, streetRows: [], score: 82 });
+  });
+
+  test("A Street row contributes its full value twice", () => {
+    const board = placedBoard(["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14]);
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 50, streetBonus: 50, streetRows: [1], score: 100 });
+  });
+
+  test("Multiple Streets each receive their full bonus", () => {
+    const board = boardFixture(["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14],
+      ["A3", 21], ["B3", 22], ["C3", 23], ["D3", 24], ["D7", 33]);
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 173, streetBonus: 140, streetRows: [1, 3], score: 313 });
+  });
+
+  test("Frozen occupied values contribute zero points", () => {
+    const board = placedBoard(["A1", 11], ["B1", 13]);
+    assertEqual(calculateScore(board), 11);
+    assertEqual(calculateScore(boardFixture(["D7", 61, "frozen"])), 0);
+  });
+
+  test("Actual freezing prevents a complete numeric row receiving a Street bonus", () => {
+    const board = placedBoard(["A1", 11], ["B1", 12], ["B2", 12], ["C2", 13],
+      ["C1", 13], ["D2", 14], ["D1", 14]);
+    assertDeepEqual(board[0].map((cell) => cell.value), [11, 12, 13, 14]);
+    assertEqual(board[0][2].status, "frozen");
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 76, streetBonus: 0, streetRows: [], score: 76 });
+  });
+
+  test("Thawing never restores a damaged cell's points or its row's Street bonus", () => {
+    const board = placedBoard(["A1", 11], ["B1", 12], ["B2", 12], ["C2", 13],
+      ["C1", 13], ["D2", 14], ["D1", 14], ["A2", 11]);
+    assertEqual(board[0][2].status, "thawed");
+    assertEqual(board[1][0].status, "frozen");
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 76, streetBonus: 0, streetRows: [], score: 76 });
+  });
+
+  test("Successive freezes keep both current and previously frozen values scoreless", () => {
+    const board = placedBoard(["A1", 23], ["B1", 31], ["A2", 23], ["C1", 41]);
+    assertEqual(calculateScore(board), 23);
+    assertEqual(board[0][1].status, "thawed");
+    assertEqual(board[1][0].status, "thawed");
+    assertEqual(board[0][2].status, "frozen");
+    assertEqual(calculateScore(placedBoard(["A1", 23], ["B1", 31], ["A2", 23], ["C1", 46])), 69);
+  });
+
+  test("Score does not depend on any legacy roll-count argument", () => {
+    const board = placedBoard(["A1", 16]);
+    for (const formerCount of [0, 1, 2, 100, undefined, NaN, "invalid"]) {
+      assertEqual(calculateScore(board, formerCount), 16);
+      assertEqual(getScoreBreakdown(board, formerCount).score, 16);
+    }
+  });
+
+  test("All normal snapshot cells count without an A1 connectivity check", () => {
+    assertEqual(calculateScore(boardFixture(["D7", 46], ["C3", 31, "frozen"])), 46);
+  });
+
+  test("Vertical consecutive values receive no Street bonus", () => {
+    const board = boardFixture(["A1", 11], ["A2", 12], ["A3", 13], ["A4", 14]);
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 50, streetBonus: 0, streetRows: [], score: 50 });
+  });
+
+  test("Scoring is pure and does not store derived information", () => {
+    const board = freezeBoardSnapshot(placedBoard(["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14]));
+    const before = JSON.stringify(board);
+    getScoreBreakdown(board).streetRows.push(7);
+    assertDeepEqual(getScoreBreakdown(board).streetRows, [1]);
+    assertEqual(JSON.stringify(board), before);
+  });
+
+  test("Malformed board snapshots are rejected by scoring", () => {
+    for (const board of [null, [], boardFixture(["A1", 17]), boardFixture(["A1", 22, "frozen"])]) {
+      assertThrows(() => calculateScore(board), "seven rows");
     }
   });
 

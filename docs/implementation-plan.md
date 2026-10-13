@@ -1,435 +1,118 @@
-# Frosty Dice — Implementation Plan
+# Frosty Dice — Redesign Implementation Plan
+
+The repository foundation, mobile board, and local-storage layer already exist.
+Playtesting has replaced the earlier turn and score model. The steps below are
+the current plan; [game-rules.md](./game-rules.md) remains the mechanics source
+of truth. Do not implement a later step while working on an earlier one.
+
+## Step 1 — Rules, core state, scoring, and tests
+
+**Status: Complete for the core-only scope.** The unit suite ran once outside a
+browser in JavaScriptCore: 105/105 passed (46 board/state, 9 number-input,
+15 frozen-prime, 15 scoring, 7 goal, and 13 storage tests). No browser automation,
+screenshots, or viewport tests were performed. No commit or push was made.
+
+Scope:
 
-> This plan intentionally builds Frosty Dice in small, testable milestones. Do not implement later milestones speculatively while working on an earlier one.
+- Document the four-physical-dice turn and source-neutral number entry.
+- Remove roll counts and source-specific turn/action state from the core.
+- Represent occupied cells as value/status records.
+- Retain four-direction OR placement through non-frozen occupied neighbors.
+- Freeze only the new prime after a legal placement beside an occupied prime.
+- Preserve frozen occupancy while excluding it from usable neighbors and points.
+- Preserve Streets but require all four cells to be normal and never frozen.
+- Calculate score as the plain normal-cell sum plus Street bonuses.
+- Detect the goal only at a non-frozen occupied D7.
+- Version the new local snapshot format and reject incompatible older records
+  without guessing placement order or deleting the original save.
+- Retain applicable placement regressions and replace obsolete turn/action tests.
+- Run the pure unit suite once after implementation.
+
+The canonical state is only the board. Cell statuses are authoritative;
+score, Streets, targets, and goal status are derived. Core updates must remain
+independent of presentation code and use no dependencies or build system.
+
+At the end of Step 1 the interface files were unchanged and still imported old
+APIs. The subsequent compatibility repair below resolves that startup failure.
+Browser automation, screenshots, and viewport tests were excluded from Step 1.
+
+## Compatibility repair — Existing board initialization
+
+Replace removed imports and legacy state-field assumptions in app.js with the
+new generic APIs. Read cell records through getCell, retain preview state only
+in the UI, and keep the existing layout/stylesheet. Hide unsupported actions
+and counters, and retain versioned-storage fallback and confirmed reset.
+
+Add non-browser startup regressions using a document/storage test double.
+The game rules and core test cases remain unchanged by this repair.
+
+**Status: Complete.** All 113 tests passed in one JavaScriptCore run, including
+eight startup/interaction regressions. Module imports were checked against the
+actual exports. No browser automation, commit, or push was performed.
+
+## Freeze/thaw rule revision
+
+Use explicit normal/frozen/thawed statuses and enforce at most one current
+freeze. Check placement before applying effects; a new prime freeze thaws the
+old current cell anywhere on the board. Thawed cells regain usability but never
+points or Street eligibility. A thawed D7 reaches the local goal.
+
+Version 3 saves retain statuses. Version-2 records with at most one frozen cell
+migrate in memory; multiple old freezes and malformed/older incompatible saves
+fall back safely without deleting the original record or guessing chronology.
+
+Use existing text-marker styling for FROZEN and Thawed. No image assets, general
+UI redesign, browser automation, screenshots, or viewport tests belong to this
+revision. Run the full suite once, including document-test-double regressions.
+
+**Status: Complete.** All 131 tests passed in one JavaScriptCore run, including
+47 placement/state, 9 number-input, 21 freeze/thaw, 17 scoring, 8 goal,
+18 storage, and 11 coordinator tests. Module imports also passed validation.
+No browser automation, screenshots, viewport tests, assets, commit, or push.
+
+## Targeted freeze/thaw integration coverage and ice-cube feedback
+
+Trace A1=23 → B1=31 → A2=23 through the actual registered app handlers for both
+chosen-pair and manual entry. Check every saved snapshot, rendered status, and
+restored board. Continue to C1=46 through thawed B1, with scores 23 before that
+continuation and 69 afterwards. The existing shared game transition already
+produces normal A1, thawed B1, and frozen A2; no engine rule change is needed.
+
+Currently frozen cells use the supplied ice-cube asset beneath their value,
+with explicit 48px fallback dimensions and contained image styling. Thawed
+cells have no ice cube. Request the updated stylesheet with a versioned relative
+URL. Keep the existing input flow and general layout.
+
+Reject mixed legacy boolean/current status records without guessing permanent
+damage or overwriting the original saved data. Valid current-version saves and
+unambiguous version-2 migration remain supported.
+
+**Status: Complete.** The full suite ran once in JavaScriptCore: **136/136
+passed**, including 14 coordinator tests and 20 storage tests. No browser
+automation, screenshots, viewport tests, commit, or push was performed. The
+image was supplied by the user; no asset generation or image editing was used.
+
+## Step 2 — UI redesign and integration
+
+**UI redesign not started.** The compatibility repair already adapts the
+existing interface to the source-neutral core. Redesign its interaction and
+presentation, remove obsolete hidden markup, and refine frozen-cell feedback
+in the next task. Preserve local save/reset safety and accessibility.
+
+Decide the exact mobile interaction in that task. Do not add layout changes,
+new flows, or presentation-specific state to the core in Step 1.
 
-## Milestone 0 — Repository foundation
+## Step 3 — Manual evaluation and release
 
-Goal: establish a clean project that can grow safely.
+**Not started.** After UI integration, evaluate the physical game and interface
+on representative phones, verify saving/restoration/reset and GitHub Pages
+paths, and resolve only the rules that require a design decision. Publish only
+when explicitly requested.
 
-**Status: Complete.** The minimal shell and documented folder structure are in
-place. Local HTTP and WebKit checks passed at both `/` and `/frosty-dice/`,
-including module loading and layouts at 320 px and 1024 px. No later milestone
-functionality was included in this foundation work.
+Global end-of-game timing remains undecided and is not enforced by Step 1.
 
-Tasks:
+## Workflow
 
-- Create the agreed folder structure
-- Add `index.html`
-- Add `css/style.css`
-- Add `js/app.js`
-- Add `js/game.js`
-- Add `js/scoring.js`
-- Add `js/storage.js`
-- Add `README.md`
-- Keep `AGENTS.md` and the `docs/` specifications in the repository
-- Add a suitable `.gitignore`
-- Verify the site can be opened locally
-- Verify all paths are GitHub Pages compatible
-
-Exit condition:
-
-A minimal page loads without errors and the repository structure matches the documented architecture.
-
-## Milestone 1 — Mobile game board
-
-Goal: create the visual foundation of the game.
-
-**Status: Complete.** The empty board is rendered in `js/app.js` as a semantic
-table with labeled rows and columns, disabled cell buttons, and text markers for
-Start/A1 and Goal/D7. WebKit checks passed at 320, 360, 375, 390, 768, and 1024 px,
-including 200% text at 320 px, with no horizontal overflow or browser errors.
-Relative asset and module paths also passed under `/frosty-dice/`. This milestone
-added rendering only.
-
-Tasks:
-
-- Build a responsive 4 × 7 board
-- Add A–D column labels
-- Add 1–7 row labels
-- Identify A1 as start
-- Identify D7 as goal
-- Optimize board sizing for portrait phones
-- Establish basic typography, spacing, buttons, and status areas
-- Keep the design visually simple and game-like
-
-No game logic beyond rendering is required yet.
-
-Exit condition:
-
-The empty board is pleasant and usable on a narrow mobile viewport.
-
-## Milestone 2 — Board state and core placement rules
-
-Goal: implement the fundamental Frosty Dice board logic independently of the UI.
-
-**Status: Complete.** `js/game.js` implements the 7 × 4 board representation,
-cell helpers, placement validation, legal-target enumeration, and immutable
-guarded placement. Either valid predecessor suffices, as confirmed in section
-4.4 of `docs/game-rules.md`. All 36 dependency-free pure-logic tests pass in
-`tests/index.html`, including OR behavior in both directions.
-
-Board state and validation were connected to rendering and rejection messages
-while player input remained deferred. WebKit integration checks passed at 320,
-375, 390, and 1024 px, including 200% text at 320 px, with no console errors or horizontal
-overflow. Relative module and test paths passed at `/` and `/frosty-dice/`.
-
-Tasks:
-
-- Define the board-state representation
-- Implement first placement at A1
-- Implement horizontal `newValue > leftValue`
-- Implement vertical `newValue === valueAbove`
-- Support branching
-- Determine legal target cells for a candidate number
-- Connect rule functions to board rendering
-- Give clear feedback for illegal actions
-
-Important:
-
-Game-rule functions should be testable without depending on DOM elements.
-
-Exit condition:
-
-Given a candidate number and board state, the application reliably identifies every legal placement.
-
-### Later playtesting update — Four-direction placement
-
-The shared validator now follows the updated section 4 of `game-rules.md`,
-using OR logic across occupied left, right, upper, and lower neighbors. The
-completely empty board still starts at A1. This supersedes the original
-left/upper-only placement behavior recorded in Milestone 2.
-
-Own rolls, failed-roll takeover, stolen numbers, and target highlighting reuse
-that validator. Regression tests cover reverse placement, disagreeing neighbors,
-board edges, the start exception, counters, and restored completed roll history.
-No other gameplay or UI behavior is changed by this rule update.
-
-The full automated suite ran once outside a browser in JavaScriptCore:
-183/183 tests passed (the prior 170 plus 13 focused regression tests).
-No browser automation, screenshots, viewport tests, or visual-regression tests
-were performed.
-
-## Milestone 3 — Own-roll flow
-
-Goal: make the core turn playable with physical dice.
-
-**Status: Complete.** The UI provides two touch-friendly 1–6 radio groups,
-confirmation, unique number choices, legal-target highlighting, and guarded
-placement. Pure helpers in `js/game.js` handle number generation, failed-roll
-detection, and immutable own-roll state transitions while reusing Milestone 2
-placement rules.
-
-Every confirmation increases the own-roll count once. The confirmed roll stays
-locked through placement or failure; “Next roll” clears the dice selections and
-prepares the next physical roll without changing the board or counter.
-
-All 66 automated tests pass: 36 placement tests and 30 own-roll tests. Complete
-browser interactions passed in WebKit at 320, 375, 390, and 1024 px, including
-200% text at 320 px. Checks covered rapid/repeated actions, both orientations,
-doubles, failures, one usable orientation, and OR placement. No console errors
-or horizontal overflow occurred. App and test module paths passed at `/` and
-`/frosty-dice/`.
-
-Tasks:
-
-- Add fast input for two values from 1–6
-- Generate both number orders when dice differ
-- Handle doubles correctly
-- Display candidate number(s)
-- Highlight legal placements for each candidate
-- Let the player choose a legal placement
-- Count one own roll per physical roll
-- Detect a failed roll when neither candidate can be placed
-- Ensure failed own rolls still increase the own-roll count
-- Prevent double-counting when the player considers both candidate numbers
-
-Exit condition:
-
-A player can play normal turns using physical dice and the website records their board and roll count correctly.
-
-## Milestone 4 — External number entry
-
-Goal: support numbers acquired from another player's failed roll through verbal
-table interaction without networking.
-
-**Status: Complete for the approved failed-roll scope.** “Take failed roll” opens
-a single numeric-keyboard field. Pure helpers parse and validate the entered
-number, delegate target calculation and placement to the existing core rules,
-and preserve the own-roll count on every attempt. The UI clears stale highlights
-when the input changes, reports unplaceable numbers, and returns to normal
-controls after a placement or cancellation.
-
-All 88 automated tests pass: 36 placement, 30 own-roll, and 22 external-number
-tests. Mixed own/external interactions passed in WebKit at 320, 375, 390, and
-1024 px, including 200% text at 320 px, with no console errors or horizontal
-overflow. App and test module paths passed at `/` and `/frosty-dice/`.
-
-Milestone 4 was limited to failed-roll numbers. Stolen-number entry was deferred
-to Milestone 5 alongside the special-action flow.
-
-### Failed-roll takeover
-
-Tasks:
-
-- Add “Take failed roll”
-- Accept a valid two-digit Frosty Dice number
-- Show legal placements
-- Place the chosen number
-- Do not increment the own-roll count
-
-Exit condition:
-
-Numbers acquired from opponents' failed rolls can be legally added without
-increasing the receiving player's own-roll count.
-
-## Milestone 5 — Schnapszahlen and removal
-
-Goal: support the special attack mechanic locally.
-
-**Status: Complete for the approved local-device scope.** A legal own-roll
-Schnapszahl placement creates one optional special action. Failed-roll takeover
-and stolen-number placement do not trigger it. The player can enter a stolen
-number using the shared input and core placement helpers, or finish the action
-without placement. Stolen placement preserves the own-roll count.
-
-“Number stolen from me” enables occupied-cell selection and shows the selected
-coordinate and value before explicit confirmation. Removal clears exactly that
-cell, leaves every other value untouched, and preserves the own-roll count.
-No connectivity consequences were decided or coded in Milestone 5.
-
-All 115 automated tests pass: the prior 88 tests plus 27 focused Schnapszahl,
-stolen-number, and removal tests. Only the three requested main browser flows
-were checked, once each, in WebKit, with no console errors. No screenshot,
-viewport sweep, or visual-regression checks were performed.
-
-Tasks:
-
-- Detect `11, 22, 33, 44, 55, 66`
-- Trigger the special-action message only after a Schnapszahl is legally placed from the player's own roll
-- Explain that the player may remove one opponent number
-- Support the stolen-number flow if the player can use that number
-- Allow an occupied own cell to be removed when an opponent steals/destroys it
-- Require confirmation before destructive removal
-- Recalculate derived board state after removal
-
-### Stolen-number placement — deferred from Milestone 4
-
-Tasks:
-
-- Add a way to enter a stolen number
-- Validate normal placement rules
-- Do not increment the own-roll count
-- Keep this action distinct enough that the player understands its origin
-
-Later clarification in Milestone 7:
-
-Remaining cells stay fully active after another cell is removed. They continue
-to score and support placements from immediate neighbors, without recalculating
-A1 connectivity. This permanently confirms the selected-cell-only removal
-behavior; no path repair or deactivation is needed.
-
-Exit condition:
-
-The website correctly supports the local-device parts of Schnapszahl attacks without needing opponent data.
-
-## Milestone 6 — Scoring and streets
-
-Goal: automate scoring.
-
-**Status: Complete.** Pure functions in `js/scoring.js` detect complete horizontal
-Streets, sum every occupied cell including disconnected values, add each Street
-row's full value as a bonus, and divide by own counted rolls. A zero divisor
-returns a score of 0 without division. The UI derives the score and bonus on each
-render and marks Street rows with a gold inset border and a ×2 label.
-
-The automated suite ran once outside a browser in JavaScriptCore: 133/133 tests
-passed (the prior 115 plus 18 focused scoring tests). No automated browser,
-screenshot, viewport, or visual-regression checks were performed.
-
-Tasks:
-
-- Calculate base board-value sum
-- Detect complete horizontal streets
-- Apply the ×2 street value
-- Track the own-roll divisor
-- Calculate and display current score
-- Recalculate immediately after placements/removals
-- Make street status visually clear
-- Handle zero-roll state safely
-
-Confirmed scoring eligibility:
-
-Every number currently present counts toward the numerator, irrespective of
-connectivity. Milestone 7 subsequently confirms that remaining cells are also
-fully active for placements and that D7 occupancy alone detects the goal.
-
-Exit condition:
-
-For all resolved rule cases, the displayed score matches manual calculation.
-
-## Milestone 7 — Goal detection
-
-Goal: reliably identify reaching D7.
-
-**Status: Complete.** Pure `hasReachedGoal(board)` derives the player's current
-goal status from D7 occupancy. All three legal placement sources use this same
-detection. Removal elsewhere preserves the goal while D7 remains occupied;
-removing D7 clears current detection. A small UI notice updates on every render,
-while the existing score display and interaction controls remain available.
-
-The full automated suite ran once outside a browser in JavaScriptCore:
-145/145 tests passed (the prior 133 plus 12 focused goal and active-cell tests).
-No browser automation, screenshots, viewport tests, or visual-regression tests
-were performed.
-
-Tasks:
-
-- Determine whether D7 is currently occupied
-- Show a clear notice that this player has reached D7
-- Keep current score information visible
-- Retain goal detection after removal elsewhere and clear it after removal of D7
-
-Scope boundary:
-
-Connectivity is resolved: remaining cells stay active, and no A1 connectivity
-check is needed. Global end-of-game timing remains undecided; this milestone
-detects and displays the local player's goal only.
-
-Exit condition:
-
-Goal detection matches the final confirmed rules.
-
-## Milestone 8 — Local persistence
-
-Goal: make the website safe to use during a real game.
-
-**Status: Complete.** `js/storage.js` implements schema-versioned serialization, validation, and safe
-localStorage access. Canonical saves contain the board, own-roll count,
-confirmed roll dice/status, and unfinished Schnapszahl action. The UI saves
-each canonical transition and restores automatically, recalculating score,
-Streets, legal targets, and goal status through the existing pure helpers.
-
-“New Game / Reset” requires a separate confirmation, clears only this game's
-storage key, and returns all game/UI state to the initial state. Missing saves
-start normally; corrupt/incompatible saves and storage failures show notices
-without crashing. A reset that cannot clear storage keeps the current game.
-
-The full automated suite ran once outside a browser in JavaScriptCore:
-170/170 tests passed (the prior 145 plus 25 focused storage tests). The new tests
-cover serialization and schema/state validation, resumed rolls/actions, derived
-values after restore, safe storage failures, and clearing only the game key.
-Browser persistence testing is left to the user; no browser
-automation, screenshots, viewport tests, or visual-regression testing are part
-of this milestone.
-
-Tasks:
-
-- Save authoritative game state to `localStorage`
-- Restore the current game on reload
-- Add a state/schema version
-- Handle missing/corrupt stored state gracefully
-- Add “New game” / reset
-- Confirm before deleting an existing game
-- Ensure derived score/legal moves are recalculated correctly after restore
-
-Exit condition:
-
-A player can close/reload the page and continue their game without data loss under normal conditions.
-
-## Milestone 9 — Mobile UX polish
-
-Goal: make Frosty Dice pleasant at the table.
-
-**Status: Complete for the approved UX scope.**
-
-The header now groups score and own rolls beside a compact title. The board
-uses tighter spacing with readable values and 48–56 px cell heights; number
-choices sit below the board. Checked dice, explicit selected-number text,
-dashed `+number` legal targets, and clearer Street ×2 markers communicate state
-alongside color. Dice and action controls retain at least 48 px height.
-
-Own-roll actions remain primary, secondary entry actions are outlined, and
-feedback distinguishes failures, success, and errors. Schnapszahl instructions
-are shorter. Removal review names its value/coordinate, shows a checked
-selection, and focuses Cancel; removal and reset put Cancel/Keep before the
-explicit destructive button. Game rules, state transitions, and persistence
-formats are unchanged. No animations, menus, or new gameplay were added.
-
-The full automated suite ran once outside a browser in JavaScriptCore:
-170/170 tests passed. UI module syntax also passed without executing DOM code.
-Design evaluation, phone-width checks, and browser accessibility checks are
-left to the user as requested. No automated browser testing, screenshot
-analysis, multiple viewport testing, or visual-regression testing was performed.
-Milestone 10 has not started.
-
-Tasks:
-
-- Test common narrow phone widths
-- Reduce unnecessary taps
-- Improve dice-entry speed
-- Improve legal-move highlighting
-- Improve success/error feedback
-- Make destructive actions unmistakable
-- Check accessibility and focus behavior
-- Ensure values remain readable in every board state
-- Add a compact rules/help view if useful
-- Add subtle animation only where it improves comprehension
-
-Exit condition:
-
-A new player can operate the digital sheet with minimal explanation.
-
-## Milestone 10 — Testing and GitHub Pages release
-
-Goal: publish a reliable first test version.
-
-Tasks:
-
-- Manually test all confirmed rules
-- Test representative branching boards
-- Test doubles and Schnapszahlen
-- Test failed rolls
-- Test external-number entry
-- Test streets and scoring
-- Test deletion/removal
-- Test persistence and reset
-- Test on iPhone Safari
-- Test on Android Chrome
-- Check desktop as a secondary target
-- Fix GitHub Pages path issues
-- Publish through GitHub Pages
-- Add the live URL to `README.md`
-
-Exit condition:
-
-Several people at the same table can independently open the GitHub Pages URL and complete a test game.
-
-## Development approach
-
-Work milestone by milestone.
-
-Within a milestone:
-
-1. Implement the smallest useful piece.
-2. Test it.
-3. Commit it.
-4. Continue.
-
-Prefer frequent working commits over large batches.
-
-Do not proceed around unresolved game-rule blockers by inventing behavior. Record the blocker and ask for a decision.
-
-## Suggested early commit sequence
-
-Examples:
-
-1. `chore: initialize Frosty Dice web project`
-2. `feat: add responsive 4x7 game board`
-3. `feat: implement board placement rules`
-4. `feat: add physical dice input flow`
-5. `feat: detect failed rolls`
-6. `feat: support external number placement`
-7. `feat: add Schnapszahl actions`
-8. `feat: calculate streets and score`
-9. `feat: persist games locally`
-10. `chore: prepare GitHub Pages release`
+Read the specifications, implement the current scope, keep rules deterministic,
+and align documentation with approved changes. Do not invent an unresolved
+mechanic. Follow the user's testing and commit/push restrictions for each task.

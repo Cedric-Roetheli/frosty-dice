@@ -2,6 +2,10 @@
 import {
   canPlaceNumber,
   createEmptyBoard,
+  createGameState,
+  getCell,
+  isValidBoardCell,
+  placeGameNumber,
   getCellValue,
   getLegalTargetCells,
   isCellEmpty,
@@ -44,7 +48,7 @@ export function runGameTests() {
   test("New boards and their rows do not share mutable arrays", () => {
     const first = createEmptyBoard();
     const second = createEmptyBoard();
-    first[0][0] = 16;
+    first[0][0] = { value: 16, status: "normal" };
     assertEqual(first[1][0], null);
     assertEqual(second[0][0], null);
     assertEqual(first[0][1], null);
@@ -90,7 +94,7 @@ export function runGameTests() {
     const sparse = createEmptyBoard();
     delete sparse[0][0];
     const invalid = createEmptyBoard();
-    invalid[0][0] = 17;
+    invalid[0][0] = { value: 17, status: "normal" };
     for (const board of [null, {}, [], createEmptyBoard().slice(1), shortRow, sparse, invalid]) {
       assert(!isValidBoard(board));
       assertThrows(() => getCellValue(board, "A1"));
@@ -147,7 +151,7 @@ export function runGameTests() {
 
   test("A larger right neighbor supports leftward placement with a strict inequality", () => {
     const board = createEmptyBoard();
-    board[0][1] = 24; // B1 remains after A1 was removed.
+    board[0][1] = { value: 24, status: "normal" }; // A nonempty snapshot with a usable right neighbor.
     assert(canPlaceNumber(board, "A1", 16));
     assertDeepEqual(getLegalTargetCells(board, 16), ["A1"]);
     assertEqual(getCellValue(placeNumber(board, "A1", 16), "A1"), 16);
@@ -205,7 +209,7 @@ export function runGameTests() {
   test("A diagonal neighbor cannot support placement", () => {
     for (const [row, column] of [[0, 0], [0, 2], [2, 0], [2, 2]]) {
       const board = createEmptyBoard();
-      board[row][column] = 33;
+      board[row][column] = { value: 33, status: "normal" };
       for (const value of [22, 33, 44]) {
         assert(!canPlaceNumber(board, "B2", value));
         assert(!getLegalTargetCells(board, value).includes("B2"));
@@ -285,10 +289,10 @@ export function runGameTests() {
       [66, 11, 22, 33], // Only lower is valid.
     ]) {
       const board = createEmptyBoard();
-      board[1][0] = left;
-      board[1][2] = right;
-      board[0][1] = above;
-      board[2][1] = below;
+      board[1][0] = { value: left, status: "normal" };
+      board[1][2] = { value: right, status: "normal" };
+      board[0][1] = { value: above, status: "normal" };
+      board[2][1] = { value: below, status: "normal" };
       assert(canPlaceNumber(board, "B2", 33));
       assert(getLegalTargetCells(board, 33).includes("B2"));
       assertEqual(getCellValue(placeNumber(board, "B2", 33), "B2"), 33);
@@ -297,17 +301,17 @@ export function runGameTests() {
 
   test("OR: four incompatible occupied neighbors cannot support a placement", () => {
     const board = createEmptyBoard();
-    board[1][0] = 66;
-    board[1][2] = 11;
-    board[0][1] = 22;
-    board[2][1] = 44;
+    board[1][0] = { value: 66, status: "normal" };
+    board[1][2] = { value: 11, status: "normal" };
+    board[0][1] = { value: 22, status: "normal" };
+    board[2][1] = { value: 44, status: "normal" };
     assert(!canPlaceNumber(board, "B2", 33));
     assertThrows(() => placeNumber(board, "B2", 33), "greater than 66 to the left or smaller than 11 to the right or equal to 22 above or equal to 44 below");
   });
 
   test("A nonempty board still requires an occupied orthogonal neighbor, including at A1", () => {
     const board = createEmptyBoard();
-    board[3][2] = 22;
+    board[3][2] = { value: 22, status: "normal" };
     for (const coordinate of ["A1", "C1", "A4", "C7", "D7"]) {
       assert(!canPlaceNumber(board, coordinate, 22));
       assertThrows(() => placeNumber(board, coordinate, 22), "orthogonally adjacent");
@@ -316,7 +320,7 @@ export function runGameTests() {
 
   test("Enumeration includes leftward and upward targets in row order", () => {
     const board = createEmptyBoard();
-    board[3][2] = 22;
+    board[3][2] = { value: 22, status: "normal" };
     assertDeepEqual(getLegalTargetCells(board, 16), ["B4"]);
     assertDeepEqual(getLegalTargetCells(board, 22), ["C3", "C5"]);
     assertDeepEqual(getLegalTargetCells(board, 33), ["D4"]);
@@ -324,7 +328,7 @@ export function runGameTests() {
 
   test("Reverse connections at board corners stay in bounds and never wrap rows", () => {
     const board = createEmptyBoard();
-    board[6][3] = 46;
+    board[6][3] = { value: 46, status: "normal" };
     assertDeepEqual(getLegalTargetCells(board, 24), ["C7"]);
     assertDeepEqual(getLegalTargetCells(board, 46), ["D6"]);
     assert(!canPlaceNumber(board, "A7", 61));
@@ -346,7 +350,7 @@ export function runGameTests() {
   test("A fully occupied board has no legal targets", () => {
     let board = createEmptyBoard();
     for (let row = 1; row <= 7; row += 1) {
-      for (const [column, value] of [["A", 11], ["B", 22], ["C", 33], ["D", 44]]) {
+      for (const [column, value] of [["A", 12], ["B", 24], ["C", 36], ["D", 46]]) {
         board = placeNumber(board, `${column}${row}`, value);
       }
     }
@@ -381,6 +385,7 @@ export function runGameTests() {
 
   test("Successful placement copies the board without mutating frozen input", () => {
     const board = boardWith(["A1", 16]);
+    board.flat().filter((cell) => cell !== null).forEach(Object.freeze);
     board.forEach(Object.freeze);
     Object.freeze(board);
     const nextBoard = placeNumber(board, "B1", 24);
@@ -394,6 +399,7 @@ export function runGameTests() {
   test("Rejected placements and legal-target queries leave input unchanged", () => {
     const board = boardWith(["A1", 16]);
     const before = JSON.stringify(board);
+    board.flat().filter((cell) => cell !== null).forEach(Object.freeze);
     board.forEach(Object.freeze);
     Object.freeze(board);
     assert(!validatePlacement(board, "B1", 16).legal);
@@ -409,6 +415,56 @@ export function runGameTests() {
     assert(validatePlacement(board, "A2", 24).reason.includes("equal to 16 above"));
     assert(validatePlacement(board, "B2", 26).reason.includes("orthogonally adjacent"));
     assertDeepEqual(validatePlacement(board, "B1", 24), { legal: true, reason: null });
+  });
+
+  test("Canonical game state contains only a board", () => {
+    assertDeepEqual(createGameState(), { board: createEmptyBoard() });
+    const placed = placeGameNumber(createGameState(), "A1", 16);
+    assertDeepEqual(Object.keys(placed), ["board"]);
+    assertDeepEqual(getCell(placed.board, "A1"), { value: 16, status: "normal" });
+  });
+
+  test("Generic game placement is guarded and leaves rejected input unchanged", () => {
+    const state = createGameState();
+    const before = JSON.stringify(state);
+    assertThrows(() => placeGameNumber(state, "B1", 16), "first number");
+    assertEqual(JSON.stringify(state), before);
+    for (const invalid of [null, [], {}, { board: [] }]) {
+      assertThrows(() => placeGameNumber(invalid, "A1", 16), "valid game board");
+    }
+  });
+
+  test("Cell records require a valid value and explicit normal/frozen/thawed status", () => {
+    assert(isValidBoardCell(null));
+    assert(isValidBoardCell({ value: 16, status: "normal" }));
+    assert(isValidBoardCell({ value: 13, status: "frozen" }));
+    assert(isValidBoardCell({ value: 13, status: "thawed" }));
+    for (const cell of [16, undefined, [], {}, { value: 16 }, { value: "16", status: "normal" },
+      { value: 16, status: "invalid" }, { value: 16, status: "frozen" },
+      { value: 16, status: "thawed" }, { value: 17, status: "normal" }]) {
+      assert(!isValidBoardCell(cell));
+    }
+  });
+
+  test("Cell getters and new boards do not expose shared mutable cell records", () => {
+    const board = boardWith(["A1", 16]);
+    const record = getCell(board, "A1");
+    record.value = 24;
+    const next = placeNumber(board, "B1", 24);
+    next[0][0].value = 26;
+    assertEqual(getCellValue(board, "A1"), 16);
+    assert(next[0][0] !== board[0][0]);
+  });
+
+  test("A snapshot with multiple currently frozen cells is rejected", () => {
+    const board = createEmptyBoard();
+    board[0][0] = { value: 23, status: "frozen" };
+    board[0][1] = { value: 31, status: "frozen" };
+    assert(!isValidBoard(board));
+    assert(!canPlaceNumber(board, "A2", 23));
+    assertThrows(() => placeNumber(board, "A2", 23), "seven rows");
+    board[0][0].status = "thawed";
+    assert(isValidBoard(board));
   });
 
   return results;

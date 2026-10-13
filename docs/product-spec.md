@@ -1,326 +1,108 @@
-# Frosty Dice — V1 Product Specification
+# Frosty Dice — Product Specification
+
+## 1. Purpose
+
+Frosty Dice is a mobile-first browser companion for a physical tabletop game.
+Each player uses their own phone as a game sheet. Players communicate verbally
+and roll physical dice; the website does not replace either activity.
+
+The redesigned mechanics are defined in [game-rules.md](./game-rules.md).
+The core refactor is complete, followed by a minimal compatibility repair to
+the existing interface. Its layout remains unchanged, with a small frozen-cell
+image treatment; the full UI redesign is deferred.
+
+## 2. Physical play
+
+The active player rolls four physical six-sided dice, chooses two, and may use
+one two-digit number formed from that pair. The unused pair is available to ALL
+other players, who may each form a number and place it if legal on their board.
+
+The app does not record whose dice supplied a number, who is active, or how many
+rolls occurred. Every entered number uses the same guarded placement operation.
+Optional pure helpers can generate the two orientations of a selected pair;
+they never roll dice or model a physical turn.
+
+## 3. Product scope
+
+The app should:
+
+- Represent the player's 4 × 7 board with value and normal/frozen/thawed cell status.
+- Validate two-digit numbers whose digits are each from 1 through 6.
+- Identify legal targets using usable orthogonal neighbors and the A1 start rule.
+- Apply prime freezing only after legal placement, thawing the previous frozen cell.
+- Calculate a plain sum with Street bonuses, excluding all ever-frozen values.
+- Detect the goal only when D7 is occupied and not frozen.
+- Save and restore the local board and permanent damage status.
+- Allow a confirmed new-game reset.
+- Remain mobile-first, accessible, static, and GitHub Pages compatible.
+
+There is no roll counter, number-origin tracking, number-removal action, opponent
+state, synchronization, backend, database, account, digital dice roller, cloud
+save, or replacement special action for repeated-digit numbers.
+
+## 4. Local game state
+
+Canonical state is a board only. Empty cells are empty; occupied cells retain
+both a value and a status: normal, currently frozen, or previously frozen/thawed.
+At most one cell is currently frozen. Thawed cells are usable but permanently
+scoreless. This status depends on placement order and must be stored rather than
+recalculated from current neighboring values.
+
+Score, Streets, legal targets, and goal status are derived from the board.
+Neither dice-entry drafts nor turn/source metadata belong in persistent state.
+
+Version 3 stores explicit cell statuses. Version-2 boolean cell records with at
+most one frozen cell migrate to normal/frozen statuses in memory; the next
+meaningful save writes version 3. Saves with several old frozen cells cannot
+identify the latest freeze, so no current frozen cell is guessed. They safely
+fall back to a fresh state and invalid-save status, preserving the original
+record until play saves a new state or reset is confirmed. Version-1 numeric
+records remain incompatible. Malformed version-3 states, including more than
+one current freeze, use the same safe fallback. Mixed cell encodings that contain
+both the legacy boolean `frozen` field and a current `status` field are rejected;
+restoration must not guess which field describes permanent damage.
+
+Missing or malformed saves and storage-access/quota errors must not crash the
+storage layer. Game data stays on the local device.
+
+## 5. Placement and feedback
+
+A placement changes the board only after the shared rule validator accepts it.
+Frozen cells remain occupied but cannot support a later placement; thawed cells
+can support it. An illegal attempt never thaws a cell or changes the board.
+The app must not infer rules from the
+number's origin or replay turn history to validate a snapshot.
+
+A new freeze sets the placed prime's status to frozen and the previous current
+freeze's status to thawed, retaining all values. Previously thawed cells never
+regain points. Frozen and thawed cells both prevent Street scoring. A thawed
+D7 reaches the local goal even though it scores 0. Global end-of-game timing
+remains undecided.
+
+## 6. Existing UI compatibility and later redesign
+
+Retain a simple game-sheet layout with compact score, readable board labels,
+clear legal targets, and touch-friendly number entry. Compatibility wiring uses
+the shared generic APIs, keeps input previews outside canonical state, and
+derives score/goal/Street displays from the board. Currently frozen cells show
+the supplied `assets/icecube.png` beneath a readable value and retain an
+accessible label explaining their status. Thawed values show no ice cube, using
+a quiet Thawed marker and a label explaining their usability and permanent zero
+points. Removed actions and counters remain hidden. This targeted frozen-cell
+treatment does not include a general layout or input redesign.
+
+The next UI task can redesign the interface and remove the obsolete hidden
+markup. Frozen values should remain readable without implying that they score
+or support placement.
+
+Do not redesign the interface or add new flows during the compatibility repair.
+New-game confirmation remains required. Startup regression tests use a document
+test double; browser automation and visual testing are excluded from this task.
+
+## 7. Technical constraints
 
-## 1. Product vision
+Use HTML, CSS, and vanilla JavaScript with relative asset/module paths. Keep
+rule logic independent from DOM code and storage mechanics in storage.js.
+Introduce no dependencies, framework, build system, PWA, or networking feature.
 
-Frosty Dice V1 is a **mobile-first web companion for people playing together at the same physical table**.
-
-It replaces each player's paper game sheet.
-
-It does not replace:
-
-- the physical dice;
-- face-to-face communication;
-- the social interaction between players.
-
-Every player opens Frosty Dice independently on their own phone and manages only their own board.
-
-## 2. V1 scope
-
-### In scope
-
-The website should:
-
-- Display the player's 4 × 7 Frosty Dice board
-- Record every roll made by that player
-- Convert two dice values into the possible two-digit numbers
-- Determine legal placements
-- Help the player choose a legal placement
-- Detect failed rolls
-- Track the number of the player's own rolls
-- Allow numbers from opponents' failed rolls to be entered without increasing the own-roll divisor
-- Detect Schnapszahlen
-- Support entry of a legally usable stolen number
-- Allow a player to remove a number from their own board when an opponent steals/destroys it
-- Detect streets
-- Calculate the player's score
-- Detect progress toward D7 according to the confirmed rules
-- Save the current game locally on the device
-- Restore the game after refresh/reopening
-- Allow the player to deliberately start a new game/reset
-- Work well on modern phone browsers
-- Be deployable on GitHub Pages
-
-### Explicitly out of scope for V1
-
-Do not build:
-
-- User accounts
-- Login
-- Backend/server
-- Database
-- Online multiplayer
-- Game rooms or lobby codes
-- Device-to-device synchronization
-- Opponent boards
-- Opponent roll tracking
-- Chat
-- Matchmaking
-- Cloud saves
-- Push notifications
-- Native iOS or Android apps
-- App Store or Play Store distribution
-- A digital dice roller unless explicitly requested later
-
-## 3. Device model
-
-Each device knows only about its own player.
-
-For example, in a four-player game:
-
-- Player A's phone stores only Player A's state.
-- Player B's phone stores only Player B's state.
-- Player C's phone stores only Player C's state.
-- Player D's phone stores only Player D's state.
-
-Communication between devices is performed by the humans at the table.
-
-Example:
-
-1. Player A has a failed roll.
-2. Player A says the available numbers aloud.
-3. Player B can use one.
-4. Player B selects the “take failed roll” action on their own phone and enters the number.
-
-No network synchronization is required.
-
-## 4. Primary player flows
-
-### 4.1 Start a game
-
-The player opens the website.
-
-They can:
-
-- Continue an existing locally saved game, if one exists; or
-- Start a new game.
-
-Starting a new game clears the previous local game after confirmation.
-
-### 4.2 Own roll
-
-This is the main action.
-
-Flow:
-
-1. Player physically rolls two dice.
-2. Player enters both dice values on their phone.
-3. The website generates the possible two-digit values.
-4. The website determines all legal placement options.
-5. Legal choices are clearly shown.
-6. The player selects the desired number/field combination.
-7. The board updates.
-8. The own-roll count updates exactly once for that physical roll.
-9. Score and special states update.
-
-If no generated number can legally be placed, the website identifies the roll as a failed roll.
-
-A failed own roll still counts as an own roll for the divisor.
-
-### 4.3 Take an opponent's failed roll
-
-The player chooses a secondary action such as “Take failed roll”.
-
-Flow:
-
-1. Player enters the number announced by the opponent.
-2. The website checks legal placement options.
-3. The player chooses a legal field.
-4. The number is added to the board.
-5. The player's own-roll count does not increase.
-
-The website does not need to record which opponent produced the number.
-
-### 4.4 Schnapszahl
-
-When an own roll creates a Schnapszahl and that Schnapszahl is legally placed:
-
-1. The website recognizes the Schnapszahl.
-2. The website informs the player that the special action is available.
-3. The player verbally chooses a number on an opponent's physical/device board.
-4. The opponent removes that number on their own device.
-5. If the active player can legally use the stolen number, they may enter it through a secondary “stolen number” flow.
-6. If it cannot be legally placed, nothing is entered on the active player's board; the opponent's number remains destroyed.
-
-The stolen number does not add an own roll to the divisor.
-
-### 4.5 A number is stolen from me
-
-The player needs a controlled way to remove an occupied cell from their own board because an opponent used a Schnapszahl against them.
-
-The UI should make accidental deletion difficult.
-
-Suggested interaction:
-
-1. Select an occupied cell.
-2. Choose “Number stolen / remove”.
-3. Confirm the destructive action.
-4. Update the board, then recalculate derived information once the corresponding
-   rules and implementation milestones are complete.
-
-All other legally placed cells remain fully active after removal, including
-cells whose former connection to A1 is broken. They continue to score and
-support legal placements using current immediate neighbors.
-
-Removal clears only the confirmed cell and preserves the own-roll count. The
-current score, Streets, and goal notice are derived again from the resulting
-board.
-
-### 4.6 Reaching D7
-
-Display a clear notice while D7 contains a number legally placed through any of
-the own-roll, failed-roll takeover, or stolen-number flows. No A1 connectivity
-check is required. Removing other cells leaves this notice intact; removing D7
-clears the current goal notice.
-
-The notice identifies only this player's current goal status. Global
-end-of-game timing remains undecided and is not enforced by the interface.
-
-## 5. Main screen
-
-The main game screen should prioritize the board.
-
-Suggested hierarchy:
-
-1. Compact game status / score
-2. 4 × 7 board
-3. Primary “own roll” input
-4. Secondary actions
-5. Small access point for rules/help and reset
-
-The screen should feel like a game sheet, not like an administration dashboard.
-
-The mobile layout uses a compact title with score and own-roll count beside it.
-Number choices sit directly below the board so they do not push it downward
-during placement. Own-roll actions use filled buttons; secondary entry actions
-use outlined buttons. Selection checkmarks, explicit selected-number text, and
-dashed `+number` target previews supplement color cues. Street and goal feedback
-stay with the board, while reset remains a quiet footer action.
-
-Removal and reset reviews show the destructive result explicitly, with
-Cancel/Keep before the destructive button. Removal review defaults keyboard
-focus to Cancel and names the selected value and coordinate on the removal
-button. These changes preserve the existing confirmation and gameplay flows.
-
-### Board
-
-The board should:
-
-- Clearly label columns A–D and rows 1–7
-- Make A1 and D7 identifiable
-- Display entered two-digit values clearly
-- Make tappable/legal target cells obvious during placement
-- Distinguish selected state from ordinary occupied cells
-- Highlight completed streets without making values harder to read
-- Work comfortably on a narrow phone screen
-
-## 6. Dice input UX
-
-The player should not have to type arbitrary two-digit values for an own roll.
-
-Prefer a fast input designed around dice values 1–6.
-
-Possible implementations include:
-
-- Two compact 1–6 selectors
-- Two rows of dice-value buttons
-
-The exact visual design can be iterated, but entering a physical roll should require very few taps.
-
-After input, show the resulting number option(s) and legal placements.
-
-## 7. Feedback and validation
-
-The website should explain why an action cannot be completed.
-
-Examples:
-
-- “26 cannot be placed on your current board.”
-- “C2 needs an occupied orthogonally adjacent cell (left, right, above, or below).”
-- “C2 must be smaller than 44 to the right or equal to 22 below.”
-- “No legal placement — failed roll.”
-
-Avoid silent failure.
-
-## 8. Scoring display
-
-The current score should be visible during play unless playtesting later suggests hiding it improves the game.
-
-The UI should make clear:
-
-- Current score
-- Number of own counted rolls
-- Street bonuses, when present
-
-Do not require the player to calculate the score manually.
-
-All numbers currently present count toward the numerator, including disconnected
-cells and numbers received or stolen from opponents. Complete horizontal Street
-rows contribute twice their row sum. Only own counted rolls form the divisor;
-when that count is zero, display a score of 0. Placements, removals, and confirmed
-own rolls immediately update the derived display.
-
-## 9. Local persistence
-
-The current game should automatically persist on the player's device using `localStorage`.
-
-Refreshing or closing the browser should not normally lose the game.
-
-Persist a versioned record containing only the board, own counted rolls,
-confirmed own-roll dice/status, and any unfinished Schnapszahl action. Restore
-these automatically and recalculate score, Streets, legal targets, and goal
-status. Unconfirmed dice selections and temporary input/removal drafts are not
-saved.
-
-Save automatically after canonical state changes, including confirmation of a
-failed own roll, all placement sources, removal, and finishing an action. Missing
-saves start a new game. Malformed or incompatible saves must not crash the app;
-show a notice and a fresh game, keeping the old record until play saves new state
-or the player confirms reset. Storage access and quota failures show a notice
-while allowing the current in-memory game to continue.
-
-Provide “New Game / Reset” with a separate explicit confirmation and a way to
-keep the current game. Confirmation clears the board, own-roll count, pending
-actions, temporary UI state, and this game's saved record. If clearing storage
-fails, keep the current game and report the failure.
-
-No data should leave the device in V1.
-
-## 10. Mobile-first requirements
-
-Design for phone use first.
-
-Important characteristics:
-
-- Large touch targets
-- Clear two-digit numbers
-- Minimal typing
-- No essential hover interactions
-- No horizontal page scrolling
-- Strong readability in portrait orientation
-- Fast interactions while sitting at a table
-- Reasonable support for both iPhone Safari and Android Chrome
-
-Desktop support is useful but secondary.
-
-## 11. Deployment
-
-The project should remain compatible with GitHub Pages.
-
-The first public/test release can be hosted directly from the GitHub repository.
-
-Use relative asset paths and avoid assumptions that require a custom server.
-
-## 12. Future possibilities — not V1 commitments
-
-Possible later enhancements include:
-
-- Installable PWA behavior
-- Offline caching
-- Better animations and sound
-- Game history/statistics
-- Online rooms
-- Synchronized boards
-- Automatic opponent interactions
-- Native app packaging
-
-These are ideas only. They should not influence V1 architecture unless there is a simple, concrete reason.
+Deployment and device/browser evaluation remain future work.

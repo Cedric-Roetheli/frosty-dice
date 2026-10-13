@@ -6,7 +6,7 @@
     <meta name="description" content="A mobile-first companion for Frosty Dice, played together with physical dice.">
     <title>Frosty Dice</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="./css/style.css?v=icecube-1">
     <script type="module" src="./js/app.js"></script>
   </head>
   <body>
@@ -15,7 +15,7 @@
         <h1>Frosty Dice</h1>
         <div class="game-stats">
           <p class="current-score"><span>Score</span><strong id="current-score">0</strong></p>
-          <p class="roll-counter"><span>Own rolls</span><strong id="own-roll-count">0</strong></p>
+          <p class="roll-counter" hidden><span>Own rolls</span><strong id="own-roll-count">0</strong></p>
         </div>
       </header>
 
@@ -32,7 +32,7 @@
         <table class="board" aria-labelledby="board-heading">
           <caption class="visually-hidden">
             Four columns, A through D, and seven rows, 1 through 7.
-            A1 is the start. D7 is the goal. During a confirmed roll, highlighted
+            A1 is the start. D7 is the goal. During number entry, highlighted
             cells are legal targets for the selected number.
           </caption>
           <thead id="board-columns"></thead>
@@ -52,9 +52,9 @@
         <button id="finish-schnapszahl" class="action-button secondary-button" type="button">Finish without placement</button>
       </section>
       <section id="roll-panel" class="roll-panel" aria-labelledby="roll-heading">
-        <h2 id="roll-heading">Record own roll</h2>
+        <h2 id="roll-heading">Record chosen pair</h2>
         <form id="own-roll-form">
-          <p class="roll-instructions">Tap the values of your physical dice.</p>
+          <p class="roll-instructions">Choose two physical dice, then tap their values.</p>
           <fieldset id="die-1-group" class="die-group">
             <legend>Die 1</legend>
             <div id="die-1-values" class="dice-values"></div>
@@ -63,23 +63,23 @@
             <legend>Die 2</legend>
             <div id="die-2-values" class="dice-values"></div>
           </fieldset>
-          <button id="confirm-roll" class="action-button" type="submit" disabled>Confirm roll</button>
+          <button id="confirm-roll" class="action-button" type="submit" disabled>Show numbers</button>
         </form>
-        <button id="next-roll" class="action-button" type="button" hidden>Next roll</button>
+        <button id="next-roll" class="action-button" type="button" hidden>Next pair</button>
       </section>
       <section id="external-panel" class="external-panel" aria-labelledby="external-heading">
-        <h2 id="external-heading">From the table</h2>
-        <button id="take-failed-roll" class="action-button secondary-button" type="button">Take failed roll</button>
-        <p id="take-help" class="roll-instructions" hidden>Finish placing your confirmed own roll first.</p>
+        <h2 id="external-heading">Number entry</h2>
+        <button id="take-failed-roll" class="action-button secondary-button" type="button">Enter number</button>
+        <p id="take-help" class="roll-instructions" hidden>Finish this placement first.</p>
         <form id="external-number-form" novalidate hidden>
-          <label id="external-number-label" for="external-number">Number announced by the other player</label>
-          <p id="external-input-help" class="roll-instructions">Two digits from 1–6. No own roll is added.</p>
+          <label id="external-number-label" for="external-number">Two-digit dice number</label>
+          <p id="external-input-help" class="roll-instructions">Two digits, each from 1–6.</p>
           <input id="external-number" name="external-number" class="external-number-input" type="text" inputmode="numeric" pattern="[1-6]{2}" autocomplete="off" enterkeyhint="go" aria-describedby="external-input-help app-status" required>
           <button id="show-external-targets" class="action-button" type="submit">Show placements</button>
           <button id="cancel-external-number" class="action-button secondary-button" type="button">Cancel</button>
         </form>
       </section>
-      <section id="removal-panel" class="external-panel" aria-labelledby="removal-heading">
+      <section id="removal-panel" class="external-panel" aria-labelledby="removal-heading" hidden>
         <h2 id="removal-heading">My number was stolen</h2>
         <button id="start-removal" class="action-button secondary-button" type="button">Number stolen from me</button>
         <div id="removal-controls" class="confirmation" hidden>
@@ -93,7 +93,7 @@
         <h2 id="new-game-heading" class="visually-hidden">New game</h2>
         <button id="new-game" class="action-button secondary-button" type="button">New Game / Reset</button>
         <div id="reset-confirmation" class="confirmation" hidden>
-          <p id="reset-warning" class="roll-instructions">Start a new game? Your board, own rolls, pending actions, and local save will be cleared.</p>
+          <p id="reset-warning" class="roll-instructions">Start a new game? Your board and local save will be cleared.</p>
           <button id="cancel-new-game" class="action-button secondary-button" type="button">Keep current game</button>
           <button id="confirm-new-game" class="action-button danger-button" type="button" aria-describedby="reset-warning">Clear game and start again</button>
         </div>

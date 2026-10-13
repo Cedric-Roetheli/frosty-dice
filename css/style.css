@@ -234,6 +234,24 @@ h2 {
   line-height: 1.2;
 }
 
+.board-cell__ice {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 2px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.board-cell--frozen .board-cell__value,
+.board-cell--frozen .board-cell__marker {
+  position: relative;
+  z-index: 1;
+  color: #172b3a;
+  text-shadow: 0 0 3px #fff;
+}
+
 .board-cell--legal {
   border: 2px dashed #275e75;
   color: #244f65;
