@@ -7,8 +7,8 @@
     <meta name="description" content="A mobile-first companion for Frosty Dice, played together with physical dice.">
     <title>Frosty Dice</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="./css/style.css?v=background-ice-3">
-    <script type="module" src="./js/app.js?v=attack-ice-1"></script>
+    <link rel="stylesheet" href="./css/style.css?v=board-hints-1">
+    <script type="module" src="./js/app.js?v=board-hints-1"></script>
   </head>
   <body>
     <main>
@@ -20,13 +20,11 @@
         </div>
       </header>
 
-      <section class="board-sheet" aria-labelledby="board-heading">
-        <div class="board-sheet__header">
-          <h2 id="board-heading">Your board</h2>
-        </div>
-        <table id="game-board" class="board" aria-labelledby="board-heading" tabindex="-1">
+      <section class="board-sheet" aria-label="Game board">
+        <table id="game-board" class="board" aria-label="Game board" tabindex="-1">
           <caption class="visually-hidden">
             Four columns, A through D, and seven rows, 1 through 7.
+            Columns A, B, C, D are displayed as P, L, A, Y.
             A1 is the start. D7 is the goal. Select an empty cell, then enter a number.
             Select a normal or thawed occupied cell for Freeze or Unfreeze.
           </caption>

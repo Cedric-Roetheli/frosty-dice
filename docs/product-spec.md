@@ -112,9 +112,15 @@ remains undecided.
 
 ## 6. Cell-first game sheet
 
-The board is the primary input interface. Empty cells are touch-friendly buttons
-with no visible text, including when selected. Column and row headings identify
-their positions; accessible cell labels retain their coordinates. Occupied
+The board is the primary input interface. Empty cells are touch-friendly buttons.
+Only empty A1 and D7 show small centered Start/End hints, including when selected.
+These disappear on placement and return if Undo restores the empty cell; occupied
+cells show their number and applicable state markers. Other empty cells have no
+visible text. The hints neither intercept taps nor enter game state. The visible
+board heading and row-number gutter are removed. Four column headings display P/L/A/Y, mapped
+only in the UI to internal A/B/C/D. The grid has exactly four cells in each of
+seven rows, centered without a spare gutter. Accessible column/cell labels and
+number-entry coordinates retain A1–D7; saved games require no migration. Occupied
 normal, frozen, and thawed cells cannot open number input or receive placements.
 Normal and thawed cells instead expose a temporary Attack Ice action below the
 board: Freeze if eligible, Unfreeze if currently Attack-Iced. Prime-frozen cells
@@ -194,6 +200,19 @@ one Undo snapshot. There is still no Edit or number-removal feature.
 
 ## 9. Technical constraints
 
+The focused board polish uses a very translucent white outer sheet (12%) with
+a thin translucent border and a restrained 3px backdrop blur, including Safari's
+prefixed filter. Individual cells use 80% opacity for readable values and
+distinct empty/normal/start/goal states; selected cells use 94% with their existing
+border treatment. Opacity and blur controls are grouped in style.css.
+
+Column labels stay readable and aligned with their columns. Street highlighting
+and feedback remain; the existing ×2 marker moves into the last cell's corner
+without adding a column or changing cell height. Ice assets, their fit/clipping,
+and number stacking are unchanged. This is presentation only: placement, Prime
+Ice, Attack Ice, Undo, score, goal, storage, reset, and background composition
+retain their existing behavior. Manual iPhone evaluation remains pending.
+
 The experimental background pass uses the supplied background_sky.png and
 background_meadow.png unchanged as non-interactive decorative CSS layers.
 The sky stays fixed; the meadow spans the full document height and scrolls with
@@ -203,7 +222,7 @@ stays behind the game sheet even when entry or reset makes the page longer.
 The second targeted iteration moves the horizon from 72% to 95% of the stable
 viewport height. The header has no opaque backing: title, Score label/value,
 and Undo are white over the sky. Undo retains its 48px target, transparent fill,
-and a subdued disabled appearance. Other UI geometry, colors, and surfaces remain.
+and a subdued disabled appearance. UI outside the focused board polish remains.
 
 The third targeted iteration keeps the 95% stable-viewport horizon unchanged.
 Theme metadata and root/body canvas fallbacks use the sampled upper sky color,

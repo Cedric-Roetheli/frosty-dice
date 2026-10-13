@@ -246,6 +246,33 @@ cache version and performed static scope/path/metadata and whitespace checks.
 No full suite was run for these HTML/CSS-only changes. No browser automation,
 screenshots, visual tests, commit, or push. Assets and application logic are unchanged.
 
+## Focused board glass polish — Presentation only
+
+Remove the visible board heading and row-number gutter. Render four aligned
+P/L/A/Y headers using an app-only display mapping to A/B/C/D. Preserve internal
+A1–D7 cell IDs, accessible identifiers, state, and all existing game rules.
+Keep Street feedback, moving its ×2 marker into the last cell's corner without
+changing cell height or adding a column.
+
+Give the outer sheet restrained translucent white, a thin translucent border,
+and slight Safari-compatible backdrop blur. Keep individual cells more opaque,
+with readable numbers and existing selection/start/goal distinctions. Expose
+opacity and blur values centrally. Preserve cell heights, typography, ice
+geometry/stacking, background composition, and interactions outside the board.
+
+Update presentation assertions and add a handler-level display-to-coordinate
+regression. Retain every core test and internal-coordinate case. Run the full
+suite once without browser automation, screenshots, or visual regression tests.
+Do not commit or push. Manual phone evaluation remains deferred.
+
+**Status: Implemented for this focused presentation scope.** The full suite
+ran once in JavaScriptCore: **254/254 passed**, including 68 coordinator tests
+and the unchanged core cases. Static checks confirmed that gameplay handlers,
+game/scoring/storage modules, ice styling, artwork, and all background values
+and rules are unchanged. Markup IDs, accessible names, paths, module imports,
+and whitespace checks passed. No browser automation, screenshots, visual
+regression tests, commit, or push. Manual glass/contrast evaluation is pending.
+
 ## Step 3 — Manual evaluation and release
 
 **Not started.** After UI integration, evaluate the physical game and interface

@@ -223,12 +223,46 @@ export function runAppInitializationTests() {
     for (const cell of document.getElementById("board-rows").querySelectorAll("button")) {
       assertEqual(cell.disabled, false);
       assertEqual(cell.getAttribute("aria-pressed"), "false");
-      assertEqual(cell.textContent, "");
+      assertEqual(cell.textContent, cell.dataset.coordinate === "A1" ? "Start" : cell.dataset.coordinate === "D7" ? "End" : "");
+      if (["A1", "D7"].includes(cell.dataset.coordinate)) {
+        assertEqual(cell.querySelector("span").className, "board-cell__hint");
+        assertEqual(cell.querySelector("span").getAttribute("aria-hidden"), "true");
+      }
       assert(cell.getAttribute("aria-label").includes(cell.dataset.coordinate));
     }
-    assertDeepEqual(document.getElementById("board-columns").querySelectorAll("th").map((heading) => heading.textContent), ["A", "B", "C", "D"]);
-    assertDeepEqual(document.getElementById("board-rows").querySelectorAll("th").map((heading) => heading.textContent), ["1", "2", "3", "4", "5", "6", "7"]);
+    const headers = document.getElementById("board-columns").querySelectorAll("th");
+    assertDeepEqual(headers.map((heading) => heading.textContent), ["P", "L", "A", "Y"]);
+    assertEqual(document.getElementById("board-columns").children[0].children.length, 4);
+    assertEqual(document.getElementById("board-rows").querySelectorAll("th").length, 0);
+    for (const [index, column] of ["A", "B", "C", "D"].entries()) {
+      assertEqual(headers[index].scope, "col");
+      assertEqual(headers[index].getAttribute("aria-label"), "Column " + column + ", displayed as " + ["P", "L", "A", "Y"][index]);
+      for (let row = 1; row <= 7; row += 1) {
+        const cells = document.getElementById("board-rows").children[row - 1].children;
+        assertEqual(cells.length, 4);
+        assertEqual(cells[index].querySelector("button").dataset.coordinate, column + row);
+      }
+    }
     assertNoMoveHints(document);
+  });
+
+  test("Selecting under PLAY display labels still submits and stores A/B/C/D coordinates", () => {
+    const { document, storage } = startAppTest();
+    const expectedValues = [16, 24, 36, 46];
+    for (const [index, column] of ["A", "B", "C", "D"].entries()) {
+      const button = document.getElementById("board-rows").children[0].children[index].querySelector("button");
+      document.getElementById("board-rows").emit("click", button);
+      assertEqual(document.getElementById("selected-cell").textContent, column + "1");
+      typeAppNumber(document, expectedValues[index]);
+      document.getElementById("number-entry-form").emit("submit");
+      assertDeepEqual(loadGame(storage).state.board[0][index], { value: expectedValues[index], status: "normal" });
+    }
+    assertEqual(document.getElementById("current-score").textContent, "122");
+    const goal = document.getElementById("board-rows").children[6].children[3].querySelector("button");
+    document.getElementById("board-rows").emit("click", goal);
+    assertEqual(document.getElementById("selected-cell").textContent, "D7");
+    assert(goal.getAttribute("aria-label").startsWith("D7,"));
+    assertDeepEqual(Object.keys(JSON.parse(storage.getItem(STORAGE_KEY)).state), ["board", "undo"]);
   });
 
   test("Selecting any empty cell opens numeric entry and focuses it without validating the move", () => {
@@ -237,7 +271,7 @@ export function runAppInitializationTests() {
     const selected = document.getElementById("cell-D7");
     assertEqual(selected.getAttribute("aria-pressed"), "true");
     assert(selected.className.includes("--selected"));
-    assertEqual(selected.textContent, "");
+    assertEqual(selected.textContent, "End");
     assertEqual(document.getElementById("selected-cell").textContent, "D7");
     assertEqual(document.getElementById("number-entry-form").hidden, false);
     assertEqual(document.activeElement, document.getElementById("number-input"));
@@ -538,6 +572,14 @@ export function runAppInitializationTests() {
     }
     assertEqual(document.getElementById("street-bonus").hidden, false);
     assert(document.getElementById("board-rows").children[0].className.includes("street"));
+    assertEqual(document.getElementById("board-rows").children[0].children.length, 4);
+    const lastCell = document.getElementById("cell-D1");
+    const marker = lastCell.querySelectorAll("span").find((span) => span.className === "street-marker");
+    assert(marker !== undefined);
+    assertEqual(marker.textContent, "×2");
+    assertEqual(marker.getAttribute("aria-hidden"), "true");
+    assert(lastCell.getAttribute("aria-label").includes("Street, row value doubled"));
+    assertEqual(lastCell.querySelectorAll("span").at(-1).textContent, "14");
     assertDeepEqual(loadGame(storage).state.board[0].map((cell) => cell.value), [11, 12, 13, 14]);
   });
 
@@ -695,10 +737,12 @@ export function runAppInitializationTests() {
   test("A successful normal placement enables Undo, which restores and saves the empty state", () => {
     const { document, storage } = startAppTest();
     submitAppNumber(document, "A1", 16);
+    assertEqual(document.getElementById("cell-A1").textContent, "16");
     assertEqual(document.getElementById("undo-move").disabled, false);
     document.getElementById("undo-move").emit("click");
     assertDeepEqual(loadGame(storage).state, createGameState());
     assertEqual(document.getElementById("cell-A1").dataset.state, "empty");
+    assertEqual(document.getElementById("cell-A1").textContent, "Start");
     assertEqual(document.getElementById("current-score").textContent, "0");
     assertEqual(document.getElementById("undo-move").disabled, true);
     assertEqual(JSON.parse(storage.getItem(STORAGE_KEY)).state.undo, null);
@@ -809,9 +853,11 @@ export function runAppInitializationTests() {
   test("Undo of the D7 placement removes visible goal feedback and restores the previous score", () => {
     const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["C7", 46]) }));
     submitAppNumber(document, "D7", 55);
+    assertEqual(document.getElementById("cell-D7").textContent, "55");
     assertEqual(document.getElementById("goal-status").hidden, false);
     assertEqual(document.getElementById("current-score").textContent, "101");
     document.getElementById("undo-move").emit("click");
+    assertEqual(document.getElementById("cell-D7").textContent, "End");
     assertEqual(document.getElementById("goal-status").hidden, true);
     assertEqual(document.getElementById("current-score").textContent, "46");
     assertDeepEqual(loadGame(storage).state, { board: boardFixture(["C7", 46]), undo: null });

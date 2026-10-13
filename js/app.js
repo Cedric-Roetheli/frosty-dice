@@ -16,6 +16,9 @@ import {
 import { getScoreBreakdown } from "./scoring.js?v=attack-ice-1";
 import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=attack-ice-1";
 
+// Display labels only: every state, action, and accessible cell still uses A–D.
+const columnDisplayLabels = Object.freeze({ A: "P", B: "L", C: "A", D: "Y" });
+
 // Shorten the core's explanations, without evaluating placement rules in the UI.
 function placementFeedback(reason) {
   if (reason === "The first number must be placed at A1.") return "Place your first number at A1.";
@@ -76,7 +79,7 @@ export function initializeApp(document, storage) {
     numberInput.focus({ preventScroll: true });
   }
 
-  function createCell(coordinate) {
+  function createCell(coordinate, street = false) {
     const record = getCell(game.board, coordinate);
     const value = record?.value ?? null;
     const selected = selectedCell === coordinate || selectedActionCell === coordinate;
@@ -99,11 +102,12 @@ export function initializeApp(document, storage) {
     if (marker) {
       labels.push(marker.toLowerCase());
       cell.classList.add("board-cell--" + marker.toLowerCase());
-      if (value !== null) {
-        const markerLabel = document.createElement("span");
-        markerLabel.className = "board-cell__marker";
-        markerLabel.textContent = marker;
-        cell.append(markerLabel);
+      if (value === null) {
+        const hint = document.createElement("span");
+        hint.className = "board-cell__hint";
+        hint.textContent = coordinate === "A1" ? "Start" : "End";
+        hint.setAttribute("aria-hidden", "true");
+        cell.append(hint);
       }
     }
 
@@ -139,6 +143,15 @@ export function initializeApp(document, storage) {
       labels.push("Freeze available");
     }
 
+    if (street && coordinate[0] === "D") {
+      labels.push("Street", "row value doubled");
+      const streetMarker = document.createElement("span");
+      streetMarker.className = "street-marker";
+      streetMarker.textContent = "×2";
+      streetMarker.setAttribute("aria-hidden", "true");
+      cell.append(streetMarker);
+    }
+
     if (value !== null) {
       const valueLabel = document.createElement("span");
       valueLabel.className = "board-cell__value";
@@ -156,35 +169,25 @@ export function initializeApp(document, storage) {
 
   function renderBoard(streetRows) {
     const headerRow = document.createElement("tr");
-    const corner = document.createElement("td");
-    corner.className = "board-corner";
-    headerRow.append(corner);
     for (const column of columns) {
       const heading = document.createElement("th");
       heading.scope = "col";
-      heading.textContent = column;
+      heading.textContent = columnDisplayLabels[column];
+      heading.setAttribute("aria-label", "Column " + column + ", displayed as " + columnDisplayLabels[column]);
       headerRow.append(heading);
     }
 
     const rows = document.createDocumentFragment();
     for (let rowNumber = 1; rowNumber <= rowCount; rowNumber += 1) {
       const row = document.createElement("tr");
-      const heading = document.createElement("th");
-      heading.scope = "row";
-      heading.textContent = rowNumber;
-      if (streetRows.includes(rowNumber)) {
+      const street = streetRows.includes(rowNumber);
+      if (street) {
         row.className = "board-row--street";
-        heading.setAttribute("aria-label", "Row " + rowNumber + ", Street, row value doubled");
-        const marker = document.createElement("span");
-        marker.className = "street-marker";
-        marker.textContent = "×2";
-        marker.setAttribute("aria-hidden", "true");
-        heading.append(marker);
+        row.setAttribute("aria-label", "Row " + rowNumber + ", Street, row value doubled");
       }
-      row.append(heading);
       for (const column of columns) {
         const entry = document.createElement("td");
-        entry.append(createCell(column + rowNumber));
+        entry.append(createCell(column + rowNumber, street));
         row.append(entry);
       }
       rows.append(row);
