@@ -86,7 +86,7 @@ export function runFrozenPrimeTests() {
     for (const [coordinate, value] of [["A2", 23], ["C2", 41], ["B1", 31], ["B3", 31]]) {
       assert(!canPlaceNumber(board, coordinate, value));
       assert(!getLegalTargetCells(board, value).includes(coordinate));
-      assertThrows(() => placeNumber(board, coordinate, value), "non-frozen occupied");
+      assertThrows(() => placeNumber(board, coordinate, value), "usable occupied");
     }
   });
 
@@ -180,7 +180,7 @@ export function runFrozenPrimeTests() {
   test("An otherwise illegal placement cannot thaw its only supporting frozen neighbor", () => {
     const board = freezeBoardSnapshot(placedBoard(["A1", 23], ["B1", 31]));
     const before = JSON.stringify(board);
-    assertThrows(() => placeNumber(board, "C1", 41), "non-frozen occupied");
+    assertThrows(() => placeNumber(board, "C1", 41), "usable occupied");
     assertEqual(JSON.stringify(board), before);
     assert(isCellFrozen(board, "B1"));
     assert(isCellEmpty(board, "C1"));

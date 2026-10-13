@@ -1,7 +1,7 @@
-import { BOARD_COLUMNS, BOARD_ROW_COUNT, cloneGameState, createGameState, isPrimeNumber, isValidGameState } from "./game.js?v=undo-1";
+import { BOARD_COLUMNS, BOARD_ROW_COUNT, cloneGameState, createGameState, isPrimeNumber, isValidBoard, isValidGameState } from "./game.js?v=attack-ice-1";
 
 export const STORAGE_KEY = "frosty-dice.game";
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 function isStorageRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -23,8 +23,20 @@ function canonicalStoredState(state) {
   return cloneGameState(state);
 }
 
+function hasLegacyCells(board) {
+  // Attack Ice never existed in these versions; reject mixed development saves.
+  return isValidBoard(board) && hasCanonicalCells(board)
+    && board.every((row) => row.every((cell) => cell === null
+      || !Object.prototype.hasOwnProperty.call(cell, "attackIce")));
+}
+
+function migrateVersion5State(state) {
+  return isValidStoredState(state) && hasLegacyCells(state.board)
+    && (state.undo == null || hasLegacyCells(state.undo.board)) ? state : null;
+}
+
 function migrateBoardOnlyState(state) {
-  if (!isStorageRecord(state)) return null;
+  if (!isStorageRecord(state) || !hasLegacyCells(state.board)) return null;
   // Older formats never stored a previous board: do not infer an Undo history.
   const migrated = { board: state.board, undo: null };
   return isValidStoredState(migrated) ? migrated : null;
@@ -41,7 +53,8 @@ function migrateVersion2State(state) {
         entries.push(null);
       } else {
         if (!isStorageRecord(cell) || typeof cell.frozen !== "boolean"
-            || Object.prototype.hasOwnProperty.call(cell, "status")) return null;
+            || Object.prototype.hasOwnProperty.call(cell, "status")
+            || Object.prototype.hasOwnProperty.call(cell, "attackIce")) return null;
         entries.push({ value: cell.value, status: cell.frozen ? "frozen" : "normal" });
       }
     }
@@ -75,6 +88,7 @@ export function deserializeGame(serialized) {
     const payload = JSON.parse(serialized);
     if (!isStorageRecord(payload)) return null;
     const state = payload.version === SAVE_VERSION ? payload.state
+      : payload.version === 5 ? migrateVersion5State(payload.state)
       : payload.version === 4 ? migrateBoardOnlyState(payload.state)
       : payload.version === 3 ? migrateVersion3State(payload.state)
       : payload.version === 2 ? migrateVersion2State(payload.state) : null;

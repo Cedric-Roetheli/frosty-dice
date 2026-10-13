@@ -28,7 +28,8 @@ export function isValidCell(coordinate) {
 export function isValidBoardCell(cell) {
   return cell === null || (typeof cell === "object" && !Array.isArray(cell)
     && isValidNumber(cell.value) && CELL_STATUSES.includes(cell.status)
-    && (cell.status !== "frozen" || isPrimeNumber(cell.value)));
+    && (!Object.prototype.hasOwnProperty.call(cell, "attackIce") || typeof cell.attackIce === "boolean")
+    && (cell.status !== "frozen" || (isPrimeNumber(cell.value) && !cell.attackIce)));
 }
 
 // Validate the snapshot, without replaying placement history or A1 connectivity.
@@ -37,6 +38,7 @@ export function isValidBoard(board) {
     return false;
   }
   let frozenCount = 0;
+  let attackIceCount = 0;
   for (const row of board) {
     if (!Array.isArray(row) || row.length !== BOARD_COLUMNS.length) {
       return false;
@@ -48,6 +50,10 @@ export function isValidBoard(board) {
       if (cell !== null && cell.status === "frozen") {
         frozenCount += 1;
         if (frozenCount > 1) return false;
+      }
+      if (cell?.attackIce) {
+        attackIceCount += 1;
+        if (attackIceCount > 1) return false;
       }
     }
   }
@@ -62,7 +68,7 @@ export function getCell(board, coordinate) {
     throw new RangeError("Choose a cell from A1 through D7.");
   }
   const cell = board[Number(coordinate[1]) - 1][BOARD_COLUMNS.indexOf(coordinate[0])];
-  return cell === null ? null : { value: cell.value, status: cell.status };
+  return cloneCell(cell);
 }
 
 export function getCellValue(board, coordinate) {
@@ -85,9 +91,18 @@ export function isCellThawed(board, coordinate) {
   return getCell(board, coordinate)?.status === "thawed";
 }
 
+export function isCellAttackIced(board, coordinate) {
+  return getCell(board, coordinate)?.attackIce === true;
+}
+
 export function isCellUsable(board, coordinate) {
   const cell = getCell(board, coordinate);
-  return cell !== null && cell.status !== "frozen";
+  return usableValue(cell) !== null;
+}
+
+export function canApplyAttackIce(board, coordinate) {
+  const cell = getCell(board, coordinate);
+  return cell !== null && cell.status !== "frozen" && !cell.attackIce;
 }
 
 export function hasReachedGoal(board) {
@@ -104,7 +119,7 @@ function orthogonalNeighbors(board, row, column) {
 }
 
 function usableValue(cell) {
-  return cell === null || cell.status === "frozen" ? null : cell.value;
+  return cell === null || cell.status === "frozen" || cell.attackIce ? null : cell.value;
 }
 
 export function validatePlacement(board, coordinate, value) {
@@ -147,7 +162,7 @@ export function validatePlacement(board, coordinate, value) {
     legal: false,
     reason: requirements.length > 0
       ? `${coordinate} must be ${requirements.join(" or ")}.`
-      : `${coordinate} needs a non-frozen occupied orthogonally adjacent cell (left, right, above, or below).`,
+      : `${coordinate} needs a usable occupied orthogonally adjacent cell (left, right, above, or below).`,
   };
 }
 
@@ -169,11 +184,40 @@ export function getLegalTargetCells(board, value) {
   return targets;
 }
 
+function cloneCell(cell) {
+  if (cell === null) return null;
+  // An absent overlay means no Attack Ice; retain only true in canonical records.
+  const copy = { value: cell.value, status: cell.status };
+  if (cell.attackIce) copy.attackIce = true;
+  return copy;
+}
+
 export function cloneBoard(board) {
   if (!isValidBoard(board)) {
     throw new TypeError("The board must have seven rows of four empty cells or valid cell records.");
   }
-  return board.map((row) => row.map((cell) => cell === null ? null : { value: cell.value, status: cell.status }));
+  return board.map((row) => row.map(cloneCell));
+}
+
+export function applyAttackIce(board, coordinate) {
+  const cell = getCell(board, coordinate);
+  if (cell === null || cell.status === "frozen") {
+    throw new Error("Attack Ice requires a normal or thawed occupied cell.");
+  }
+  if (cell.attackIce) return board;
+  const nextBoard = cloneBoard(board);
+  for (const row of nextBoard) {
+    for (const entry of row) if (entry !== null) delete entry.attackIce;
+  }
+  nextBoard[Number(coordinate[1]) - 1][BOARD_COLUMNS.indexOf(coordinate[0])].attackIce = true;
+  return nextBoard;
+}
+
+export function removeAttackIce(board, coordinate) {
+  if (!isCellAttackIced(board, coordinate)) return board;
+  const nextBoard = cloneBoard(board);
+  delete nextBoard[Number(coordinate[1]) - 1][BOARD_COLUMNS.indexOf(coordinate[0])].attackIce;
+  return nextBoard;
 }
 
 export function placeNumber(board, coordinate, value) {
@@ -210,23 +254,31 @@ export function isValidUndoSnapshot(snapshot, board) {
   if (!isGameRecord(snapshot) || Object.keys(snapshot).join(",") !== "board"
       || !isValidBoard(snapshot.board) || !isValidBoard(board)) return false;
   let move = null;
+  let previousAttack = null;
+  let currentAttack = null;
   for (let row = 0; row < BOARD_ROW_COUNT; row += 1) {
     for (let column = 0; column < BOARD_COLUMNS.length; column += 1) {
       const before = snapshot.board[row][column];
       const after = board[row][column];
+      const coordinate = BOARD_COLUMNS[column] + (row + 1);
+      if (before?.attackIce) previousAttack = coordinate;
+      if (after?.attackIce) currentAttack = coordinate;
       if (before === null && after !== null) {
         if (move !== null) return false;
-        move = { coordinate: BOARD_COLUMNS[column] + (row + 1), value: after.value };
+        move = { coordinate, value: after.value };
       } else if (before !== null && (after === null || before.value !== after.value)) {
         return false;
       }
     }
   }
-  if (move === null) return false;
-  // Check one forward move for saved-data integrity; restoration never reverses effects.
+  // Check one forward action for saved-data integrity; restoration never reverses effects.
   try {
-    return JSON.stringify(placeNumber(snapshot.board, move.coordinate, move.value))
-      === JSON.stringify(cloneBoard(board));
+    let expected;
+    if (move !== null) expected = placeNumber(snapshot.board, move.coordinate, move.value);
+    else if (previousAttack === currentAttack) return false;
+    else if (currentAttack !== null) expected = applyAttackIce(snapshot.board, currentAttack);
+    else expected = removeAttackIce(snapshot.board, previousAttack);
+    return JSON.stringify(expected) === JSON.stringify(cloneBoard(board));
   } catch {
     return false;
   }
@@ -245,12 +297,25 @@ export function cloneGameState(state) {
   };
 }
 
-export function placeGameNumber(state, coordinate, value) {
+function applyGameAction(state, operation, ...args) {
   if (!isValidGameState(state)) throw new TypeError("Use a valid game board and Undo snapshot.");
   const snapshot = { board: cloneBoard(state.board) };
-  const board = placeNumber(state.board, coordinate, value);
-  // A failed placement throws before a new state can replace the existing snapshot.
+  const board = operation(state.board, ...args);
+  if (board === state.board) return state;
+  // A failed action throws before a new state can replace the existing snapshot.
   return { board, undo: snapshot };
+}
+
+export function placeGameNumber(state, coordinate, value) {
+  return applyGameAction(state, placeNumber, coordinate, value);
+}
+
+export function freezeGameCell(state, coordinate) {
+  return applyGameAction(state, applyAttackIce, coordinate);
+}
+
+export function unfreezeGameCell(state, coordinate) {
+  return applyGameAction(state, removeAttackIce, coordinate);
 }
 
 export function canUndo(state) {

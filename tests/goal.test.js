@@ -46,7 +46,7 @@ export function runGoalTests() {
   test("Frozen neighbors cannot enable illegal D7 placement or goal detection", () => {
     const board = boardFixture(["C7", 53, "frozen"]);
     assert(!getLegalTargetCells(board, 61).includes("D7"));
-    assertThrows(() => placeNumber(board, "D7", 61), "non-frozen occupied");
+    assertThrows(() => placeNumber(board, "D7", 61), "usable occupied");
     assert(!hasReachedGoal(board));
   });
 

@@ -32,10 +32,11 @@ The app should:
 - Validate submitted placements using usable orthogonal neighbors and the A1 start rule.
 - Let players reason about moves themselves, without target highlighting or number suggestions.
 - Apply prime freezing only after legal placement, thawing the previous frozen cell.
+- Let players manually apply, remove, or atomically move one temporary Attack Ice.
 - Calculate a plain sum with Street bonuses, excluding all ever-frozen values.
-- Detect the goal only when D7 is occupied and not frozen.
+- Detect the goal only when D7 is occupied and usable (no Prime Ice or Attack Ice).
 - Save and restore the local board and permanent damage status.
-- Offer one-step Undo of the last successful placement, restoring its complete prior board.
+- Offer one-step Undo of the last successful placement or Attack Ice action, restoring its complete prior board.
 - Allow a confirmed new-game reset.
 - Remain mobile-first, accessible, static, and GitHub Pages compatible.
 
@@ -49,26 +50,35 @@ Canonical state is `{ board, undo }`. Each board has seven rows of four cells;
 occupied cells retain a value and a normal/frozen/thawed status. At most one
 cell in each board is currently frozen. Thawed cells are usable but permanently
 scoreless. These statuses are authoritative historical data.
+An optional `attackIce: true` flag on an occupied cell is an independent
+temporary overlay. Absence means no Attack Ice. At most one cell has that flag;
+it cannot coexist with `status: "frozen"` on the same cell. Removing the flag
+never changes the underlying value or Prime status.
 
-`undo` is either `null` or `{ board }`, a deep-cloned pre-placement board.
+`undo` is either `null` or `{ board }`, a deep-cloned pre-action board including
+Attack Ice and every Prime status.
 The snapshot never contains an older Undo. The board contains all gameplay
 data; score, Streets, legal targets, and goal are derived and not persisted.
 Selection and number drafts stay outside canonical state.
 
-Version 5 saves the current board and this one nullable snapshot together.
+Version 6 saves the current board and this one nullable snapshot together.
 Validate both boards, reject recursive history or a snapshot that does not
-precede the current board by one legal placement, and retain canonical cell
+precede the current board by one legal placement or Attack Ice action, and retain canonical cell
 statuses without legacy boolean flags.
 
+Valid version-5 games migrate with their existing Undo intact and no Attack Ice.
 Valid version-3 and version-4 board-only games migrate with Undo unavailable.
 Preserve their values and damage exactly; there is no prior board to recover.
 Version 4's legacy permanent damage remains scoreless. Version-2 boolean
 records with at most one freeze still migrate safely. Version-1 numeric saves,
 ambiguous multiple freezes, mixed encodings, malformed snapshots, and unknown
-versions fall back to a fresh state and a visible invalid-save message.
+versions fall back to a fresh state and a visible invalid-save message. Attack
+Ice fields in older versions are rejected as mixed development saves. Current
+games with multiple Attack overlays or an overlay on a Prime-frozen cell are
+also rejected safely; no status is guessed or silently discarded.
 
 Loading never rewrites or deletes a save. The next successful placement or
-Undo saves version 5. Consuming Undo saves `undo: null`; confirmed reset clears
+Attack Ice action or Undo saves version 6. Consuming Undo saves `undo: null`; confirmed reset clears
 the saved game entirely. Missing saves and storage-access/quota errors must
 not crash the application. Data stays on the local device.
 
@@ -88,8 +98,9 @@ every relationship must be satisfied. The first-placement rule receives its
 own short A1 explanation. Invalid input is rejected without truncating a pasted
 value into a different valid number.
 
-Frozen cells remain occupied but cannot support a later placement; thawed cells
-can support it. An illegal attempt never thaws a cell or changes the board.
+Prime-frozen and Attack-Iced cells remain occupied but cannot support a later
+placement; thawed cells without Attack Ice can support it. An illegal attempt
+never thaws a cell or changes the board.
 The app must not infer rules from the
 number's origin or replay turn history to validate a snapshot.
 
@@ -104,8 +115,10 @@ remains undecided.
 The board is the primary input interface. Empty cells are touch-friendly buttons
 with no visible text, including when selected. Column and row headings identify
 their positions; accessible cell labels retain their coordinates. Occupied
-normal, frozen, and thawed cells cannot open input, expose actions, or receive
-placements. Selecting
+normal, frozen, and thawed cells cannot open number input or receive placements.
+Normal and thawed cells instead expose a temporary Attack Ice action below the
+board: Freeze if eligible, Unfreeze if currently Attack-Iced. Prime-frozen cells
+are disabled and offer no Freeze. Selecting
 an empty cell shows a restrained border and a compact form directly below the
 board, with the selected coordinate in the input label. Selection is not a
 statement that the move is legal.
@@ -126,7 +139,10 @@ New Game / Reset remains accessible and requires explicit confirmation.
 Keep the score compact, and show Street and goal feedback when applicable.
 Currently frozen cells retain `assets/icecube.png` beneath a readable value,
 with bounded dimensions and an accessible status label. Thawed cells have no
-ice cube and retain their quiet Thawed marker and permanent zero-point label.
+Prime ice cube and retain their quiet Thawed marker and permanent zero-point
+label. Attack-Iced cells use `assets/icecube2.png` with the same contained sizing
+and a readable value; attacked thawed cells retain their Thawed marker. Accessible
+labels distinguish Attack Ice and its blocked placement/Street support.
 
 Remove the obsolete roll, external-number, Schnapszahl, stealing/removal, and
 counter markup, handlers, and exclusive styling. Broader visual redesign is
@@ -140,18 +156,43 @@ same position when disabled, with a subdued appearance and a mobile touch
 target of at least 48px. Use an accessible label/title, “Undo last move,” and
 no permanent descriptive text or external icon library.
 
-Only successful placement publishes a new pre-placement snapshot. Failed
+Only successful placement or state-changing Freeze/Unfreeze/Move publishes a
+new pre-action snapshot. Failed
 attempts and canceled entry preserve the existing snapshot. Undo immediately
 restores the complete board, saves it, recalculates score/Street/goal displays,
 and consumes the snapshot. Clear selection, input, and validation feedback before
-rendering the restored state. Frozen/thawed visuals follow the restored statuses.
+rendering the restored state. Close any cell actions as well. Prime and Attack
+Ice visuals follow the restored complete board.
 
 A disabled Undo does nothing, including leaving any open draft alone. An
 available Undo safely closes an open draft and any pending reset confirmation.
 There is no confirmation dialog, Redo, history screen, or multi-step stack.
-Occupied cells are readonly, and there is no direct value correction interface.
+Occupied values are readonly, and there is no direct value correction interface.
 
-## 8. Technical constraints
+## 8. Physical Challenges and manual Attack Ice
+
+Instead of a normal turn, the active player may challenge any other player.
+Both roll one physical W6; ties reroll until someone wins. A winning challenger
+may remove their own Attack Ice **AND** apply Attack Ice on the loser's board.
+A winning challenged player chooses **ONE**: remove their own Attack Ice **OR**
+apply it on the challenger's board. A new Freeze replaces/moves any existing
+Attack Ice on that board. Full mechanics are in game-rules.md section 6.
+
+The app records only manual Freeze/Unfreeze actions and trusts the table. It
+adds no Challenge button, permission system, player selection, turn tracking,
+dice controls, or networking. The contextual panel contains only its cell label,
+one Freeze/Unfreeze button, and Cancel; it is hidden outside selection. Outside
+taps, Escape, switching to number entry, Undo, or reset close it. Selection and
+cancellation never save or change Undo. After an action, automatically save,
+close selection, and recalculate score, Streets, and goal.
+
+Normal values retain base points under Attack Ice; thawed values stay at 0.
+Attack Ice temporarily prevents placement support, Street eligibility, and D7
+goal detection. Unfreeze restores underlying behavior without permanent damage.
+Freeze on another eligible cell atomically moves the single overlay and creates
+one Undo snapshot. There is still no Edit or number-removal feature.
+
+## 9. Technical constraints
 
 Use HTML, CSS, and vanilla JavaScript with relative asset/module paths. Keep
 rule logic independent from DOM code and storage mechanics in storage.js.

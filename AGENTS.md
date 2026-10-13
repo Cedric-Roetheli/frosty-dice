@@ -97,8 +97,8 @@ The structure may evolve when there is a concrete reason, but keep the codebase 
 
 Represent enough state to reconstruct the player's current game locally. At minimum this is expected to include:
 
-- Board contents, including each occupied cell's value and normal/frozen/thawed status
-- One nullable, deep-cloned pre-placement board for Undo; never nested history
+- Board contents, including each occupied cell's value, Prime normal/frozen/thawed status, and independent Attack Ice overlay
+- One nullable, deep-cloned pre-action board for Undo; never nested history
 - Any additional state required by confirmed game rules
 - A schema/version identifier if persistence evolves
 
@@ -107,7 +107,10 @@ Derived information such as legal moves, streets, and score should generally be 
 The redesigned game has no roll counter or source-specific turn/action state.
 Freeze/thaw status depends on placement history and must be stored, never
 inferred by retroactively checking the current neighbors. At most one cell is
-currently frozen; thawed cells are usable but permanently scoreless.
+currently Prime-frozen; thawed cells are usable but permanently scoreless.
+Attack Ice is separate temporary state: at most one overlay, never on a
+Prime-frozen cell. It blocks usability, Streets, and goal, but leaves underlying
+status and base points unchanged. Placement and Attack Ice actions share Undo.
 
 ## Persistence
 

@@ -2,16 +2,19 @@
 import {
   BOARD_COLUMNS as columns,
   BOARD_ROW_COUNT as rowCount,
+  canApplyAttackIce,
   canUndo,
   createGameState,
+  freezeGameCell,
   getCell,
   hasReachedGoal,
   parseNumberInput,
   placeGameNumber,
   undoLastMove,
-} from "./game.js?v=undo-1";
-import { getScoreBreakdown } from "./scoring.js?v=undo-1";
-import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=undo-1";
+  unfreezeGameCell,
+} from "./game.js?v=attack-ice-1";
+import { getScoreBreakdown } from "./scoring.js?v=attack-ice-1";
+import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=attack-ice-1";
 
 // Shorten the core's explanations, without evaluating placement rules in the UI.
 function placementFeedback(reason) {
@@ -30,6 +33,7 @@ export function initializeApp(document, storage) {
   const restoredGame = loadGame(storage);
   let game = restoredGame.state;
   let selectedCell = null;
+  let selectedActionCell = null;
   let resetConfirmOpen = false;
 
   const board = document.getElementById("game-board");
@@ -37,6 +41,8 @@ export function initializeApp(document, storage) {
   const entryForm = document.getElementById("number-entry-form");
   const numberInput = document.getElementById("number-input");
   const entryFeedback = document.getElementById("entry-feedback");
+  const attackActions = document.getElementById("attack-ice-actions");
+  const attackButton = document.getElementById("toggle-attack-ice");
   const undoButton = document.getElementById("undo-move");
   const appStatus = document.getElementById("app-status");
   const storageStatus = document.getElementById("storage-status");
@@ -56,6 +62,7 @@ export function initializeApp(document, storage) {
 
   function clearEntry() {
     selectedCell = null;
+    selectedActionCell = null;
     numberInput.value = "";
     numberInput.removeAttribute("aria-invalid");
     entryFeedback.textContent = "";
@@ -72,17 +79,19 @@ export function initializeApp(document, storage) {
   function createCell(coordinate) {
     const record = getCell(game.board, coordinate);
     const value = record?.value ?? null;
-    const selected = selectedCell === coordinate;
+    const selected = selectedCell === coordinate || selectedActionCell === coordinate;
     const cell = document.createElement("button");
     cell.type = "button";
     cell.id = "cell-" + coordinate;
     cell.dataset.coordinate = coordinate;
     cell.dataset.frozen = String(record?.status === "frozen");
     cell.dataset.state = record?.status ?? "empty";
+    cell.dataset.attackIce = String(record?.attackIce === true);
     cell.className = "board-cell";
-    cell.disabled = record !== null;
+    cell.disabled = record?.status === "frozen";
     cell.setAttribute("aria-pressed", String(selected));
     if (record === null) cell.setAttribute("aria-controls", "number-entry-form");
+    else if (!cell.disabled) cell.setAttribute("aria-controls", "attack-ice-actions");
     if (record !== null) cell.classList.add("board-cell--occupied");
 
     const marker = coordinate === "A1" ? "Start" : coordinate === "D7" ? "Goal" : "";
@@ -101,23 +110,33 @@ export function initializeApp(document, storage) {
     labels.push(value === null ? "empty" : String(value));
     if (record?.status === "frozen" || record?.status === "thawed") {
       const frozen = record.status === "frozen";
-      labels.push(record.status, "permanently 0 points", frozen ? "cannot support placement" : "usable placement neighbor");
+      labels.push(record.status, "permanently 0 points", frozen || record.attackIce ? "cannot support placement" : "usable placement neighbor");
       if (frozen) {
         cell.classList.add("board-cell--frozen");
-        const ice = document.createElement("img");
-        ice.className = "board-cell__ice";
-        ice.src = "./assets/icecube.png";
-        ice.alt = "";
-        ice.width = 48;
-        ice.height = 48;
-        ice.setAttribute("aria-hidden", "true");
-        cell.append(ice);
       } else {
         const thawedLabel = document.createElement("span");
         thawedLabel.className = "board-cell__marker";
         thawedLabel.textContent = "Thawed";
         cell.append(thawedLabel);
       }
+    }
+
+    if (record?.status === "frozen" || record?.attackIce) {
+      const attack = record.attackIce === true;
+      if (attack) {
+        cell.classList.add("board-cell--attack-iced");
+        labels.push("Attack Ice", "cannot support placement or a Street", "Unfreeze available");
+      }
+      const ice = document.createElement("img");
+      ice.className = "board-cell__ice";
+      ice.src = attack ? "./assets/icecube2.png" : "./assets/icecube.png";
+      ice.alt = "";
+      ice.width = 48;
+      ice.height = 48;
+      ice.setAttribute("aria-hidden", "true");
+      cell.append(ice);
+    } else if (record !== null) {
+      labels.push("Freeze available");
     }
 
     if (value !== null) {
@@ -187,18 +206,25 @@ export function initializeApp(document, storage) {
     if (goalStatus.textContent !== goalMessage) goalStatus.textContent = goalMessage;
 
     entryForm.hidden = selectedCell === null;
+    attackActions.hidden = selectedActionCell === null;
+    document.getElementById("attack-ice-cell").textContent = selectedActionCell ?? "";
+    if (selectedActionCell !== null) {
+      attackButton.textContent = getCell(game.board, selectedActionCell).attackIce ? "Unfreeze" : "Freeze";
+      attackButton.setAttribute("aria-label", attackButton.textContent + " Attack Ice at " + selectedActionCell);
+    }
     undoButton.disabled = !canUndo(game);
     document.getElementById("selected-cell").textContent = selectedCell ?? "";
-    appStatus.hidden = selectedCell !== null;
+    appStatus.hidden = selectedCell !== null || selectedActionCell !== null;
     newGameButton.hidden = resetConfirmOpen;
     resetConfirmation.hidden = !resetConfirmOpen;
   }
 
   function cancelEntry(focusCell = true) {
-    if (selectedCell === null) return;
-    const coordinate = selectedCell;
+    const coordinate = selectedCell ?? selectedActionCell;
+    if (coordinate === null) return;
+    const message = selectedCell === null ? "Cell actions closed." : "Entry cancelled.";
     clearEntry();
-    showAppStatus("Entry cancelled. Tap an empty cell to enter a number.");
+    showAppStatus(message + " Tap an empty cell to enter a number.");
     render();
     if (focusCell) document.getElementById("cell-" + coordinate).focus({ preventScroll: true });
   }
@@ -206,9 +232,19 @@ export function initializeApp(document, storage) {
   boardRows.addEventListener("click", (event) => {
     const cell = event.target.closest("button[data-coordinate]");
     if (!cell) return;
-    if (getCell(game.board, cell.dataset.coordinate) !== null) {
-      cancelEntry(false);
-      showAppStatus("This cell is already occupied.", "warning");
+    const coordinate = cell.dataset.coordinate;
+    const record = getCell(game.board, coordinate);
+    if (record !== null) {
+      clearEntry();
+      resetConfirmOpen = false;
+      if (record.attackIce || canApplyAttackIce(game.board, coordinate)) {
+        selectedActionCell = coordinate;
+        render();
+        attackButton.focus({ preventScroll: true });
+      } else {
+        showAppStatus("Prime-frozen cells cannot receive Attack Ice.", "warning");
+        render();
+      }
       return;
     }
     if (selectedCell === cell.dataset.coordinate) {
@@ -256,15 +292,37 @@ export function initializeApp(document, storage) {
   });
 
   document.getElementById("cancel-entry").addEventListener("click", () => cancelEntry());
+  document.getElementById("cancel-attack-ice").addEventListener("click", () => cancelEntry());
+  attackButton.addEventListener("click", () => {
+    if (selectedActionCell === null) return;
+    const coordinate = selectedActionCell;
+    const removing = getCell(game.board, coordinate)?.attackIce === true;
+    try {
+      game = removing ? unfreezeGameCell(game, coordinate) : freezeGameCell(game, coordinate);
+    } catch (error) {
+      showAppStatus(error.message, "warning");
+      clearEntry();
+      render();
+      return;
+    }
+    showStorageStatus(saveGame(game, storage) ? "" : "Local saving is unavailable. Changes may not survive a reload.");
+    clearEntry();
+    showAppStatus("Attack Ice " + (removing ? "removed from " : "applied to ") + coordinate + ".", "success");
+    render();
+    board.focus({ preventScroll: true });
+  });
   document.addEventListener("pointerdown", (event) => {
-    if (selectedCell === null || event.target.closest?.("#number-entry-form")
+    if ((selectedCell === null && selectedActionCell === null)
+        || event.target.closest?.("#number-entry-form")
+        || event.target.closest?.("#attack-ice-actions")
         || event.target.closest?.("#undo-move")) return;
     const cell = event.target.closest?.("button[data-coordinate]");
-    if (cell && getCell(game.board, cell.dataset.coordinate) === null) return;
+    // Let the subsequent board click switch selection without replacing its target.
+    if (cell && getCell(game.board, cell.dataset.coordinate)?.status !== "frozen") return;
     cancelEntry(false);
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && selectedCell !== null) {
+    if (event.key === "Escape" && (selectedCell !== null || selectedActionCell !== null)) {
       event.preventDefault();
       cancelEntry();
     }

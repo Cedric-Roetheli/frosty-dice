@@ -1,4 +1,4 @@
-import { canUndo, createGameState, getCell, getLegalTargetCells, hasReachedGoal, placeGameNumber, undoLastMove } from "../js/game.js";
+import { canUndo, createGameState, freezeGameCell, getCell, getLegalTargetCells, hasReachedGoal, isCellAttackIced, placeGameNumber, undoLastMove, unfreezeGameCell } from "../js/game.js";
 import { calculateScore, getScoreBreakdown } from "../js/scoring.js";
 import { SAVE_VERSION, STORAGE_KEY, clearSavedGame, deserializeGame, isValidStoredState, loadGame, saveGame, serializeGame } from "../js/storage.js";
 import { boardFixture, freezeBoardSnapshot } from "./fixtures.js";
@@ -21,9 +21,9 @@ export function runStorageTests() {
     catch (error) { results.push({ name, passed: false, message: error.message }); }
   }
 
-  test("Version 5 saves contain only current gameplay and one nullable Undo snapshot", () => {
+  test("Version 6 saves contain only current gameplay and one nullable Undo snapshot", () => {
     const state = createGameState();
-    assertEqual(SAVE_VERSION, 5);
+    assertEqual(SAVE_VERSION, 6);
     assertDeepEqual(JSON.parse(serializeGame(state)), { version: SAVE_VERSION, state });
     assertDeepEqual(deserializeGame(serializeGame(state)), state);
   });
@@ -354,6 +354,117 @@ export function runStorageTests() {
     assertEqual(restored.undo.board[0][0].value, 23);
     assertEqual(state.board[0][0].value, 23);
     assertEqual(serializeGame(state), saved);
+  });
+
+  for (const action of ["Freeze", "Unfreeze", "Move"]) {
+    test("Attack " + action + " persists current state and exact Prime/Attack Undo after reload", () => {
+      let original = createGameState();
+      for (const [coordinate, value] of [["A1", 23], ["B1", 31], ["A2", 23]]) {
+        original = placeGameNumber(original, coordinate, value);
+      }
+      const before = action === "Freeze" ? original : freezeGameCell(original, "B1");
+      const after = action === "Unfreeze" ? unfreezeGameCell(before, "B1")
+        : freezeGameCell(before, action === "Move" ? "A1" : "B1");
+      const storage = memoryGameStorage();
+      assert(saveGame(after, storage));
+      const saved = storage.getItem(STORAGE_KEY);
+      const restored = loadGame(storage);
+      assertDeepEqual(restored, { state: after, status: "restored" });
+      assertEqual(storage.getItem(STORAGE_KEY), saved);
+      assertEqual(calculateScore(restored.state.board), 23);
+      assertEqual(getCell(restored.state.board, "B1").status, "thawed");
+      assertEqual(getCell(restored.state.board, "A2").status, "frozen");
+      assertDeepEqual(undoLastMove(restored.state), { board: before.board, undo: null });
+      assert(saveGame(undoLastMove(restored.state), storage));
+      assertDeepEqual(loadGame(storage).state, { board: before.board, undo: null });
+    });
+  }
+
+  test("Version 5 preserves complete Prime state and existing Undo with no Attack Ice or load-time writes", () => {
+    let state = createGameState();
+    for (const [coordinate, value] of [["A1", 23], ["B1", 31], ["A2", 23]]) {
+      state = placeGameNumber(state, coordinate, value);
+    }
+    const storage = memoryGameStorage();
+    const saved = JSON.stringify({ version: 5, state });
+    storage.setItem(STORAGE_KEY, saved);
+    assertDeepEqual(loadGame(storage), { state, status: "restored" });
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+    assertDeepEqual(undoLastMove(loadGame(storage).state).board, state.undo.board);
+    assert(!isCellAttackIced(loadGame(storage).state.board, "B1"));
+    assert(saveGame(freezeGameCell(loadGame(storage).state, "B1"), storage));
+    assertEqual(JSON.parse(storage.getItem(STORAGE_KEY)).version, 6);
+    assert(isCellAttackIced(loadGame(storage).state.board, "B1"));
+  });
+
+  test("Legacy versions reject unexpected Attack fields on either current or Undo board", () => {
+    for (const version of [2, 3, 4, 5]) {
+      const board = boardFixture(["A1", 23]);
+      if (version === 2) board[0][0] = { value: 23, frozen: false };
+      for (const attackIce of [true, false, "true"]) {
+        board[0][0].attackIce = attackIce;
+        const saved = JSON.stringify({ version, state: { board, undo: null } });
+        const storage = memoryGameStorage();
+        storage.setItem(STORAGE_KEY, saved);
+        assertDeepEqual(loadGame(storage), { state: createGameState(), status: "invalid" });
+        assertEqual(storage.getItem(STORAGE_KEY), saved);
+      }
+    }
+    const state = placeGameNumber(placeGameNumber(createGameState(), "A1", 23), "B1", 31);
+    state.undo.board[0][0].attackIce = false;
+    assertEqual(deserializeGame(JSON.stringify({ version: 5, state })), null);
+  });
+
+  test("Malformed current Attack states safely fall back without overwriting saved data", () => {
+    const badBoards = [];
+    const multiple = boardFixture(["A1", 16], ["B1", 24]);
+    multiple[0][0].attackIce = true;
+    multiple[0][1].attackIce = true;
+    badBoards.push(multiple);
+    const primeFrozen = boardFixture(["B1", 31, "frozen"]);
+    primeFrozen[0][1].attackIce = true;
+    badBoards.push(primeFrozen);
+    for (const attackIce of ["true", null, 1]) {
+      const board = boardFixture(["A1", 16]);
+      board[0][0].attackIce = attackIce;
+      badBoards.push(board);
+    }
+    for (const board of badBoards) {
+      const state = { board, undo: null };
+      assert(!isValidStoredState(state));
+      assertThrows(() => serializeGame(state));
+      const saved = JSON.stringify({ version: SAVE_VERSION, state });
+      const storage = memoryGameStorage();
+      storage.setItem(STORAGE_KEY, saved);
+      assertDeepEqual(loadGame(storage), { state: createGameState(), status: "invalid" });
+      assertEqual(storage.getItem(STORAGE_KEY), saved);
+    }
+  });
+
+  test("Attack saves whitelist overlays, omit UI/derived values, and deep-copy both boards", () => {
+    const initial = { board: boardFixture(["A1", 16], ["B1", 24]), undo: null };
+    const state = freezeGameCell(freezeGameCell(initial, "A1"), "B1");
+    const enriched = { ...state, score: 40, selectedActionCell: "B1", challengeWinner: "unused" };
+    enriched.board[0][1].selected = true;
+    const saved = serializeGame(enriched);
+    const restored = deserializeGame(saved);
+    assertDeepEqual(Object.keys(JSON.parse(saved).state), ["board", "undo"]);
+    assertDeepEqual(getCell(restored.board, "B1"), { value: 24, status: "normal", attackIce: true });
+    assert(isCellAttackIced(restored.undo.board, "A1"));
+    assertEqual(restored.board[0][1].selected, undefined);
+    delete restored.board[0][1].attackIce;
+    delete restored.undo.board[0][0].attackIce;
+    assert(isCellAttackIced(state.board, "B1"));
+    assert(isCellAttackIced(state.undo.board, "A1"));
+  });
+
+  test("Attack data in a malformed Undo snapshot cannot be silently stripped or repaired", () => {
+    const state = freezeGameCell({ board: boardFixture(["A1", 16], ["B1", 24]), undo: null }, "B1");
+    state.undo.board[0][0].attackIce = true;
+    state.undo.board[0][1].attackIce = true;
+    const saved = JSON.stringify({ version: SAVE_VERSION, state });
+    assertEqual(deserializeGame(saved), null);
+    assert(!isValidStoredState(state));
   });
 
   return results;

@@ -11,8 +11,10 @@ Each player has a 4 × 7 board with columns A–D and rows 1–7.
 - Goal: D7
 
 An empty cell contains no number. An occupied cell has a two-digit dice number
-and is normal, currently frozen, or previously frozen/thawed. There is at most
-one currently frozen cell on a player's board.
+and has a normal, currently Prime-frozen, or previously Prime-frozen/thawed
+status. There is at most one currently Prime-frozen cell on a player's board.
+Attack Ice is a separate temporary overlay: at most one occupied cell may have
+it, independently of the board's Prime Ice.
 
 ## 2. Physical turns and number formation
 
@@ -43,7 +45,8 @@ the board is completely empty.
 
 The target must be empty. On a nonempty board, at least one **usable, occupied,
 immediately orthogonal neighbor** must support the new number. Normal and
-thawed cells are usable; currently frozen cells are not.
+thawed cells are usable unless covered by Attack Ice; currently Prime-frozen
+and Attack-Iced cells are not usable.
 
 - **Left:** the new value is strictly greater than the left value.
 - **Right:** the new value is strictly smaller than the right value.
@@ -62,7 +65,8 @@ Examples:
 - With normal A2=16 and B1=24, B2=26 is legal through A2 despite the mismatch above.
 
 Branching is allowed. Diagonal cells, farther-away cells, and frozen cells
-cannot support placement. There is no isolated placement except the initial A1.
+cannot support placement. Attack-Iced cells also cannot support placement.
+There is no isolated placement except the initial A1.
 No connectivity check back to A1 is required; current usable neighbors determine
 legality.
 
@@ -117,40 +121,78 @@ Diagonal prime contact does not cause freezing.
 There is no stealing or number-removal action. Starting a confirmed new game
 clears the board, including frozen and thawed cells.
 
-## 6. Streets
+## 6. Physical Challenges and Attack Ice
 
-A Street is a complete horizontal A–D row of **four normal, never-frozen cells**
-whose values are consecutive increasing integers.
+Instead of taking a normal turn, the active player may challenge any other
+player. Both roll one physical six-sided die. On a tie, they roll again until
+there is a winner.
+
+- If the **challenger wins**, they may remove Attack Ice from their own board,
+  if present, **AND** place Attack Ice on an eligible occupied cell of the
+  losing player's board.
+- If the **challenged player wins**, they choose **ONE**: remove Attack Ice
+  from their own board, if present, **OR** place Attack Ice on an eligible
+  occupied cell of the challenger's board.
+
+Players resolve this physically. The app trusts their manual Freeze/Unfreeze
+actions; it does not track or enforce turns, Challenges, opponents, winners,
+dice rolls, or permissions.
+
+Attack Ice may cover a normal or Prime-thawed occupied cell, but never a
+currently Prime-frozen cell or an empty cell. The number and underlying Prime
+status remain unchanged. An Attack-Iced cell is occupied and cannot be
+overwritten, cannot support placement, cannot complete a Street, and does not
+currently reach the D7 goal. Its base points are unchanged: a normal cell still
+scores its value; a thawed cell still scores 0.
+
+Each board may have at most **one Attack Ice**. Freeze on another eligible cell
+removes the old overlay and applies the new one as one atomic action. Unfreeze
+removes only Attack Ice. Removal leaves no permanent damage: a normal cell
+regains usability and Street eligibility; a thawed cell regains usability but
+remains permanently scoreless and ineligible for Streets. Prime Ice and all
+existing Prime freeze/thaw transitions remain unchanged. Attack-Iced primes
+still count as occupied prime contact when a new prime is legally placed.
+
+## 7. Streets
+
+A Street is a complete horizontal A–D row of **four normal, never-Prime-frozen
+cells without Attack Ice** whose values are consecutive increasing integers.
 
 11, 12, 13, 14 is a Street: its row sum of 50 contributes 100 points.
 11, 13, 14, 15 is not a Street.
 
-A currently frozen or thawed cell cannot complete or score a Street, even if its
-stored value would otherwise fit the sequence. Incomplete rows and vertical
+A currently Prime-frozen, thawed, or Attack-Iced cell cannot complete or score
+a Street, even if its stored value would otherwise fit the sequence. Incomplete rows and vertical
 sequences are not Streets.
 Each qualifying row receives its entire row sum a second time.
+Removing or moving Attack Ice restores that row's Street eligibility if its
+current values and underlying statuses otherwise qualify.
 
-## 7. Score
+## 8. Score
 
 **Score = sum of all normal, never-frozen occupied values + Street bonuses.**
 
 There is no roll count or division by rolls. The same score applies regardless
 of where the numbers came from. Currently frozen and thawed cells each contribute
-0 and prevent their row from qualifying as a Street. A cell that has ever frozen
-never regains its points.
+0 and prevent their row from qualifying as a Street. A cell that has ever
+Prime-frozen never regains its points.
+Attack Ice leaves base points unchanged and only suppresses a qualifying row's
+Street bonus while present. It never creates permanent zero-point damage.
 
 All normal occupied cells count, without checking connectivity back to A1.
 An empty board scores 0. Multiple Streets each receive their full bonus.
 
 The player with the highest final score wins.
 
-## 8. Goal
+## 9. Goal
 
-The player's goal is reached when D7 is legally filled **and is not frozen**.
-An already present normal or thawed D7 counts as reached. A currently frozen D7
-remains occupied but does not trigger goal detection. If a later freeze elsewhere
+The player's goal is reached when D7 is legally filled **and is usable**.
+An already present normal or thawed D7 without Attack Ice counts as reached.
+A currently Prime-frozen D7 remains occupied but does not trigger goal detection. If a later freeze elsewhere
 thaws D7, it becomes usable again and **does reach the goal**, even though it
 permanently scores 0. No additional A1 connectivity check is required.
+Attack Ice on D7 temporarily suppresses goal detection. Removing or moving it
+restores the goal if D7's underlying status qualifies.
 
 Only the new cell can freeze, so a later neighboring prime does not freeze an
 existing normal D7 or undo its goal status.
@@ -158,15 +200,16 @@ existing normal D7 or undo its goal status.
 This detects only the local player's goal. Global end-of-game timing remains
 undecided.
 
-## 9. Undo last successful move
+## 10. Undo last successful move
 
 Undo is a one-step input correction, not a physical turn or an action with a
-cost. Occupied cells cannot be changed directly.
+cost. Occupied values cannot be edited directly.
 
-Immediately before a successful placement, capture a deep copy of the complete
-board, including every value and normal/frozen/thawed status. Only a successful
-placement replaces the one available snapshot. Invalid attempts, selection,
-typing, and cancellation do not change it.
+Immediately before a successful placement, Attack Freeze, Attack Unfreeze, or
+Attack Ice Move, capture a deep copy of the complete board, including every
+value, normal/frozen/thawed status, and Attack Ice overlay. Only a successful
+state-changing action replaces the one available snapshot. Invalid attempts,
+actions with no change, selection, typing, and cancellation do not change it.
 
 Undo restores that entire board exactly and consumes the snapshot. Do not
 reverse individual freeze/thaw effects or infer a previous board from the
@@ -175,17 +218,17 @@ restored board. A cell thawed by the undone move returns to its earlier frozen
 state, and a newly placed frozen cell disappears if it was previously empty.
 
 There is no earlier Undo after consumption, no Redo, and no multi-step history.
-A new successful placement creates one new snapshot. Persist it locally with
-the current board so Undo survives reopening the page. Confirmed New Game /
+A new successful placement or Attack Ice action creates one new snapshot.
+Persist it locally with the current board so Undo survives reopening the page. Confirmed New Game /
 Reset clears both boards. Undo itself is immediate and requires no confirmation;
-it also discards any unsubmitted number-entry draft.
+it also discards any unsubmitted number-entry draft or open cell action.
 
-## 10. Open rule question
+## 11. Open rule question
 
-When a player reaches a normal or thawed D7, whether that player or the whole table stops
+When a player reaches a usable D7, whether that player or the whole table stops
 immediately, finishes the round, or continues has not yet been decided.
 
-## 11. Scope
+## 12. Scope
 
 There is no digital dice roller, multiplayer synchronization, opponent state,
 account system, or replacement special action for repeated-digit numbers.

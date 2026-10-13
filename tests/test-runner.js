@@ -6,8 +6,9 @@ import { runGoalTests } from "./goal.test.js";
 import { runStorageTests } from "./storage.test.js";
 import { runAppInitializationTests } from "./app-initialization.test.js";
 import { runUndoTests } from "./undo.test.js";
+import { runAttackIceTests } from "./attack-ice.test.js";
 
-const results = [...runGameTests(), ...runNumberInputTests(), ...runFrozenPrimeTests(), ...runScoringTests(), ...runGoalTests(), ...runStorageTests(), ...runAppInitializationTests(), ...runUndoTests()];
+const results = [...runGameTests(), ...runNumberInputTests(), ...runFrozenPrimeTests(), ...runScoringTests(), ...runGoalTests(), ...runStorageTests(), ...runAppInitializationTests(), ...runUndoTests(), ...runAttackIceTests()];
 const failed = results.filter((result) => !result.passed).length;
 const summary = document.getElementById("test-summary");
 summary.textContent = `${results.length - failed}/${results.length} tests passed; ${failed} failed.`;

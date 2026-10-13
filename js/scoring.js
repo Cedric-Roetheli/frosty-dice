@@ -1,10 +1,10 @@
-import { BOARD_COLUMNS, isValidBoard, isValidBoardCell } from "./game.js?v=undo-1";
+import { BOARD_COLUMNS, isValidBoard, isValidBoardCell } from "./game.js?v=attack-ice-1";
 
 export function isStreetRow(row) {
   if (!Array.isArray(row) || row.length !== BOARD_COLUMNS.length) return false;
   for (let column = 0; column < row.length; column += 1) {
     const cell = row[column];
-    if (!isValidBoardCell(cell) || cell === null || cell.status !== "normal") return false;
+    if (!isValidBoardCell(cell) || cell === null || cell.status !== "normal" || cell.attackIce) return false;
     if (column > 0 && cell.value !== row[column - 1].value + 1) return false;
   }
   return true;

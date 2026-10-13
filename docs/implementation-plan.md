@@ -160,6 +160,38 @@ B1 frozen and A2 empty. Source checks also passed for imports, labels, static
 paths, and the Undo button's position. No browser automation, screenshots,
 viewport tests, commit, or push was performed.
 
+## Attack Ice — Independent temporary overlay
+
+Add manual Freeze/Unfreeze contextual actions to eligible occupied cells. A
+normal or thawed cell may receive the one Attack Ice overlay; a Prime-frozen
+cell may not. Freezing another eligible cell atomically moves the overlay.
+Keep occupied values readonly, empty-cell input unchanged, and Challenge
+resolution entirely at the physical table, as specified in game-rules.md.
+
+Store an independent optional `attackIce: true` cell flag, preserving every
+underlying Prime status. Attack Ice keeps base points, blocks placement support,
+temporarily disqualifies Streets, and suppresses D7 goal detection. Removal
+restores the underlying behavior with no new permanent damage. Use icecube2.png
+with the existing contained ice rendering; Prime Ice retains icecube.png.
+
+Each successful Freeze, Unfreeze, or Move captures the same full pre-action
+board used by one-step Undo. Version 6 persists both boards with overlays.
+Preserve version-5 Undo and earlier supported board migrations; safely reject
+mixed or invalid states without rewriting a saved record during load.
+
+Cover the core effects, Prime coexistence, atomic actions, exact Undo, storage
+migration, and actual registered UI-handler paths with dependency-free tests.
+Run the full suite once, without browser automation, screenshots, viewport
+tests, commit, or push. Manual phone/design evaluation remains deferred.
+
+**Status: Complete for this scope.** The full suite ran once in JavaScriptCore:
+**253/253 passed** (47 game, 9 number-input, 21 Prime Ice, 17 scoring, 8 goal,
+36 storage, 67 coordinator, 15 Undo, and 33 Attack Ice tests). Existing cases
+remain, with assertions updated for occupied-cell actions and the new save
+version. Static imports, shell IDs, asset paths, and whitespace checks passed.
+No browser automation, screenshots, viewport tests, commit, or push was performed.
+The supplied icecube2.png is used unchanged.
+
 ## Step 3 — Manual evaluation and release
 
 **Not started.** After UI integration, evaluate the physical game and interface

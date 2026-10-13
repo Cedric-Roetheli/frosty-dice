@@ -6,8 +6,8 @@
     <meta name="description" content="A mobile-first companion for Frosty Dice, played together with physical dice.">
     <title>Frosty Dice</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="./css/style.css?v=undo-1">
-    <script type="module" src="./js/app.js?v=undo-1"></script>
+    <link rel="stylesheet" href="./css/style.css?v=attack-ice-1">
+    <script type="module" src="./js/app.js?v=attack-ice-1"></script>
   </head>
   <body>
     <main>
@@ -27,6 +27,7 @@
           <caption class="visually-hidden">
             Four columns, A through D, and seven rows, 1 through 7.
             A1 is the start. D7 is the goal. Select an empty cell, then enter a number.
+            Select a normal or thawed occupied cell for Freeze or Unfreeze.
           </caption>
           <thead id="board-columns"></thead>
           <tbody id="board-rows"></tbody>
@@ -41,6 +42,13 @@
           <p id="number-help" class="number-help">Two digits, each from 1–6.</p>
           <p id="entry-feedback" class="entry-feedback" role="status" aria-atomic="true" hidden></p>
         </form>
+        <div id="attack-ice-actions" class="attack-ice-actions" role="group" aria-labelledby="attack-ice-label" hidden>
+          <p id="attack-ice-label">Attack Ice · <span id="attack-ice-cell"></span></p>
+          <div class="attack-ice-actions__controls">
+            <button id="toggle-attack-ice" class="action-button" type="button">Freeze</button>
+            <button id="cancel-attack-ice" class="action-button secondary-button" type="button">Cancel</button>
+          </div>
+        </div>
         <p id="street-bonus" class="street-bonus" hidden></p>
         <p id="goal-status" class="goal-status" role="status" hidden></p>
       </section>
