@@ -23,7 +23,7 @@ export function runNumberInputTests() {
       const value = die * 11;
       assertDeepEqual(generateDiceNumbers(die, die), [value]);
       const state = placeGameNumber(createGameState(), "A1", value);
-      assertDeepEqual(Object.keys(state), ["board"]);
+      assertDeepEqual(Object.keys(state), ["board", "undo"]);
       assertDeepEqual(getCell(state.board, "A1"), { value, status: "normal" });
     }
   });
@@ -77,7 +77,7 @@ export function runNumberInputTests() {
     getDiceOptions(state.board, 1, 6);
     parseNumberInput("16");
     assertEqual(JSON.stringify(state), before);
-    assertDeepEqual(Object.keys(state), ["board"]);
+    assertDeepEqual(Object.keys(state), ["board", "undo"]);
   });
 
   return results;

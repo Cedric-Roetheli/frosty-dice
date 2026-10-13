@@ -91,14 +91,14 @@ never freeze retroactively.
 
 Currently frozen cells:
 
-- Remain permanently occupied and cannot be overwritten.
+- Remain occupied and cannot be overwritten by a normal placement.
 - Contribute 0 points.
 - Cannot serve as usable neighbors for later placements.
 - Retain their value and current frozen status in board state.
 
 Thawed cells:
 
-- Retain their original number and remain occupied; they cannot be overwritten.
+- Remain occupied and cannot be overwritten by a normal placement.
 - Become usable orthogonal neighbors again, with the usual placement relations.
 - Are permanently damaged and continue to contribute 0 points.
 - Never become normal scoring cells again during that game.
@@ -158,12 +158,34 @@ existing normal D7 or undo its goal status.
 This detects only the local player's goal. Global end-of-game timing remains
 undecided.
 
-## 9. Open rule question
+## 9. Undo last successful move
+
+Undo is a one-step input correction, not a physical turn or an action with a
+cost. Occupied cells cannot be changed directly.
+
+Immediately before a successful placement, capture a deep copy of the complete
+board, including every value and normal/frozen/thawed status. Only a successful
+placement replaces the one available snapshot. Invalid attempts, selection,
+typing, and cancellation do not change it.
+
+Undo restores that entire board exactly and consumes the snapshot. Do not
+reverse individual freeze/thaw effects or infer a previous board from the
+current numbers. Score, Streets, and local goal are recalculated from the
+restored board. A cell thawed by the undone move returns to its earlier frozen
+state, and a newly placed frozen cell disappears if it was previously empty.
+
+There is no earlier Undo after consumption, no Redo, and no multi-step history.
+A new successful placement creates one new snapshot. Persist it locally with
+the current board so Undo survives reopening the page. Confirmed New Game /
+Reset clears both boards. Undo itself is immediate and requires no confirmation;
+it also discards any unsubmitted number-entry draft.
+
+## 10. Open rule question
 
 When a player reaches a normal or thawed D7, whether that player or the whole table stops
 immediately, finishes the round, or continues has not yet been decided.
 
-## 10. Scope
+## 11. Scope
 
 There is no digital dice roller, multiplayer synchronization, opponent state,
 account system, or replacement special action for repeated-digit numbers.

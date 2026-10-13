@@ -417,10 +417,10 @@ export function runGameTests() {
     assertDeepEqual(validatePlacement(board, "B1", 24), { legal: true, reason: null });
   });
 
-  test("Canonical game state contains only a board", () => {
-    assertDeepEqual(createGameState(), { board: createEmptyBoard() });
+  test("Canonical game state contains a board and one nullable Undo snapshot", () => {
+    assertDeepEqual(createGameState(), { board: createEmptyBoard(), undo: null });
     const placed = placeGameNumber(createGameState(), "A1", 16);
-    assertDeepEqual(Object.keys(placed), ["board"]);
+    assertDeepEqual(Object.keys(placed), ["board", "undo"]);
     assertDeepEqual(getCell(placed.board, "A1"), { value: 16, status: "normal" });
   });
 
@@ -439,9 +439,10 @@ export function runGameTests() {
     assert(isValidBoardCell({ value: 16, status: "normal" }));
     assert(isValidBoardCell({ value: 13, status: "frozen" }));
     assert(isValidBoardCell({ value: 13, status: "thawed" }));
+    assert(isValidBoardCell({ value: 16, status: "thawed" })); // Preserve damage in valid legacy snapshots.
     for (const cell of [16, undefined, [], {}, { value: 16 }, { value: "16", status: "normal" },
       { value: 16, status: "invalid" }, { value: 16, status: "frozen" },
-      { value: 16, status: "thawed" }, { value: 17, status: "normal" }]) {
+      { value: 17, status: "thawed" }, { value: 17, status: "normal" }]) {
       assert(!isValidBoardCell(cell));
     }
   });

@@ -6,14 +6,15 @@
     <meta name="description" content="A mobile-first companion for Frosty Dice, played together with physical dice.">
     <title>Frosty Dice</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="./css/style.css?v=cell-entry-1">
-    <script type="module" src="./js/app.js?v=cell-entry-1"></script>
+    <link rel="stylesheet" href="./css/style.css?v=undo-1">
+    <script type="module" src="./js/app.js?v=undo-1"></script>
   </head>
   <body>
     <main>
       <header class="page-header">
         <h1>Frosty Dice</h1>
         <div class="game-stats">
+          <button id="undo-move" class="undo-button" type="button" aria-label="Undo last move" title="Undo last move" disabled><span aria-hidden="true">↶</span></button>
           <p class="current-score"><span>Score</span><strong id="current-score">0</strong></p>
         </div>
       </header>

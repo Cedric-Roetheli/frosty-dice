@@ -2,14 +2,16 @@
 import {
   BOARD_COLUMNS as columns,
   BOARD_ROW_COUNT as rowCount,
+  canUndo,
   createGameState,
   getCell,
   hasReachedGoal,
   parseNumberInput,
   placeGameNumber,
-} from "./game.js";
-import { getScoreBreakdown } from "./scoring.js";
-import { clearSavedGame, loadGame, saveGame } from "./storage.js";
+  undoLastMove,
+} from "./game.js?v=undo-1";
+import { getScoreBreakdown } from "./scoring.js?v=undo-1";
+import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=undo-1";
 
 // Shorten the core's explanations, without evaluating placement rules in the UI.
 function placementFeedback(reason) {
@@ -35,6 +37,7 @@ export function initializeApp(document, storage) {
   const entryForm = document.getElementById("number-entry-form");
   const numberInput = document.getElementById("number-input");
   const entryFeedback = document.getElementById("entry-feedback");
+  const undoButton = document.getElementById("undo-move");
   const appStatus = document.getElementById("app-status");
   const storageStatus = document.getElementById("storage-status");
   const newGameButton = document.getElementById("new-game");
@@ -80,7 +83,7 @@ export function initializeApp(document, storage) {
     cell.disabled = record !== null;
     cell.setAttribute("aria-pressed", String(selected));
     if (record === null) cell.setAttribute("aria-controls", "number-entry-form");
-    else cell.classList.add("board-cell--occupied");
+    if (record !== null) cell.classList.add("board-cell--occupied");
 
     const marker = coordinate === "A1" ? "Start" : coordinate === "D7" ? "Goal" : "";
     const labels = [coordinate];
@@ -184,6 +187,7 @@ export function initializeApp(document, storage) {
     if (goalStatus.textContent !== goalMessage) goalStatus.textContent = goalMessage;
 
     entryForm.hidden = selectedCell === null;
+    undoButton.disabled = !canUndo(game);
     document.getElementById("selected-cell").textContent = selectedCell ?? "";
     appStatus.hidden = selectedCell !== null;
     newGameButton.hidden = resetConfirmOpen;
@@ -202,7 +206,6 @@ export function initializeApp(document, storage) {
   boardRows.addEventListener("click", (event) => {
     const cell = event.target.closest("button[data-coordinate]");
     if (!cell) return;
-    // Recheck the current board, including clicks on an old or modified button.
     if (getCell(game.board, cell.dataset.coordinate) !== null) {
       cancelEntry(false);
       showAppStatus("This cell is already occupied.", "warning");
@@ -254,9 +257,9 @@ export function initializeApp(document, storage) {
 
   document.getElementById("cancel-entry").addEventListener("click", () => cancelEntry());
   document.addEventListener("pointerdown", (event) => {
-    if (selectedCell === null || event.target.closest?.("#number-entry-form")) return;
+    if (selectedCell === null || event.target.closest?.("#number-entry-form")
+        || event.target.closest?.("#undo-move")) return;
     const cell = event.target.closest?.("button[data-coordinate]");
-    // Another empty cell can be selected by the following click; everything else cancels.
     if (cell && getCell(game.board, cell.dataset.coordinate) === null) return;
     cancelEntry(false);
   });
@@ -265,6 +268,17 @@ export function initializeApp(document, storage) {
       event.preventDefault();
       cancelEntry();
     }
+  });
+
+  undoButton.addEventListener("click", () => {
+    if (!canUndo(game)) return;
+    game = undoLastMove(game);
+    clearEntry();
+    resetConfirmOpen = false;
+    showStorageStatus(saveGame(game, storage) ? "" : "Local saving is unavailable. Changes may not survive a reload.");
+    showAppStatus("Last move undone.", "success");
+    render();
+    board.focus({ preventScroll: true });
   });
 
   newGameButton.addEventListener("click", () => {

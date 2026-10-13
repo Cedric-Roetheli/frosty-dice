@@ -16,8 +16,13 @@ suggest numbers or highlight legal targets. Illegal attempts preserve the board
 and draft for correction. Cancel, Escape, or a tap elsewhere discards the draft.
 
 Successful placements update the score, Streets, and goal and save automatically.
-Values/statuses restore through the unchanged versioned loader. New Game / Reset
+Values/statuses restore through the versioned loader. New Game / Reset
 still requires confirmation. Selection and drafts are temporary UI state.
+Occupied cells are readonly. The ↶ button immediately left of Score restores
+the entire board before the last successful placement, including freeze/thaw
+statuses, and consumes that one snapshot. It works after reload and closes any
+unsubmitted entry. Illegal attempts and cancellation preserve Undo; confirmed
+reset clears it. There is no direct value correction, Redo, or history stack.
 Currently frozen cells show the supplied ice-cube image beneath their value;
 thawed cells show a quiet Thawed marker without an ice cube.
 Obsolete roll/source/counter/Schnapszahl/removal controls have been removed.
@@ -30,7 +35,9 @@ The [game rules](./docs/game-rules.md) define mechanics and the
 
 ## Core model
 
-State is `{ board }`. The board has seven rows of four entries:
+State is `{ board, undo }`. `undo` is null or a deep-cloned `{ board }` from before
+the last successful placement, never an older Undo. Each board has seven rows
+of four entries:
 
 - `null`: empty.
 - `{ value: 16, status: "normal" }`: a normal occupied cell.
@@ -38,7 +45,8 @@ State is `{ board }`. The board has seven rows of four entries:
 - `{ value: 31, status: "thawed" }`: an occupied, usable, permanently scoreless prime.
 
 A1 is `board[0][0]`; D7 is `board[6][3]`. Values must contain two digits from
-1–6. Status must be one of these three values; only dice primes can be damaged.
+1–6. Status must be one of these three values. A current freeze must hold a
+prime. Legacy thawed values retain permanent zero points.
 Board validation rejects more than one currently frozen cell.
 
 Statuses are historical state. When a legal new prime touches any occupied
@@ -57,6 +65,9 @@ adjacency must never retroactively freeze existing normal cells.
 - `getCell`, `getCellValue`, and empty/occupied/frozen/thawed/usable cell helpers.
 - `validatePlacement`, `canPlaceNumber`, and `getLegalTargetCells`.
 - `placeNumber` for boards and `placeGameNumber` for source-neutral state.
+- `canUndo` and `undoLastMove` for consuming one complete prior-board snapshot.
+- `isValidGameState`, `isValidUndoSnapshot`, and `cloneGameState` for bounded,
+  independently cloned canonical state.
 - `parseNumberInput`, `generateDiceNumbers`, and `getDiceOptions` for optional
   number entry from an already chosen physical pair. These helpers do not roll.
 - `hasReachedGoal`: true for a normal or thawed occupied D7, false while frozen.
@@ -65,7 +76,9 @@ Placement is immutable and guarded. Empty boards start at A1; other placements
 need at least one usable orthogonal relationship. Normal left/right neighbors
 require strictly greater/smaller values respectively; normal upper/lower
 neighbors require equality. Diagonals and frozen neighbors cannot support it.
-Occupied cells cannot be overwritten. There is no number-removal API.
+Occupied cells cannot be overwritten. Undo restores a complete snapshot rather
+than changing a historical value or reversing effects individually. There is
+no standalone number-removal API.
 
 `js/scoring.js` provides `isStreetRow`, `getScoreBreakdown`, and `calculateScore`.
 Score is the full normal-cell sum plus Street bonuses, with no roll divisor.
@@ -75,20 +88,21 @@ The breakdown exposes `baseSum`, `streetBonus`, `streetRows`, and `score`.
 
 ## Local snapshot format
 
-`js/storage.js` stores `{ version: 3, state: { board } }` under
-`frosty-dice.game`. Cell values and statuses are copied; derived values,
-entry drafts, and legacy metadata are omitted.
+`js/storage.js` stores `{ version: 5, state: { board, undo } }` under
+`frosty-dice.game`. Undo is null or one `{ board }` snapshot. Values and
+statuses are deep-copied; derived displays, input drafts, source metadata, and
+older history are omitted. Saved snapshot/current-board pairs must match one
+legal placement under the shared engine; restoration copies the snapshot itself.
 
-Version-2 `{ value, frozen }` records migrate if they contain at most one current
-freeze. Loading does not rewrite the record; the next meaningful save uses
-version 3. Multiple old frozen cells cannot reveal which freeze came last, so
-the loader returns a fresh state with status `invalid` and preserves the original
-record until a later save or confirmed reset. Version-1 numeric saves and
-malformed snapshots use the same fallback. Mixed legacy `frozen` flags and current
-`status` fields are rejected rather than guessing which field is authoritative.
-Missing saves
-return `missing`; storage failures return `unavailable`. The storage wrapper
-never clears unrelated keys and catches access/quota errors.
+Valid version-3/4 board-only saves restore unchanged with Undo unavailable.
+Legacy permanent damage is preserved. Unambiguous version-2 boolean records
+still migrate; version-1 numeric, malformed, ambiguous, mixed, and unknown
+formats fall back safely with a visible status and preserve the original save.
+
+Loading never rewrites data. Successful placement and Undo save version 5;
+consumption writes `undo: null`, and confirmed reset removes the game key.
+Missing saves return `missing`; storage errors return `unavailable`. No
+unrelated keys are touched.
 
 ## Tests and local serving
 
@@ -134,6 +148,15 @@ suite ran once in JavaScriptCore: **159/159 passed** (122 unchanged core tests
 and 37 coordinator tests). No browser automation, screenshots, or viewport
 tests were performed. The game, scoring, and storage modules are unchanged.
 
+The current follow-up adds one-step complete-state Undo and removes direct
+occupied-cell correction. Its coordinator and persistence tests use document
+and storage doubles; no browser or layout engine is used.
+
+The full suite ran once in JavaScriptCore: **195/195 passed**, including 15 pure
+Undo, 50 coordinator, and 28 storage tests. Existing game-engine regressions
+remain in the suite. No browser automation, screenshots, or viewport tests were
+performed; no commit or push was made.
+
 - `tests/game.test.js`: board/state helpers and placement regressions.
 - `tests/frozen-prime.test.js`: prime/contact rules, freeze movement, permanent
   damage, thawed usability, and immutable state.
@@ -141,9 +164,11 @@ tests were performed. The game, scoring, and storage modules are unchanged.
 - `tests/scoring.test.js`: sums, frozen exclusions, and Street bonuses.
 - `tests/goal.test.js`: goal detection with normal/frozen D7.
 - `tests/storage.test.js`: status restoration, legacy migration/fallback, and storage failures.
+- `tests/undo.test.js`: exact snapshots, freeze/thaw restoration, score/Street/goal
+  rollback, deep-copy isolation, consumption, and bounded-history validation.
 - `tests/app-initialization.test.js`: cell-first selection/submission, error
   correction, cancellation, occupied-cell guards, score/Street/goal feedback,
-  save restoration/reset, and A1=23 → B1=31 → A2=23 → C1=46 integration.
+  save restoration/reset, one-step Undo, and A1=23 → B1=31 → A2=23 integration.
 - `tests/fixtures.js` and `tests/assert.js`: dependency-free test helpers.
 
 ## GitHub Pages

@@ -1,4 +1,4 @@
-import { BOARD_COLUMNS, isValidBoard, isValidBoardCell } from "./game.js";
+import { BOARD_COLUMNS, isValidBoard, isValidBoardCell } from "./game.js?v=undo-1";
 
 export function isStreetRow(row) {
   if (!Array.isArray(row) || row.length !== BOARD_COLUMNS.length) return false;

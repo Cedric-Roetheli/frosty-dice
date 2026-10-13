@@ -1,7 +1,7 @@
-import { BOARD_COLUMNS, BOARD_ROW_COUNT, cloneBoard, createGameState, isValidBoard } from "./game.js";
+import { BOARD_COLUMNS, BOARD_ROW_COUNT, cloneGameState, createGameState, isPrimeNumber, isValidGameState } from "./game.js?v=undo-1";
 
 export const STORAGE_KEY = "frosty-dice.game";
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 5;
 
 function isStorageRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -9,14 +9,25 @@ function isStorageRecord(value) {
 
 export function isValidStoredState(state) {
   // Do not silently discard a legacy flag that could contradict permanent damage.
-  return isStorageRecord(state) && isValidBoard(state.board)
-    && state.board.every((row) => row.every((cell) => cell === null
-      || !Object.prototype.hasOwnProperty.call(cell, "frozen")));
+  return isValidGameState(state) && hasCanonicalCells(state.board)
+    && (state.undo == null || hasCanonicalCells(state.undo.board));
+}
+
+function hasCanonicalCells(board) {
+  return board.every((row) => row.every((cell) => cell === null
+    || !Object.prototype.hasOwnProperty.call(cell, "frozen")));
 }
 
 // Whitelist canonical state; never serialize score, targets, goal, or UI drafts.
 function canonicalStoredState(state) {
-  return { board: cloneBoard(state.board) };
+  return cloneGameState(state);
+}
+
+function migrateBoardOnlyState(state) {
+  if (!isStorageRecord(state)) return null;
+  // Older formats never stored a previous board: do not infer an Undo history.
+  const migrated = { board: state.board, undo: null };
+  return isValidStoredState(migrated) ? migrated : null;
 }
 
 function migrateVersion2State(state) {
@@ -36,9 +47,17 @@ function migrateVersion2State(state) {
     }
     board.push(entries);
   }
-  const migrated = { board };
+  const migrated = { board, undo: null };
   // Multiple old freezes have no chronology: never guess which one is current.
   return isValidStoredState(migrated) ? migrated : null;
+}
+
+function migrateVersion3State(state) {
+  const migrated = migrateBoardOnlyState(state);
+  if (migrated === null) return null;
+  // Version 3 only allowed primes in damaged cells; keep rejecting malformed old saves.
+  return migrated.board.every((row) => row.every((cell) => cell === null
+    || cell.status !== "thawed" || isPrimeNumber(cell.value))) ? migrated : null;
 }
 
 export function serializeGame(state) {
@@ -56,6 +75,8 @@ export function deserializeGame(serialized) {
     const payload = JSON.parse(serialized);
     if (!isStorageRecord(payload)) return null;
     const state = payload.version === SAVE_VERSION ? payload.state
+      : payload.version === 4 ? migrateBoardOnlyState(payload.state)
+      : payload.version === 3 ? migrateVersion3State(payload.state)
       : payload.version === 2 ? migrateVersion2State(payload.state) : null;
     return isValidStoredState(state) ? canonicalStoredState(state) : null;
   } catch {

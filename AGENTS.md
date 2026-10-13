@@ -98,6 +98,7 @@ The structure may evolve when there is a concrete reason, but keep the codebase 
 Represent enough state to reconstruct the player's current game locally. At minimum this is expected to include:
 
 - Board contents, including each occupied cell's value and normal/frozen/thawed status
+- One nullable, deep-cloned pre-placement board for Undo; never nested history
 - Any additional state required by confirmed game rules
 - A schema/version identifier if persistence evolves
 

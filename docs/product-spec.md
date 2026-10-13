@@ -35,6 +35,7 @@ The app should:
 - Calculate a plain sum with Street bonuses, excluding all ever-frozen values.
 - Detect the goal only when D7 is occupied and not frozen.
 - Save and restore the local board and permanent damage status.
+- Offer one-step Undo of the last successful placement, restoring its complete prior board.
 - Allow a confirmed new-game reset.
 - Remain mobile-first, accessible, static, and GitHub Pages compatible.
 
@@ -44,29 +45,32 @@ save, or replacement special action for repeated-digit numbers.
 
 ## 4. Local game state
 
-Canonical state is a board only. Empty cells are empty; occupied cells retain
-both a value and a status: normal, currently frozen, or previously frozen/thawed.
-At most one cell is currently frozen. Thawed cells are usable but permanently
-scoreless. This status depends on placement order and must be stored rather than
-recalculated from current neighboring values.
+Canonical state is `{ board, undo }`. Each board has seven rows of four cells;
+occupied cells retain a value and a normal/frozen/thawed status. At most one
+cell in each board is currently frozen. Thawed cells are usable but permanently
+scoreless. These statuses are authoritative historical data.
 
-Score, Streets, and goal status are derived from the board. Cell selection and
-number drafts stay in the UI and are not persisted. The interface does not
-calculate legal-target lists or track turn/source metadata.
+`undo` is either `null` or `{ board }`, a deep-cloned pre-placement board.
+The snapshot never contains an older Undo. The board contains all gameplay
+data; score, Streets, legal targets, and goal are derived and not persisted.
+Selection and number drafts stay outside canonical state.
 
-Version 3 stores explicit cell statuses. Version-2 boolean cell records with at
-most one frozen cell migrate to normal/frozen statuses in memory; the next
-meaningful save writes version 3. Saves with several old frozen cells cannot
-identify the latest freeze, so no current frozen cell is guessed. They safely
-fall back to a fresh state and invalid-save status, preserving the original
-record until play saves a new state or reset is confirmed. Version-1 numeric
-records remain incompatible. Malformed version-3 states, including more than
-one current freeze, use the same safe fallback. Mixed cell encodings that contain
-both the legacy boolean `frozen` field and a current `status` field are rejected;
-restoration must not guess which field describes permanent damage.
+Version 5 saves the current board and this one nullable snapshot together.
+Validate both boards, reject recursive history or a snapshot that does not
+precede the current board by one legal placement, and retain canonical cell
+statuses without legacy boolean flags.
 
-Missing or malformed saves and storage-access/quota errors must not crash the
-storage layer. Game data stays on the local device.
+Valid version-3 and version-4 board-only games migrate with Undo unavailable.
+Preserve their values and damage exactly; there is no prior board to recover.
+Version 4's legacy permanent damage remains scoreless. Version-2 boolean
+records with at most one freeze still migrate safely. Version-1 numeric saves,
+ambiguous multiple freezes, mixed encodings, malformed snapshots, and unknown
+versions fall back to a fresh state and a visible invalid-save message.
+
+Loading never rewrites or deletes a save. The next successful placement or
+Undo saves version 5. Consuming Undo saves `undo: null`; confirmed reset clears
+the saved game entirely. Missing saves and storage-access/quota errors must
+not crash the application. Data stays on the local device.
 
 ## 5. Placement and feedback
 
@@ -100,7 +104,8 @@ remains undecided.
 The board is the primary input interface. Empty cells are touch-friendly buttons
 with no visible text, including when selected. Column and row headings identify
 their positions; accessible cell labels retain their coordinates. Occupied
-normal, frozen, and thawed cells cannot open entry or be overwritten. Selecting
+normal, frozen, and thawed cells cannot open input, expose actions, or receive
+placements. Selecting
 an empty cell shows a restrained border and a compact form directly below the
 board, with the selected coordinate in the input label. Selection is not a
 statement that the move is legal.
@@ -114,7 +119,8 @@ the updated score, Streets, and goal from the board.
 
 Cancel, Escape, or a tap outside the form safely discards a draft. Selecting
 another empty cell starts a fresh draft there; tapping the already selected
-cell keeps its draft. Moving to entry dismisses a pending reset confirmation.
+cell keeps its draft. Tapping elsewhere safely discards it. Starting number
+entry dismisses a pending reset confirmation.
 New Game / Reset remains accessible and requires explicit confirmation.
 
 Keep the score compact, and show Street and goal feedback when applicable.
@@ -127,7 +133,25 @@ counter markup, handlers, and exclusive styling. Broader visual redesign is
 deferred. Coordinator tests use a document/storage test double; browser
 automation, screenshot tests, and viewport tests are excluded from this task.
 
-## 7. Technical constraints
+## 7. Undo correction
+
+Show one subtle circular ↶ button immediately left of Score. Keep it in the
+same position when disabled, with a subdued appearance and a mobile touch
+target of at least 48px. Use an accessible label/title, “Undo last move,” and
+no permanent descriptive text or external icon library.
+
+Only successful placement publishes a new pre-placement snapshot. Failed
+attempts and canceled entry preserve the existing snapshot. Undo immediately
+restores the complete board, saves it, recalculates score/Street/goal displays,
+and consumes the snapshot. Clear selection, input, and validation feedback before
+rendering the restored state. Frozen/thawed visuals follow the restored statuses.
+
+A disabled Undo does nothing, including leaving any open draft alone. An
+available Undo safely closes an open draft and any pending reset confirmation.
+There is no confirmation dialog, Redo, history screen, or multi-step stack.
+Occupied cells are readonly, and there is no direct value correction interface.
+
+## 8. Technical constraints
 
 Use HTML, CSS, and vanilla JavaScript with relative asset/module paths. Keep
 rule logic independent from DOM code and storage mechanics in storage.js.

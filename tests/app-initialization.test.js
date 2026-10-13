@@ -1,6 +1,6 @@
 import { initializeApp } from "../js/app.js";
 import { createGameState, placeGameNumber } from "../js/game.js";
-import { STORAGE_KEY, loadGame, serializeGame } from "../js/storage.js";
+import { SAVE_VERSION, STORAGE_KEY, loadGame, serializeGame } from "../js/storage.js";
 import { boardFixture } from "./fixtures.js";
 import { assert, assertDeepEqual, assertEqual } from "./assert.js";
 
@@ -96,6 +96,13 @@ function appTestDocument() {
   add("input", "number-input", form);
   add("button", "cancel-entry", form);
   add("p", "entry-feedback", form);
+  const undo = add("button", "undo-move");
+  undo.setAttribute("aria-label", "Undo last move");
+  undo.setAttribute("title", "Undo last move");
+  const icon = document.createElement("span");
+  icon.textContent = "↶";
+  icon.setAttribute("aria-hidden", "true");
+  undo.append(icon);
   const confirmation = add("div", "reset-confirmation");
   add("button", "cancel-new-game", confirmation);
   add("button", "confirm-new-game", confirmation);
@@ -215,8 +222,8 @@ export function runAppInitializationTests() {
     const { document, storage } = startAppTest();
     const event = submitAppNumber(document, "A1", 16);
     assert(event.defaultPrevented);
-    assertDeepEqual(loadGame(storage).state, { board: boardFixture(["A1", 16]) });
-    assertDeepEqual(Object.keys(JSON.parse(storage.getItem(STORAGE_KEY)).state), ["board"]);
+    assertDeepEqual(loadGame(storage).state, { board: boardFixture(["A1", 16]), undo: { board: boardFixture() } });
+    assertDeepEqual(Object.keys(JSON.parse(storage.getItem(STORAGE_KEY)).state), ["board", "undo"]);
     assertEqual(document.getElementById("current-score").textContent, "16");
     assertEqual(document.getElementById("cell-A1").disabled, true);
     assertEqual(document.getElementById("number-entry-form").hidden, true);
@@ -228,7 +235,7 @@ export function runAppInitializationTests() {
   test("Repeated-digit numbers use ordinary entry without roll counts or special actions", () => {
     const { document, storage } = startAppTest();
     submitAppNumber(document, "A1", 33);
-    assertDeepEqual(JSON.parse(storage.getItem(STORAGE_KEY)).state, { board: boardFixture(["A1", 33]) });
+    assertDeepEqual(JSON.parse(storage.getItem(STORAGE_KEY)).state, { board: boardFixture(["A1", 33]), undo: { board: boardFixture() } });
     assertEqual(document.getElementById("current-score").textContent, "33");
     assertEqual(document.getElementById("number-entry-form").hidden, true);
     assertEqual(document.getElementById("schnapszahl-panel"), null);
@@ -316,18 +323,19 @@ export function runAppInitializationTests() {
   });
 
   for (const status of ["normal", "frozen", "thawed"]) {
-    test("An occupied " + status + " cell cannot open entry or be overwritten", () => {
+    test("An occupied " + status + " cell cannot open entry, expose actions, or be overwritten", () => {
       const serialized = serializeGame({ board: boardFixture(["A1", 16], ["B1", 31, status]) });
       const { document, storage } = startAppTest(serialized);
       const occupied = document.getElementById("cell-B1");
       assert(occupied.disabled);
-      occupied.disabled = false; // A stale or modified button must still be guarded.
+      occupied.disabled = false; // Also guard a stale or modified button.
       selectAppCell(document, "B1");
       typeAppNumber(document, 46);
       document.getElementById("number-entry-form").emit("submit");
       assertEqual(document.getElementById("number-entry-form").hidden, true);
       assertEqual(document.getElementById("selected-cell").textContent, "");
-      assertEqual(document.getElementById("app-status").textContent, "This cell is already occupied.");
+      assertEqual(document.getElementById("cell-actions"), null);
+      assertEqual(document.getElementById("edit-cell"), null);
       assertEqual(storage.getItem(STORAGE_KEY), serialized);
     });
   }
@@ -432,9 +440,12 @@ export function runAppInitializationTests() {
       assert(storage.getItem(STORAGE_KEY) === before, "Selection and drafts must not save or change statuses");
       document.getElementById("number-entry-form").emit("submit");
       const entries = expectedStages[index];
-      const expected = { board: boardFixture(...entries) };
+      const expected = {
+        board: boardFixture(...entries),
+        undo: { board: boardFixture(...(expectedStages[index - 1] ?? [])) },
+      };
       const serialized = storage.getItem(STORAGE_KEY);
-      assertDeepEqual(JSON.parse(serialized), { version: 3, state: expected });
+      assertDeepEqual(JSON.parse(serialized), { version: SAVE_VERSION, state: expected });
       assertDeepEqual(loadGame(storage).state, expected);
       const score = index === 3 ? 69 : 23;
       verifyRenderedState(document, entries, score);
@@ -558,7 +569,7 @@ export function runAppInitializationTests() {
   });
 
   test("Mixed legacy/current cell encodings fall back visibly without deleting the saved record", () => {
-    for (const version of [2, 3]) {
+    for (const version of [2, 3, SAVE_VERSION]) {
       const board = boardFixture(["A1", 23], ["B1", 31, "thawed"], ["A2", 23, "frozen"]);
       for (const row of board) {
         for (const cell of row) if (cell !== null) cell.frozen = cell.status === "frozen";
@@ -636,6 +647,201 @@ export function runAppInitializationTests() {
     assertEqual(document.getElementById("current-score").textContent, "16");
     assertEqual(document.getElementById("reset-confirmation").hidden, false);
     assert(document.getElementById("storage-status").textContent.includes("could not be cleared"));
+  });
+
+  test("Undo stays in the header, is labelled accessibly, and is initially unavailable", () => {
+    const { document } = startAppTest();
+    const undo = document.getElementById("undo-move");
+    assert(undo.disabled);
+    assertEqual(undo.getAttribute("aria-label"), "Undo last move");
+    assertEqual(undo.getAttribute("title"), "Undo last move");
+    assertEqual(undo.textContent, "↶");
+  });
+
+  test("A successful normal placement enables Undo, which restores and saves the empty state", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 16);
+    assertEqual(document.getElementById("undo-move").disabled, false);
+    document.getElementById("undo-move").emit("click");
+    assertDeepEqual(loadGame(storage).state, createGameState());
+    assertEqual(document.getElementById("cell-A1").dataset.state, "empty");
+    assertEqual(document.getElementById("current-score").textContent, "0");
+    assertEqual(document.getElementById("undo-move").disabled, true);
+    assertEqual(JSON.parse(storage.getItem(STORAGE_KEY)).state.undo, null);
+    const saved = storage.getItem(STORAGE_KEY);
+    document.getElementById("undo-move").emit("click");
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+  });
+
+  test("The complete input/save/render/reload/Undo path restores B1 frozen and removes A2", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 23);
+    submitAppNumber(document, "B1", 31);
+    const before = loadGame(storage).state.board;
+    submitAppNumber(document, "A2", 23);
+    assertEqual(document.getElementById("cell-B1").dataset.state, "thawed");
+    assertFrozenCell(document.getElementById("cell-A2"));
+    const reloaded = appTestDocument();
+    initializeApp(reloaded, storage);
+    assertEqual(reloaded.getElementById("undo-move").disabled, false);
+    reloaded.getElementById("undo-move").emit("click");
+    assertDeepEqual(loadGame(storage).state, { board: before, undo: null });
+    assertFrozenCell(reloaded.getElementById("cell-B1"));
+    assertEqual(reloaded.getElementById("cell-A2").dataset.state, "empty");
+    assertEqual(reloaded.getElementById("cell-A2").textContent, "");
+    assertEqual(reloaded.getElementById("cell-A2").querySelector("img"), null);
+    assertEqual(reloaded.getElementById("board-rows").querySelectorAll("img").length, 1);
+    assertEqual(reloaded.getElementById("current-score").textContent, "23");
+    assertEqual(reloaded.getElementById("undo-move").disabled, true);
+    const again = appTestDocument();
+    initializeApp(again, storage);
+    assertFrozenCell(again.getElementById("cell-B1"));
+    assertEqual(again.getElementById("undo-move").disabled, true);
+  });
+
+  test("Illegal and invalid submissions preserve the previous available Undo snapshot", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 16);
+    const saved = storage.getItem(STORAGE_KEY);
+    for (const value of [12, 17]) {
+      submitAppNumber(document, "B1", value);
+      assertEqual(storage.getItem(STORAGE_KEY), saved);
+      assertEqual(document.getElementById("undo-move").disabled, false);
+    }
+    document.getElementById("undo-move").emit("click");
+    assertDeepEqual(loadGame(storage).state, createGameState());
+  });
+
+  test("Cancel and outside taps leave an existing Undo snapshot available and unchanged", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 16);
+    const saved = storage.getItem(STORAGE_KEY);
+    for (const action of ["Cancel", "outside"]) {
+      selectAppCell(document, "B1");
+      typeAppNumber(document, 24);
+      if (action === "Cancel") document.getElementById("cancel-entry").emit("click");
+      else document.emit("pointerdown", document.root);
+      assertEqual(storage.getItem(STORAGE_KEY), saved);
+      assertEqual(document.getElementById("undo-move").disabled, false);
+    }
+  });
+
+  test("Undo closes an open rejected draft and clears selection, input, and errors", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 16);
+    submitAppNumber(document, "B1", 12);
+    document.emit("pointerdown", document.getElementById("undo-move"));
+    document.getElementById("undo-move").emit("click");
+    assertEqual(document.getElementById("number-entry-form").hidden, true);
+    assertEqual(document.getElementById("selected-cell").textContent, "");
+    assertEqual(document.getElementById("number-input").value, "");
+    assertEqual(document.getElementById("number-input").getAttribute("aria-invalid"), null);
+    assertEqual(document.getElementById("entry-feedback").hidden, true);
+    assertDeepEqual(loadGame(storage).state, createGameState());
+    document.getElementById("number-entry-form").emit("submit");
+    assertDeepEqual(loadGame(storage).state, createGameState());
+    for (const cell of document.getElementById("board-rows").querySelectorAll("button")) {
+      assertEqual(cell.getAttribute("aria-pressed"), "false");
+    }
+  });
+
+  test("An unavailable Undo tap does nothing, including leaving an open draft intact", () => {
+    const { document, storage } = startAppTest();
+    selectAppCell(document, "A1");
+    typeAppNumber(document, 16);
+    const undo = document.getElementById("undo-move");
+    document.emit("pointerdown", undo.querySelector("span"));
+    undo.emit("click");
+    assertEqual(document.getElementById("selected-cell").textContent, "A1");
+    assertEqual(document.getElementById("number-input").value, "16");
+    assertEqual(document.getElementById("number-entry-form").hidden, false);
+    assertEqual(storage.getItem(STORAGE_KEY), null);
+  });
+
+  test("Undo removes a completed Street and restores the previous visible score and row state", () => {
+    const { document, storage } = startAppTest();
+    for (const [coordinate, value] of [["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14]]) {
+      submitAppNumber(document, coordinate, value);
+    }
+    assertEqual(document.getElementById("current-score").textContent, "100");
+    assertEqual(document.getElementById("street-bonus").hidden, false);
+    document.getElementById("undo-move").emit("click");
+    assertEqual(document.getElementById("current-score").textContent, "36");
+    assertEqual(document.getElementById("street-bonus").hidden, true);
+    assert(!document.getElementById("board-rows").children[0].className.includes("street"));
+    assertEqual(loadGame(storage).state.board[0][3], null);
+  });
+
+  test("Undo of the D7 placement removes visible goal feedback and restores the previous score", () => {
+    const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["C7", 46]) }));
+    submitAppNumber(document, "D7", 55);
+    assertEqual(document.getElementById("goal-status").hidden, false);
+    assertEqual(document.getElementById("current-score").textContent, "101");
+    document.getElementById("undo-move").emit("click");
+    assertEqual(document.getElementById("goal-status").hidden, true);
+    assertEqual(document.getElementById("current-score").textContent, "46");
+    assertDeepEqual(loadGame(storage).state, { board: boardFixture(["C7", 46]), undo: null });
+  });
+
+  test("A new successful move replaces the sole snapshot and a move after Undo enables it again", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 16);
+    submitAppNumber(document, "B1", 24);
+    assertDeepEqual(loadGame(storage).state.undo, { board: boardFixture(["A1", 16]) });
+    document.getElementById("undo-move").emit("click");
+    assertEqual(document.getElementById("undo-move").disabled, true);
+    submitAppNumber(document, "B1", 26);
+    assertEqual(document.getElementById("undo-move").disabled, false);
+    document.getElementById("undo-move").emit("click");
+    assertDeepEqual(loadGame(storage).state, { board: boardFixture(["A1", 16]), undo: null });
+  });
+
+  test("Reset clears the available Undo and saved state after explicit confirmation", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 16);
+    assertEqual(document.getElementById("undo-move").disabled, false);
+    document.getElementById("new-game").emit("click");
+    document.getElementById("cancel-new-game").emit("click");
+    assertEqual(document.getElementById("undo-move").disabled, false);
+    document.getElementById("new-game").emit("click");
+    document.getElementById("confirm-new-game").emit("click");
+    assertEqual(storage.getItem(STORAGE_KEY), null);
+    assertEqual(document.getElementById("undo-move").disabled, true);
+    document.getElementById("undo-move").emit("click");
+    assertEqual(storage.getItem(STORAGE_KEY), null);
+    assertEqual(document.getElementById("current-score").textContent, "0");
+  });
+
+  test("Old board-only saves restore without inventing Undo and malformed snapshots start safely", () => {
+    const board = boardFixture(["A1", 23], ["B1", 31, "frozen"]);
+    for (const version of [3, 4]) {
+      const saved = JSON.stringify({ version, state: { board } });
+      const { document, storage } = startAppTest(saved);
+      assertAppBoardReady(document);
+      assertFrozenCell(document.getElementById("cell-B1"));
+      assertEqual(document.getElementById("undo-move").disabled, true);
+      assertEqual(storage.getItem(STORAGE_KEY), saved);
+    }
+    const saved = JSON.stringify({ version: SAVE_VERSION, state: { board, undo: { board, undo: null } } });
+    const { document, storage } = startAppTest(saved);
+    assertAppBoardReady(document);
+    assertEqual(document.getElementById("current-score").textContent, "0");
+    assertEqual(document.getElementById("undo-move").disabled, true);
+    assert(document.getElementById("storage-status").textContent.includes("could not be restored"));
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+  });
+
+  test("Undo dismisses a pending reset confirmation so stale confirmation cannot erase the restored game", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 16);
+    submitAppNumber(document, "B1", 24);
+    document.getElementById("new-game").emit("click");
+    document.getElementById("undo-move").emit("click");
+    const saved = storage.getItem(STORAGE_KEY);
+    document.getElementById("confirm-new-game").emit("click");
+    assertEqual(document.getElementById("reset-confirmation").hidden, true);
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+    assertDeepEqual(loadGame(storage).state, { board: boardFixture(["A1", 16]), undo: null });
   });
 
   return results;

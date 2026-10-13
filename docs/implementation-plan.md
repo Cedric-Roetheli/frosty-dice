@@ -28,7 +28,7 @@ Scope:
 - Retain applicable placement regressions and replace obsolete turn/action tests.
 - Run the pure unit suite once after implementation.
 
-The canonical state is only the board. Cell statuses are authoritative;
+At this core-only checkpoint, canonical state was only the board. Cell statuses are authoritative;
 score, Streets, targets, and goal status are derived. Core updates must remain
 independent of presentation code and use no dependencies or build system.
 
@@ -97,7 +97,8 @@ image was supplied by the user; no asset generation or image editing was used.
 The approved interaction is a cell-first digital game sheet. Select any empty
 cell, enter a two-digit dice number, and submit it to the existing shared rule
 operation. Do not calculate or display legal targets, suggest numbers, or
-validate a placement during selection or typing. Occupied cells are read-only.
+validate a placement during selection or typing. Occupied cells cannot receive
+ordinary placements; Undo below provides one-step input correction.
 
 On success, apply the existing state transition, save, update the derived
 displays, and close/clear entry. On rejection, preserve the board and draft and
@@ -120,6 +121,44 @@ JavaScriptCore: **159/159 passed**, comprising 122 unchanged core tests and
 HTML references, relative paths, and module imports were checked without a
 browser. Broad visual polish remains deferred. No browser automation,
 screenshots, viewport tests, commit, or push was performed.
+
+## One-step Undo — Whole-board correction
+
+Remove direct occupied-cell correction, its action interface, API, state,
+exclusive styling, and tests. Occupied normal/frozen/thawed cells are readonly.
+
+Extend canonical state to `{ board, undo }`. Capture a deep-cloned
+`{ board }` immediately before placement, publishing it only when the move
+succeeds. The next successful move replaces it; failed attempts and canceled
+drafts preserve it. Restore the snapshot exactly and consume it with no Redo
+or older history. Do not reverse effects or reconstruct a previous board.
+
+Keep existing placement, dice, freeze/thaw, scoring, Street, and goal logic.
+Recalculate derived displays after restore. Clear any unsubmitted entry and
+stale selection on Undo. Confirmed reset clears current state and Undo.
+
+Add a compact, accessible ↶ button immediately left of Score. Keep its place
+when unavailable and disable/subdue it. Use a 48px touch target and immediate
+action with no confirmation. No other occupied-cell or opponent action is added.
+
+Version 5 persists both boards and consumes Undo by storing null. Preserve valid
+version-3/4 boards without inventing snapshots, retain safe version-2 migration,
+and reject malformed/recursive/mismatched snapshots safely. Keep relative paths
+and static deployment compatibility.
+
+Add pure snapshot/Undo, full coordinator, and persistence regressions, including
+the 23/31/23 freeze example, Street/goal rollback, reload, repeat taps, invalid
+attempts, cancellation, and reset. Preserve existing game-engine coverage.
+Run the suite once; no browser automation, screenshots, viewport tests, commit,
+or push.
+
+**Status: Complete.** The full suite ran once in JavaScriptCore: **195/195
+passed**, including 15 pure Undo, 50 coordinator, and 28 storage tests. Existing
+game-engine coverage remains; obsolete direct-correction tests were removed.
+The 23/31/23 integration exercises input, save, render, reload, and Undo, restoring
+B1 frozen and A2 empty. Source checks also passed for imports, labels, static
+paths, and the Undo button's position. No browser automation, screenshots,
+viewport tests, commit, or push was performed.
 
 ## Step 3 — Manual evaluation and release
 

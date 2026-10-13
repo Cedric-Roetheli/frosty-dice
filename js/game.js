@@ -28,7 +28,7 @@ export function isValidCell(coordinate) {
 export function isValidBoardCell(cell) {
   return cell === null || (typeof cell === "object" && !Array.isArray(cell)
     && isValidNumber(cell.value) && CELL_STATUSES.includes(cell.status)
-    && (cell.status === "normal" || isPrimeNumber(cell.value)));
+    && (cell.status !== "frozen" || isPrimeNumber(cell.value)));
 }
 
 // Validate the snapshot, without replaying placement history or A1 connectivity.
@@ -198,14 +198,69 @@ export function placeNumber(board, coordinate, value) {
 }
 
 export function createGameState() {
-  return { board: createEmptyBoard() };
+  return { board: createEmptyBoard(), undo: null };
+}
+
+function isGameRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+// A snapshot contains only gameplay data, never an older Undo or derived displays.
+export function isValidUndoSnapshot(snapshot, board) {
+  if (!isGameRecord(snapshot) || Object.keys(snapshot).join(",") !== "board"
+      || !isValidBoard(snapshot.board) || !isValidBoard(board)) return false;
+  let move = null;
+  for (let row = 0; row < BOARD_ROW_COUNT; row += 1) {
+    for (let column = 0; column < BOARD_COLUMNS.length; column += 1) {
+      const before = snapshot.board[row][column];
+      const after = board[row][column];
+      if (before === null && after !== null) {
+        if (move !== null) return false;
+        move = { coordinate: BOARD_COLUMNS[column] + (row + 1), value: after.value };
+      } else if (before !== null && (after === null || before.value !== after.value)) {
+        return false;
+      }
+    }
+  }
+  if (move === null) return false;
+  // Check one forward move for saved-data integrity; restoration never reverses effects.
+  try {
+    return JSON.stringify(placeNumber(snapshot.board, move.coordinate, move.value))
+      === JSON.stringify(cloneBoard(board));
+  } catch {
+    return false;
+  }
+}
+
+export function isValidGameState(state) {
+  return isGameRecord(state) && isValidBoard(state.board)
+    && (state.undo == null || isValidUndoSnapshot(state.undo, state.board));
+}
+
+export function cloneGameState(state) {
+  if (!isValidGameState(state)) throw new TypeError("Use a valid game board and Undo snapshot.");
+  return {
+    board: cloneBoard(state.board),
+    undo: state.undo == null ? null : { board: cloneBoard(state.undo.board) },
+  };
 }
 
 export function placeGameNumber(state, coordinate, value) {
-  if (!state || typeof state !== "object" || Array.isArray(state) || !isValidBoard(state.board)) {
-    throw new TypeError("Use a valid game board.");
-  }
-  return { board: placeNumber(state.board, coordinate, value) };
+  if (!isValidGameState(state)) throw new TypeError("Use a valid game board and Undo snapshot.");
+  const snapshot = { board: cloneBoard(state.board) };
+  const board = placeNumber(state.board, coordinate, value);
+  // A failed placement throws before a new state can replace the existing snapshot.
+  return { board, undo: snapshot };
+}
+
+export function canUndo(state) {
+  return isValidGameState(state) && state.undo != null;
+}
+
+export function undoLastMove(state) {
+  if (!isValidGameState(state)) throw new TypeError("Use a valid game board and Undo snapshot.");
+  if (state.undo == null) return state;
+  return { board: cloneBoard(state.undo.board), undo: null };
 }
 
 // Optional input helpers for a chosen physical pair; no turn or origin is stored.
