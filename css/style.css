@@ -45,6 +45,10 @@
 
 html { min-height: 100%; }
 
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
 body {
   position: relative;
   min-height: var(--background-min-height);
@@ -91,9 +95,34 @@ body::after {
 }
 
 main {
+  /* Reserve meadow space after the game controls without moving any of them. */
+  min-height: var(--background-horizon);
   max-width: 28rem;
   margin-inline: auto;
   overflow-wrap: break-word;
+}
+
+.rules-illustration {
+  width: 96%;
+  max-width: 36rem;
+  /* The PNG has 941px of painted ground below its horizon on a 1440px canvas. */
+  margin: calc(var(--background-artwork-width) * var(--background-meadow-scale) * 941 / 1440 + 1.5rem) auto 2rem;
+  scroll-margin-top: 1.5rem;
+}
+
+.rules-illustration h2 {
+  margin-bottom: 0.5rem;
+  color: #fff;
+  font-size: clamp(2rem, 8vw, 3rem);
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.rules-illustration img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 h1 {
@@ -442,7 +471,17 @@ noscript p {
 
 .reset-panel { margin-top: 0.5rem; }
 
-.reset-panel #new-game {
+.reset-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reset-controls > .action-button { flex: none; }
+
+.reset-panel #new-game,
+.rules-link {
   width: auto;
   border-color: transparent;
   color: #fff;
@@ -453,6 +492,17 @@ noscript p {
 }
 
 .reset-panel #new-game:focus-visible { outline-color: #fff; }
+
+.rules-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rules-link:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
 
 .confirmation {
   margin-top: 0.5rem;

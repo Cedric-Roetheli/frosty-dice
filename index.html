@@ -7,7 +7,7 @@
     <meta name="description" content="A mobile-first companion for Frosty Dice, played together with physical dice.">
     <title>Frosty Dice</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="./css/style.css?v=board-hints-1">
+    <link rel="stylesheet" href="./css/style.css?v=rules-navigation-1">
     <script type="module" src="./js/app.js?v=board-hints-1"></script>
   </head>
   <body>
@@ -56,7 +56,10 @@
       <p id="storage-status" class="storage-status" role="status" hidden></p>
       <section class="reset-panel" aria-labelledby="new-game-heading">
         <h2 id="new-game-heading" class="visually-hidden">New game</h2>
-        <button id="new-game" class="action-button secondary-button" type="button">New Game / Reset</button>
+        <div class="reset-controls">
+          <button id="new-game" class="action-button secondary-button" type="button">New Game / Reset</button>
+          <a class="action-button secondary-button rules-link" href="#rules">Rules</a>
+        </div>
         <div id="reset-confirmation" class="confirmation" hidden>
           <p id="reset-warning">Start a new game? Your board and local save will be cleared.</p>
           <button id="cancel-new-game" class="action-button secondary-button" type="button">Keep current game</button>
@@ -67,5 +70,9 @@
         <p>Enable JavaScript to display the board.</p>
       </noscript>
     </main>
+    <section id="rules" class="rules-illustration" aria-labelledby="rules-heading">
+      <h2 id="rules-heading">Rules</h2>
+      <img src="./assets/Rules.png" alt="Hand-drawn Frosty Dice game rules" width="2048" height="2048" loading="lazy" decoding="async">
+    </section>
   </body>
 </html>

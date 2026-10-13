@@ -240,6 +240,26 @@ Both images remain clipped inside existing cell bounds, behind numbers and
 markers. Cells, grid dimensions, interactions, and Prime-thawed treatment do not
 change. General visual redesign and PNG optimization remain deferred.
 
+A transparent rules illustration (`assets/Rules.png`) appears in a plain section
+after the game interface, with a large centered white Rules heading and no card
+surface.
+Keep the game region at least as tall as the existing horizon height, without
+moving its controls. Add responsive spacing matching the scaled PNG's lower
+painted ground (941/1440 of its displayed width), plus 1.5rem, so the section
+begins near the transition to solid-green continuation. Leave 0.5rem between
+the heading and image and 2rem of bottom breathing room.
+Use 96% of available width, capped at 36rem, centered with its original square
+aspect ratio. Keep the artwork unchanged and provide descriptive alt text.
+The existing full-page meadow layer and green fallback cover the image and
+spacing without repeating plants, moving the horizon, or altering game UI or
+JavaScript. No image-specific tests or browser automation are required.
+
+A lightweight white Rules anchor sits to the right of New Game / Reset, sharing
+its typography and 48px minimum touch target. It links directly to `#rules`,
+with a 1.5rem scroll margin around the destination. Smooth scrolling is enabled
+only for `prefers-reduced-motion: no-preference`; otherwise navigation remains
+instant. Add no return link, sticky navigation, or gameplay state for this link.
+
 Use HTML, CSS, and vanilla JavaScript with relative asset/module paths. Keep
 rule logic independent from DOM code and storage mechanics in storage.js.
 Introduce no dependencies, framework, build system, PWA, or networking feature.
