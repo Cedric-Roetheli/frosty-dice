@@ -7,8 +7,8 @@
     <meta name="description" content="A mobile-first companion for Frosty Dice, played together with physical dice.">
     <title>Frosty Dice</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="./css/style.css?v=rules-navigation-1">
-    <script type="module" src="./js/app.js?v=board-hints-1"></script>
+    <link rel="stylesheet" href="./css/style.css?v=inline-entry-1">
+    <script type="module" src="./js/app.js?v=inline-entry-1"></script>
   </head>
   <body>
     <main>
@@ -25,22 +25,14 @@
           <caption class="visually-hidden">
             Four columns, A through D, and seven rows, 1 through 7.
             Columns A, B, C, D are displayed as P, L, A, Y.
-            A1 is the start. D7 is the goal. Select an empty cell, then enter a number.
+            A1 is the start. D7 is the goal. Select an empty cell and type two digits to place a number.
             Select a normal or thawed occupied cell for Freeze or Unfreeze.
           </caption>
           <thead id="board-columns"></thead>
           <tbody id="board-rows"></tbody>
         </table>
-        <form id="number-entry-form" class="number-entry" novalidate hidden>
-          <label for="number-input">Number for <span id="selected-cell"></span></label>
-          <div class="number-entry__controls">
-            <input id="number-input" name="number" class="number-input" type="text" inputmode="numeric" pattern="[1-6]{2}" autocomplete="off" enterkeyhint="done" aria-describedby="number-help entry-feedback" required>
-            <button class="action-button" type="submit">Place</button>
-            <button id="cancel-entry" class="action-button secondary-button" type="button">Cancel</button>
-          </div>
-          <p id="number-help" class="number-help">Two digits, each from 1–6.</p>
-          <p id="entry-feedback" class="entry-feedback" role="status" aria-atomic="true" hidden></p>
-        </form>
+        <p id="number-help" class="visually-hidden">Two digits, each from 1–6. Placement is attempted after the second digit. Leave the cell or press Escape to cancel.</p>
+        <p id="entry-feedback" class="entry-feedback" role="status" aria-atomic="true" hidden></p>
         <div id="attack-ice-actions" class="attack-ice-actions" role="group" aria-labelledby="attack-ice-label" hidden>
           <p id="attack-ice-label">Attack Ice · <span id="attack-ice-cell"></span></p>
           <div class="attack-ice-actions__controls">

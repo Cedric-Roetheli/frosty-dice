@@ -87,11 +87,12 @@ not crash the application. Data stays on the local device.
 A placement changes the board only after the shared rule validator accepts it.
 Every empty cell can be selected, including cells that cannot support the next
 move. Selection and typing reveal no information about placement legality.
-Only submission calls the shared guarded placement operation. There are no
+Only a completed two-digit entry calls the shared guarded placement operation. There are no
 suggested numbers, precomputed target lists, or legal-cell indicators.
 
-An illegal submission leaves the board and saved data unchanged. Keep the
-selected cell and entered value available for correction or cancellation.
+An illegal entry leaves the board and saved data unchanged. Restore the empty
+cell and show the concise reason in a temporary overlay; the player can tap
+the cell again to retry.
 Explain a sole usable neighboring relationship briefly; if several neighboring
 relationships all fail, use a general explanation rather than implying that
 every relationship must be satisfied. The first-placement rule receives its
@@ -113,8 +114,9 @@ remains undecided.
 ## 6. Cell-first game sheet
 
 The board is the primary input interface. Empty cells are touch-friendly buttons.
-Only empty A1 and D7 show small centered Start/End hints, including when selected.
-These disappear on placement and return if Undo restores the empty cell; occupied
+Only empty A1 and D7 show small centered Start/End hints. An active inline input
+temporarily replaces the hint; cancellation or rejection restores it. The hints
+also return if Undo restores the empty cell; occupied
 cells show their number and applicable state markers. Other empty cells have no
 visible text. The hints neither intercept taps nor enter game state. The visible
 board heading and row-number gutter are removed. Four column headings display P/L/A/Y, mapped
@@ -124,22 +126,35 @@ number-entry coordinates retain A1–D7; saved games require no migration. Occup
 normal, frozen, and thawed cells cannot open number input or receive placements.
 Normal and thawed cells instead expose a temporary Attack Ice action below the
 board: Freeze if eligible, Unfreeze if currently Attack-Iced. Prime-frozen cells
-are disabled and offer no Freeze. Selecting
-an empty cell shows a restrained border and a compact form directly below the
-board, with the selected coordinate in the input label. Selection is not a
-statement that the move is legal.
+are disabled and offer no Freeze. Selecting an empty cell replaces its button
+with a native text input in the same cell, using its existing glass appearance
+and centered 22px number typography. Accessible labels retain the internal
+coordinate. Selection is not a statement that the move is legal.
 
-Use one numeric-keyboard text input for the player's chosen number, with Place
-and Cancel controls. Only two digits from 1–6 are accepted. The native form
-supports Enter/Done submission where the browser supports it. Do not present a
-dropdown, dice controls, orientations, or number suggestions. After success,
-save automatically, clear the draft and selection, close the form, and derive
-the updated score, Streets, and goal from the board.
+There is no separate entry bar, form, Place/Cancel control, or reserved space.
+Keep the board directly below the header, without changing its dimensions or
+the meadow/horizon. Automatically focus the inline input with `preventScroll`
+and `inputmode="numeric"`. Native keyboard accommodation remains the browser's
+responsibility; add no viewport detection or scripted scrolling.
 
-Cancel, Escape, or a tap outside the form safely discards a draft. Selecting
-another empty cell starts a fresh draft there; tapping the already selected
-cell keeps its draft. Tapping elsewhere safely discards it. Starting number
-entry dismisses a pending reset confirmation.
+The first valid digit is only a draft. The second automatically attempts the
+placement through the shared parser and guarded game operation. Reject invalid
+digits, non-numeric text, and overlong input without truncating pasted values.
+Do not add `maxlength` that could turn a malformed paste into a legal number.
+Enter/Done may also attempt the current input. A successful placement saves,
+removes the input, dismisses keyboard focus, and recalculates score, Streets,
+and goal. Only success creates an Undo snapshot.
+
+Rejection restores the empty cell and shows the existing concise reason as a
+small, non-interactive overlay inside the board area, opposite the attempted
+cell's half. The overlay occupies no layout space, disappears after 4.5 seconds,
+and clears on the next selection or action. Keep an accessible live status and
+input instructions. No error modal or additional controls are needed.
+
+Blur, Escape, or an outside tap discards a draft without saving or changing Undo.
+Restore only the edited cell on blur so another cell's pending click or keyboard
+focus target stays intact. Selecting another empty cell starts a fresh draft;
+tapping the active input keeps its draft. Starting number entry dismisses a pending reset confirmation.
 New Game / Reset remains accessible and requires explicit confirmation.
 
 Keep the score compact, and show Street and goal feedback when applicable.

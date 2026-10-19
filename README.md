@@ -11,11 +11,11 @@ The redesign's first step changes the pure rules, canonical state, scoring,
 local-save format, and unit tests. The active player uses four physical dice;
 the core accepts a number without tracking its origin, rolls, or turns.
 
-The board is now the main input interface. Select an empty cell, type the desired
-two-digit dice number, and press Place or submit with the keyboard. The shared
-game operation validates only that attempted move; the interface does not
-suggest numbers or highlight legal targets. Illegal attempts preserve the board
-and draft for correction. Cancel, Escape, or a tap elsewhere discards the draft.
+The board is the main input interface. Tap an empty cell and type directly into
+it; the second digit automatically attempts placement. The shared game operation
+validates the move without number suggestions or legal-target highlighting.
+Illegal attempts restore the empty cell and show a temporary overlay reason.
+Leaving the cell, Escape, or a tap elsewhere discards an unfinished draft.
 
 Successful placements update the score, Streets, and goal and save automatically.
 Values/statuses restore through the versioned loader. New Game / Reset

@@ -60,11 +60,27 @@ class AppTestElement {
     for (const handler of this.listeners[type] ?? []) handler(event);
     return event;
   }
-  focus() { this.document.activeElement = this; }
+  focus(options) {
+    const previous = this.document.activeElement;
+    this.document.activeElement = this;
+    this.lastFocusOptions = options;
+    if (previous && previous !== this) previous.emit("blur", previous, { relatedTarget: this });
+  }
 }
 
 function appTestDocument() {
+  let nextTimer = 0;
+  const pendingTimers = new Map();
   const document = {
+    defaultView: {
+      setTimeout(callback, delay) { pendingTimers.set(++nextTimer, { callback, delay }); return nextTimer; },
+      clearTimeout(id) { pendingTimers.delete(id); },
+    },
+    runTimers() {
+      const callbacks = [...pendingTimers.values()];
+      pendingTimers.clear();
+      callbacks.forEach(({ callback }) => callback());
+    },
     listeners: {},
     createElement(tag) { return new AppTestElement(tag, this); },
     createDocumentFragment() { return this.createElement("#fragment"); },
@@ -86,16 +102,11 @@ function appTestDocument() {
   const board = add("table", "game-board");
   add("thead", "board-columns", board);
   add("tbody", "board-rows", board);
+  add("p", "entry-feedback");
   for (const [tag, id] of [
     ["p", "app-status"], ["p", "storage-status"], ["strong", "current-score"],
     ["p", "street-bonus"], ["p", "goal-status"], ["button", "new-game"],
   ]) add(tag, id);
-  const form = add("form", "number-entry-form");
-  const label = add("label", "number-label", form);
-  add("span", "selected-cell", label);
-  add("input", "number-input", form);
-  add("button", "cancel-entry", form);
-  add("p", "entry-feedback", form);
   const actions = add("div", "attack-ice-actions");
   const actionLabel = add("p", "attack-ice-label", actions);
   add("span", "attack-ice-cell", actionLabel);
@@ -151,21 +162,25 @@ function assertFrozenCell(cell) {
   assert(cell.getAttribute("aria-label").includes("frozen"));
 }
 
+function getAppInput(document) {
+  return document.getElementById("board-rows").querySelector("input[data-coordinate]");
+}
+
 function selectAppCell(document, coordinate) {
   const cell = document.getElementById("cell-" + coordinate);
+  if (cell.tagName === "button" && !cell.disabled) cell.focus();
   document.getElementById("board-rows").emit("click", cell.querySelector("span") ?? cell);
 }
 
 function typeAppNumber(document, value) {
-  const input = document.getElementById("number-input");
+  const input = getAppInput(document);
   input.value = String(value);
-  input.emit("input");
+  return input.emit("input");
 }
 
 function submitAppNumber(document, coordinate, value) {
   selectAppCell(document, coordinate);
-  typeAppNumber(document, value);
-  return document.getElementById("number-entry-form").emit("submit");
+  return typeAppNumber(document, value);
 }
 
 function assertNoMoveHints(document) {
@@ -218,7 +233,10 @@ export function runAppInitializationTests() {
       assertEqual(document.getElementById(id), null);
     }
     assertEqual(document.getElementById("current-score").textContent, "0");
-    assertEqual(document.getElementById("number-entry-form").hidden, true);
+    assertEqual(getAppInput(document), null);
+    for (const id of ["number-entry-form", "number-input", "cancel-entry", "selected-cell"]) {
+      assertEqual(document.getElementById(id), null);
+    }
     assertEqual(storage.getItem(STORAGE_KEY), null);
     for (const cell of document.getElementById("board-rows").querySelectorAll("button")) {
       assertEqual(cell.disabled, false);
@@ -252,50 +270,54 @@ export function runAppInitializationTests() {
     for (const [index, column] of ["A", "B", "C", "D"].entries()) {
       const button = document.getElementById("board-rows").children[0].children[index].querySelector("button");
       document.getElementById("board-rows").emit("click", button);
-      assertEqual(document.getElementById("selected-cell").textContent, column + "1");
+      assertEqual((getAppInput(document)?.dataset.coordinate ?? ""), column + "1");
       typeAppNumber(document, expectedValues[index]);
-      document.getElementById("number-entry-form").emit("submit");
       assertDeepEqual(loadGame(storage).state.board[0][index], { value: expectedValues[index], status: "normal" });
     }
     assertEqual(document.getElementById("current-score").textContent, "122");
     const goal = document.getElementById("board-rows").children[6].children[3].querySelector("button");
     document.getElementById("board-rows").emit("click", goal);
-    assertEqual(document.getElementById("selected-cell").textContent, "D7");
+    assertEqual((getAppInput(document)?.dataset.coordinate ?? ""), "D7");
     assert(goal.getAttribute("aria-label").startsWith("D7,"));
     assertDeepEqual(Object.keys(JSON.parse(storage.getItem(STORAGE_KEY)).state), ["board", "undo"]);
   });
 
   test("Selecting any empty cell opens numeric entry and focuses it without validating the move", () => {
     const { document, storage } = startAppTest();
-    selectAppCell(document, "D7"); // Illegal on an empty board, but selection must reveal no legality.
+    selectAppCell(document, "D7"); // Selection and a first digit reveal no placement legality.
     const selected = document.getElementById("cell-D7");
-    assertEqual(selected.getAttribute("aria-pressed"), "true");
-    assert(selected.className.includes("--selected"));
-    assertEqual(selected.textContent, "End");
-    assertEqual(document.getElementById("selected-cell").textContent, "D7");
-    assertEqual(document.getElementById("number-entry-form").hidden, false);
-    assertEqual(document.activeElement, document.getElementById("number-input"));
-    typeAppNumber(document, 16);
+    assertEqual(selected, getAppInput(document));
+    assertEqual(selected.tagName, "input");
+    assert(selected.className.includes("board-cell--selected"));
+    assertEqual(selected.textContent, "");
+    assertEqual(selected.getAttribute("aria-label"), "Number for D7");
+    assertEqual(selected.getAttribute("inputmode"), "numeric");
+    assertEqual(selected.getAttribute("enterkeyhint"), "done");
+    assertEqual(document.activeElement, selected);
+    assertDeepEqual(selected.lastFocusOptions, { preventScroll: true });
+    typeAppNumber(document, "1");
+    assertEqual(selected.value, "1");
     assertEqual(document.getElementById("entry-feedback").hidden, true);
     assertEqual(storage.getItem(STORAGE_KEY), null);
+    assertEqual(document.getElementById("undo-move").disabled, true);
+    assertEqual(document.getElementById("board-rows").querySelectorAll("button").length, 27);
     assertNoMoveHints(document);
-    for (const cell of document.getElementById("board-rows").querySelectorAll("button")) {
-      assertEqual(cell.disabled, false);
-    }
   });
 
-  test("Legal submission saves only the board, updates score, and closes entry", () => {
+  test("The second digit automatically places, saves, updates score, and closes entry", () => {
     const { document, storage } = startAppTest();
-    const event = submitAppNumber(document, "A1", 16);
-    assert(event.defaultPrevented);
+    selectAppCell(document, "A1");
+    typeAppNumber(document, "1");
+    assertEqual(storage.getItem(STORAGE_KEY), null);
+    typeAppNumber(document, "16"); // No submit event or extra control.
     assertDeepEqual(loadGame(storage).state, { board: boardFixture(["A1", 16]), undo: { board: boardFixture() } });
     assertDeepEqual(Object.keys(JSON.parse(storage.getItem(STORAGE_KEY)).state), ["board", "undo"]);
     assertEqual(document.getElementById("current-score").textContent, "16");
-    assertEqual(document.getElementById("cell-A1").disabled, false);
-    assertEqual(document.getElementById("number-entry-form").hidden, true);
-    assertEqual(document.getElementById("number-input").value, "");
-    assertEqual(document.getElementById("selected-cell").textContent, "");
+    assertEqual(document.getElementById("cell-A1").textContent, "16");
+    assertEqual(document.getElementById("cell-A1").tagName, "button");
+    assertEqual(getAppInput(document), null);
     assertEqual(document.activeElement, document.getElementById("game-board"));
+    assertDeepEqual(document.activeElement.lastFocusOptions, { preventScroll: true });
   });
 
   test("Repeated-digit numbers use ordinary entry without roll counts or special actions", () => {
@@ -303,34 +325,37 @@ export function runAppInitializationTests() {
     submitAppNumber(document, "A1", 33);
     assertDeepEqual(JSON.parse(storage.getItem(STORAGE_KEY)).state, { board: boardFixture(["A1", 33]), undo: { board: boardFixture() } });
     assertEqual(document.getElementById("current-score").textContent, "33");
-    assertEqual(document.getElementById("number-entry-form").hidden, true);
+    assertEqual(getAppInput(document), null);
     assertEqual(document.getElementById("schnapszahl-panel"), null);
   });
 
-  test("An illegal first placement leaves the board unchanged and keeps the selected cell editable", () => {
+  test("An illegal first placement restores the empty cell and displays its concise reason", () => {
     const { document, storage } = startAppTest();
     submitAppNumber(document, "B1", 16);
     assertEqual(storage.getItem(STORAGE_KEY), null);
     assertEqual(document.getElementById("cell-B1").dataset.state, "empty");
+    assertEqual(document.getElementById("cell-B1").tagName, "button");
+    assertEqual(document.getElementById("cell-B1").textContent, "");
     assertEqual(document.getElementById("current-score").textContent, "0");
-    assertEqual(document.getElementById("selected-cell").textContent, "B1");
-    assertEqual(document.getElementById("number-entry-form").hidden, false);
-    assertEqual(document.getElementById("number-input").value, "16");
+    assertEqual(getAppInput(document), null);
     assertEqual(document.getElementById("entry-feedback").textContent, "Place your first number at A1.");
+    assertEqual(document.getElementById("entry-feedback").hidden, false);
+    assertEqual(document.getElementById("entry-feedback").dataset.edge, "bottom");
+    assertEqual(document.activeElement, document.getElementById("game-board"));
     assertNoMoveHints(document);
   });
 
-  test("A rejected horizontal value can be corrected without reselecting the cell", () => {
+  test("A rejected horizontal value can be retried by tapping the restored empty cell", () => {
     const serialized = serializeGame({ board: boardFixture(["A1", 16]) });
     const { document, storage } = startAppTest(serialized);
     submitAppNumber(document, "B1", 12);
     assertEqual(storage.getItem(STORAGE_KEY), serialized);
     assertEqual(document.getElementById("entry-feedback").textContent, "Must be greater than 16 to the left.");
-    assertEqual(document.getElementById("number-input").getAttribute("aria-invalid"), "true");
-    typeAppNumber(document, 24);
-    assertEqual(document.getElementById("number-input").getAttribute("aria-invalid"), null);
+    assertEqual(getAppInput(document), null);
+    selectAppCell(document, "B1");
     assertEqual(document.getElementById("entry-feedback").hidden, true);
-    document.getElementById("number-entry-form").emit("submit");
+    assertEqual(getAppInput(document).value, "");
+    typeAppNumber(document, 24);
     assertDeepEqual(loadGame(storage).state.board[0][1], { value: 24, status: "normal" });
     assertEqual(document.getElementById("current-score").textContent, "40");
   });
@@ -346,7 +371,8 @@ export function runAppInitializationTests() {
       submitAppNumber(document, target, attempted);
       assertEqual(storage.getItem(STORAGE_KEY), serialized);
       assertEqual(document.getElementById("entry-feedback").textContent, message);
-      assertEqual(document.getElementById("selected-cell").textContent, target);
+      assertEqual(getAppInput(document), null);
+      assertEqual(document.getElementById("cell-" + target).dataset.state, "empty");
     });
   }
 
@@ -356,8 +382,7 @@ export function runAppInitializationTests() {
     submitAppNumber(document, "B2", 12);
     assertEqual(storage.getItem(STORAGE_KEY), serialized);
     assertEqual(document.getElementById("entry-feedback").textContent, "This number doesn't fit next to any usable neighboring number.");
-    typeAppNumber(document, 26); // Horizontal connection succeeds, vertical connection disagrees.
-    document.getElementById("number-entry-form").emit("submit");
+    submitAppNumber(document, "B2", 26); // Horizontal connection succeeds, vertical connection disagrees.
     assertDeepEqual(loadGame(storage).state.board[1][1], { value: 26, status: "normal" });
     assertEqual(document.getElementById("current-score").textContent, "82");
   });
@@ -368,23 +393,21 @@ export function runAppInitializationTests() {
     selectAppCell(document, "D7");
     assertEqual(document.getElementById("entry-feedback").hidden, true);
     typeAppNumber(document, 16);
-    document.getElementById("number-entry-form").emit("submit");
     assertEqual(storage.getItem(STORAGE_KEY), serialized);
     assertEqual(document.getElementById("entry-feedback").textContent, "This number doesn't fit next to any usable neighboring number.");
   });
 
   test("Invalid dice numbers never change the board or save", () => {
     const { document, storage } = startAppTest();
-    selectAppCell(document, "A1");
-    for (const value of ["7", "10", "17", "28", "60", "70", "123", "0", "word", "", " 16"]) {
-      typeAppNumber(document, value);
-      document.getElementById("number-entry-form").emit("submit");
+    for (const value of ["7", "8", "9", "10", "17", "28", "60", "70", "123", "0", "word", " 16", "1.6", "16 "]) {
+      submitAppNumber(document, "A1", value);
       assertEqual(storage.getItem(STORAGE_KEY), null);
       assertEqual(document.getElementById("cell-A1").dataset.state, "empty");
-      assertEqual(document.getElementById("selected-cell").textContent, "A1");
-      assertEqual(document.getElementById("number-input").value, value);
+      assertEqual(document.getElementById("cell-A1").textContent, "Start");
+      assertEqual(getAppInput(document), null);
       assertEqual(document.getElementById("entry-feedback").textContent, "Use two digits from 1–6.");
       assertEqual(document.getElementById("current-score").textContent, "0");
+      assertEqual(document.getElementById("undo-move").disabled, true);
     }
   });
 
@@ -396,10 +419,7 @@ export function runAppInitializationTests() {
       assertEqual(occupied.disabled, status === "frozen");
       occupied.disabled = false; // Also guard a stale or modified button.
       selectAppCell(document, "B1");
-      typeAppNumber(document, 46);
-      document.getElementById("number-entry-form").emit("submit");
-      assertEqual(document.getElementById("number-entry-form").hidden, true);
-      assertEqual(document.getElementById("selected-cell").textContent, "");
+      assertEqual(getAppInput(document), null);
       assertEqual(document.getElementById("attack-ice-actions").hidden, status === "frozen");
       if (status !== "frozen") assertEqual(document.getElementById("toggle-attack-ice").textContent, "Freeze");
       assertEqual(document.getElementById("cell-actions"), null);
@@ -408,26 +428,29 @@ export function runAppInitializationTests() {
     });
   }
 
-  test("A repeated submit or stale former-empty button cannot place twice", () => {
+  test("Repeated input events and stale former-empty controls cannot place twice", () => {
     const { document, storage } = startAppTest();
     const oldButton = document.getElementById("cell-A1");
-    submitAppNumber(document, "A1", 16);
+    selectAppCell(document, "A1");
+    const oldInput = getAppInput(document);
+    typeAppNumber(document, 16);
     const serialized = storage.getItem(STORAGE_KEY);
-    document.getElementById("number-entry-form").emit("submit");
+    oldInput.emit("input");
+    oldInput.emit("compositionend");
+    oldInput.emit("keydown", oldInput, { key: "Enter" });
     document.getElementById("board-rows").emit("click", oldButton);
-    assertEqual(document.getElementById("number-entry-form").hidden, true);
+    assertEqual(getAppInput(document), null);
     assertEqual(storage.getItem(STORAGE_KEY), serialized);
   });
 
   test("Selecting another empty cell discards the old draft and selection", () => {
     const { document, storage } = startAppTest();
-    submitAppNumber(document, "B1", 16);
-    selectAppCell(document, "A1");
+    selectAppCell(document, "B1");
+    typeAppNumber(document, "1");
+    selectAppCell(document, "A1"); // Native focus blurs the old input before the click.
     assertEqual(document.getElementById("cell-B1").getAttribute("aria-pressed"), "false");
-    assertEqual(document.getElementById("cell-A1").getAttribute("aria-pressed"), "true");
-    assertEqual(document.getElementById("selected-cell").textContent, "A1");
-    assertEqual(document.getElementById("number-input").value, "");
-    assertEqual(document.getElementById("number-input").getAttribute("aria-invalid"), null);
+    assertEqual(getAppInput(document).id, "cell-A1");
+    assertEqual(getAppInput(document).value, "");
     assertEqual(document.getElementById("entry-feedback").hidden, true);
     assertEqual(storage.getItem(STORAGE_KEY), null);
   });
@@ -435,26 +458,30 @@ export function runAppInitializationTests() {
   test("Tapping the selected cell again keeps its draft without attempting placement", () => {
     const { document, storage } = startAppTest();
     selectAppCell(document, "A1");
-    typeAppNumber(document, 16);
+    typeAppNumber(document, "1");
     selectAppCell(document, "A1");
-    assertEqual(document.getElementById("number-input").value, "16");
-    assertEqual(document.getElementById("selected-cell").textContent, "A1");
+    assertEqual(getAppInput(document).value, "1");
+    assertEqual(document.activeElement, getAppInput(document));
+    assertDeepEqual(document.activeElement.lastFocusOptions, { preventScroll: true });
+    assertEqual((getAppInput(document)?.dataset.coordinate ?? ""), "A1");
     assertEqual(document.getElementById("entry-feedback").hidden, true);
     assertEqual(storage.getItem(STORAGE_KEY), null);
   });
 
-  for (const cancelWith of ["Cancel", "outside tap", "Escape", "occupied-cell tap"]) {
+  for (const cancelWith of ["blur", "outside tap", "Escape", "occupied-cell tap"]) {
     test(cancelWith + " safely cancels a draft without changing the board or freeze", () => {
       const serialized = serializeGame({ board: boardFixture(["A1", 23], ["B1", 31, "frozen"]) });
       const { document, storage } = startAppTest(serialized);
       selectAppCell(document, "A2");
-      typeAppNumber(document, 23);
-      if (cancelWith === "Cancel") document.getElementById("cancel-entry").emit("click");
+      typeAppNumber(document, "2");
+      if (cancelWith === "blur") document.getElementById("game-board").focus();
       else if (cancelWith === "Escape") document.emit("keydown", document.root, { key: "Escape" });
       else document.emit("pointerdown", cancelWith === "outside tap" ? document.root : document.getElementById("cell-B1"));
-      assertEqual(document.getElementById("number-entry-form").hidden, true);
-      assertEqual(document.getElementById("selected-cell").textContent, "");
-      assertEqual(document.getElementById("number-input").value, "");
+      if (cancelWith === "Escape") {
+        assertEqual(document.activeElement, document.getElementById("cell-A2"));
+        assertDeepEqual(document.activeElement.lastFocusOptions, { preventScroll: true });
+      }
+      assertEqual(getAppInput(document), null);
       assertEqual(document.getElementById("cell-A2").getAttribute("aria-pressed"), "false");
       assertFrozenCell(document.getElementById("cell-B1"));
       assertEqual(storage.getItem(STORAGE_KEY), serialized);
@@ -464,13 +491,13 @@ export function runAppInitializationTests() {
   test("Tapping inside entry keeps the draft; tapping another empty cell can select it", () => {
     const { document, storage } = startAppTest();
     selectAppCell(document, "A1");
-    typeAppNumber(document, 16);
-    document.emit("pointerdown", document.getElementById("number-input"));
-    assertEqual(document.getElementById("number-input").value, "16");
-    assertEqual(document.getElementById("number-entry-form").hidden, false);
+    typeAppNumber(document, "1");
+    document.emit("pointerdown", getAppInput(document));
+    assertEqual(getAppInput(document).value, "1");
+    assert(getAppInput(document) !== null);
     document.emit("pointerdown", document.getElementById("cell-B1"));
     selectAppCell(document, "B1");
-    assertEqual(document.getElementById("selected-cell").textContent, "B1");
+    assertEqual((getAppInput(document)?.dataset.coordinate ?? ""), "B1");
     assertEqual(storage.getItem(STORAGE_KEY), null);
   });
 
@@ -504,9 +531,9 @@ export function runAppInitializationTests() {
     for (const [index, [coordinate, value]] of [["A1", 23], ["B1", 31], ["A2", 23], ["C1", 46]].entries()) {
       const before = storage.getItem(STORAGE_KEY);
       selectAppCell(document, coordinate);
+      typeAppNumber(document, String(value)[0]);
+      assert(storage.getItem(STORAGE_KEY) === before, "Selection and first digits must not save or change statuses");
       typeAppNumber(document, value);
-      assert(storage.getItem(STORAGE_KEY) === before, "Selection and drafts must not save or change statuses");
-      document.getElementById("number-entry-form").emit("submit");
       const entries = expectedStages[index];
       const expected = {
         board: boardFixture(...entries),
@@ -543,7 +570,7 @@ export function runAppInitializationTests() {
     assertEqual(storage.getItem(STORAGE_KEY), serialized);
     assertFrozenCell(document.getElementById("cell-B1"));
     assertEqual(document.getElementById("cell-C1").dataset.state, "empty");
-    assertEqual(document.getElementById("number-entry-form").hidden, false);
+    assertEqual(getAppInput(document), null);
   });
 
   test("Restored statuses preserve values, permanent zero points, and Street/goal displays", () => {
@@ -589,7 +616,7 @@ export function runAppInitializationTests() {
     submitAppNumber(document, "D7", 55);
     assertEqual(document.getElementById("goal-status").hidden, false);
     selectAppCell(document, "D6");
-    assertEqual(document.getElementById("number-entry-form").hidden, false);
+    assert(getAppInput(document) !== null);
   });
 
   test("Moving the freeze away from D7 displays its thawed goal without giving it points", () => {
@@ -619,7 +646,7 @@ export function runAppInitializationTests() {
       const { document, storage } = startAppTest(serialized);
       assertAppBoardReady(document);
       assertEqual(document.getElementById("current-score").textContent, "0");
-      assertEqual(document.getElementById("number-entry-form").hidden, true);
+      assertEqual(getAppInput(document), null);
       assert(document.getElementById("storage-status").textContent.includes("could not be restored"));
       assertEqual(storage.getItem(STORAGE_KEY), serialized);
     }
@@ -674,7 +701,7 @@ export function runAppInitializationTests() {
     assertEqual(document.getElementById("cell-A1").dataset.state, "normal");
     assertEqual(document.getElementById("current-score").textContent, "16");
     assert(document.getElementById("storage-status").textContent.includes("saving is unavailable"));
-    assertEqual(document.getElementById("number-entry-form").hidden, true);
+    assertEqual(getAppInput(document), null);
   });
 
   test("Reset requires confirmation and clears the save and transient entry state", () => {
@@ -684,10 +711,9 @@ export function runAppInitializationTests() {
     confirm.emit("click");
     assertEqual(storage.getItem(STORAGE_KEY), serialized);
     selectAppCell(document, "A2");
-    typeAppNumber(document, 23);
+    typeAppNumber(document, "2");
     document.getElementById("new-game").emit("click");
-    assertEqual(document.getElementById("number-entry-form").hidden, true);
-    assertEqual(document.getElementById("number-input").value, "");
+    assertEqual(getAppInput(document), null);
     document.getElementById("cancel-new-game").emit("click");
     assertEqual(storage.getItem(STORAGE_KEY), serialized);
     document.getElementById("new-game").emit("click");
@@ -695,7 +721,7 @@ export function runAppInitializationTests() {
     assertAppBoardReady(document);
     assertEqual(storage.getItem(STORAGE_KEY), null);
     assertEqual(document.getElementById("current-score").textContent, "0");
-    assertEqual(document.getElementById("number-entry-form").hidden, true);
+    assertEqual(getAppInput(document), null);
     assertEqual(document.getElementById("board-rows").querySelectorAll("img").length, 0);
     for (const cell of document.getElementById("board-rows").querySelectorAll("button")) assert(!cell.disabled);
   });
@@ -707,7 +733,7 @@ export function runAppInitializationTests() {
     selectAppCell(document, "B1");
     document.getElementById("confirm-new-game").emit("click");
     assertEqual(document.getElementById("reset-confirmation").hidden, true);
-    assertEqual(document.getElementById("selected-cell").textContent, "B1");
+    assertEqual((getAppInput(document)?.dataset.coordinate ?? ""), "B1");
     assertEqual(storage.getItem(STORAGE_KEY), serialized);
   });
 
@@ -790,33 +816,28 @@ export function runAppInitializationTests() {
     assertDeepEqual(loadGame(storage).state, createGameState());
   });
 
-  test("Cancel and outside taps leave an existing Undo snapshot available and unchanged", () => {
+  test("Blur and outside taps leave an existing Undo snapshot available and unchanged", () => {
     const { document, storage } = startAppTest();
     submitAppNumber(document, "A1", 16);
     const saved = storage.getItem(STORAGE_KEY);
-    for (const action of ["Cancel", "outside"]) {
+    for (const action of ["blur", "outside"]) {
       selectAppCell(document, "B1");
-      typeAppNumber(document, 24);
-      if (action === "Cancel") document.getElementById("cancel-entry").emit("click");
+      typeAppNumber(document, "2");
+      if (action === "blur") document.getElementById("game-board").focus();
       else document.emit("pointerdown", document.root);
       assertEqual(storage.getItem(STORAGE_KEY), saved);
       assertEqual(document.getElementById("undo-move").disabled, false);
     }
   });
 
-  test("Undo closes an open rejected draft and clears selection, input, and errors", () => {
+  test("Undo clears rejected-entry feedback and restores the previous board", () => {
     const { document, storage } = startAppTest();
     submitAppNumber(document, "A1", 16);
     submitAppNumber(document, "B1", 12);
     document.emit("pointerdown", document.getElementById("undo-move"));
     document.getElementById("undo-move").emit("click");
-    assertEqual(document.getElementById("number-entry-form").hidden, true);
-    assertEqual(document.getElementById("selected-cell").textContent, "");
-    assertEqual(document.getElementById("number-input").value, "");
-    assertEqual(document.getElementById("number-input").getAttribute("aria-invalid"), null);
+    assertEqual(getAppInput(document), null);
     assertEqual(document.getElementById("entry-feedback").hidden, true);
-    assertDeepEqual(loadGame(storage).state, createGameState());
-    document.getElementById("number-entry-form").emit("submit");
     assertDeepEqual(loadGame(storage).state, createGameState());
     for (const cell of document.getElementById("board-rows").querySelectorAll("button")) {
       assertEqual(cell.getAttribute("aria-pressed"), "false");
@@ -826,13 +847,13 @@ export function runAppInitializationTests() {
   test("An unavailable Undo tap does nothing, including leaving an open draft intact", () => {
     const { document, storage } = startAppTest();
     selectAppCell(document, "A1");
-    typeAppNumber(document, 16);
+    typeAppNumber(document, "1");
     const undo = document.getElementById("undo-move");
     document.emit("pointerdown", undo.querySelector("span"));
     undo.emit("click");
-    assertEqual(document.getElementById("selected-cell").textContent, "A1");
-    assertEqual(document.getElementById("number-input").value, "16");
-    assertEqual(document.getElementById("number-entry-form").hidden, false);
+    assertEqual((getAppInput(document)?.dataset.coordinate ?? ""), "A1");
+    assertEqual(getAppInput(document).value, "1");
+    assert(getAppInput(document) !== null);
     assertEqual(storage.getItem(STORAGE_KEY), null);
   });
 
@@ -929,7 +950,7 @@ export function runAppInitializationTests() {
     submitAppNumber(document, "A1", 16);
     const before = storage.getItem(STORAGE_KEY);
     selectAppCell(document, "A1");
-    assertEqual(document.getElementById("number-entry-form").hidden, true);
+    assertEqual(getAppInput(document), null);
     assertEqual(document.getElementById("attack-ice-actions").hidden, false);
     assertEqual(document.getElementById("attack-ice-cell").textContent, "A1");
     assertEqual(document.getElementById("toggle-attack-ice").textContent, "Freeze");
@@ -948,7 +969,7 @@ export function runAppInitializationTests() {
     assertAttackCell(document.getElementById("cell-A1"));
     assertEqual(document.getElementById("current-score").textContent, "16");
     assertEqual(document.getElementById("attack-ice-actions").hidden, true);
-    assertEqual(document.getElementById("number-entry-form").hidden, true);
+    assertEqual(getAppInput(document), null);
     assertEqual(document.getElementById("undo-move").disabled, false);
     assertEqual(document.activeElement, document.getElementById("game-board"));
     document.getElementById("undo-move").emit("click");
@@ -1098,8 +1119,8 @@ export function runAppInitializationTests() {
       else {
         document.emit("pointerdown", document.getElementById("cell-B1"));
         selectAppCell(document, "B1");
-        assertEqual(document.getElementById("number-entry-form").hidden, false);
-        assertEqual(document.getElementById("number-input").value, "");
+        assert(getAppInput(document) !== null);
+        assertEqual(getAppInput(document).value, "");
       }
       assertEqual(document.getElementById("attack-ice-actions").hidden, true);
       assertEqual(document.getElementById("cell-A1").getAttribute("aria-pressed"), "false");
@@ -1112,13 +1133,14 @@ export function runAppInitializationTests() {
     const { document, storage } = startAppTest();
     submitAppNumber(document, "A1", 16);
     submitAppNumber(document, "B1", 12);
+    selectAppCell(document, "B1");
+    typeAppNumber(document, "1");
     const saved = storage.getItem(STORAGE_KEY);
     const occupied = document.getElementById("cell-A1");
     document.emit("pointerdown", occupied);
     selectAppCell(document, "A1");
-    assertEqual(document.getElementById("number-input").value, "");
     assertEqual(document.getElementById("entry-feedback").hidden, true);
-    assertEqual(document.getElementById("number-entry-form").hidden, true);
+    assertEqual(getAppInput(document), null);
     assertEqual(document.getElementById("attack-ice-actions").hidden, false);
     document.getElementById("new-game").emit("click");
     assertEqual(document.getElementById("attack-ice-actions").hidden, true);
@@ -1190,6 +1212,110 @@ export function runAppInitializationTests() {
     for (const id of ["challenge", "challenge-button", "edit-cell", "edit-number", "player-select", "opponents", "own-roll-form", "permissions"]) {
       assertEqual(document.getElementById(id), null);
     }
+  });
+
+
+  test("Blur preserves the next keyboard focus target and restores Start without saving", () => {
+    const { document, storage } = startAppTest();
+    selectAppCell(document, "A1");
+    typeAppNumber(document, "2");
+    const next = document.getElementById("cell-B1");
+    next.focus();
+    assertEqual(document.activeElement, next);
+    assertEqual(document.getElementById("cell-B1"), next);
+    assertEqual(document.getElementById("cell-A1").textContent, "Start");
+    assertEqual(getAppInput(document), null);
+    assertEqual(storage.getItem(STORAGE_KEY), null);
+  });
+
+  for (const coordinate of ["A1", "D7"]) {
+    test("Cancellation and rejection restore the empty " + coordinate + " hint", () => {
+      const initial = coordinate === "A1" ? serializeGame({ board: boardFixture(["B1", 24]) }) : null;
+      const { document, storage } = startAppTest(initial);
+      const hint = coordinate === "A1" ? "Start" : "End";
+      selectAppCell(document, coordinate);
+      assertEqual(document.getElementById("cell-" + coordinate).textContent, "");
+      typeAppNumber(document, "3");
+      document.emit("keydown", document.root, { key: "Escape" });
+      assertEqual(document.getElementById("cell-" + coordinate).textContent, hint);
+      submitAppNumber(document, coordinate, 66);
+      assertEqual(getAppInput(document), null);
+      assertEqual(document.getElementById("cell-" + coordinate).textContent, hint);
+      assertEqual(storage.getItem(STORAGE_KEY), initial);
+    });
+  }
+
+  test("Deleting the first digit leaves an empty draft without attempting or saving", () => {
+    const { document, storage } = startAppTest();
+    selectAppCell(document, "A1");
+    typeAppNumber(document, "3");
+    typeAppNumber(document, "");
+    assertEqual(getAppInput(document).value, "");
+    assertEqual(document.getElementById("entry-feedback").hidden, true);
+    assertEqual(storage.getItem(STORAGE_KEY), null);
+    assertEqual(document.getElementById("undo-move").disabled, true);
+  });
+
+  test("Enter rejects an incomplete number without creating a placement or Undo", () => {
+    const { document, storage } = startAppTest();
+    selectAppCell(document, "A1");
+    typeAppNumber(document, "1");
+    const input = getAppInput(document);
+    assert(input.emit("keydown", input, { key: "Enter" }).defaultPrevented);
+    assertEqual(getAppInput(document), null);
+    assertEqual(document.getElementById("cell-A1").textContent, "Start");
+    assertEqual(document.getElementById("entry-feedback").textContent, "Use two digits from 1–6.");
+    assertEqual(storage.getItem(STORAGE_KEY), null);
+    assertEqual(document.getElementById("undo-move").disabled, true);
+  });
+
+  test("Composition finishes before auto-placement and duplicate composition events cannot place twice", () => {
+    const { document, storage } = startAppTest();
+    selectAppCell(document, "A1");
+    const input = getAppInput(document);
+    input.value = "16";
+    input.emit("input", input, { isComposing: true });
+    assertEqual(storage.getItem(STORAGE_KEY), null);
+    input.emit("keydown", input, { key: "Enter", isComposing: true });
+    assertEqual(storage.getItem(STORAGE_KEY), null);
+    input.emit("compositionend");
+    const saved = storage.getItem(STORAGE_KEY);
+    assertDeepEqual(loadGame(storage).state.board, boardFixture(["A1", 16]));
+    input.emit("input");
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+  });
+
+  test("Error overlays time out, clear on selection, and cannot affect a later draft", () => {
+    const { document, storage } = startAppTest();
+    const feedback = document.getElementById("entry-feedback");
+    submitAppNumber(document, "D7", 16);
+    assertEqual(feedback.hidden, false);
+    assertEqual(feedback.dataset.edge, "top");
+    document.runTimers();
+    assertEqual(feedback.hidden, true);
+    submitAppNumber(document, "B1", 16);
+    assertEqual(feedback.hidden, false);
+    assertEqual(feedback.dataset.edge, "bottom");
+    selectAppCell(document, "A1");
+    typeAppNumber(document, "1");
+    assertEqual(feedback.hidden, true);
+    document.runTimers();
+    assertEqual(getAppInput(document).value, "1");
+    assertEqual(storage.getItem(STORAGE_KEY), null);
+  });
+
+  test("Undo discards a one-digit inline draft while restoring its existing snapshot", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 16);
+    selectAppCell(document, "B1");
+    const oldInput = getAppInput(document);
+    typeAppNumber(document, "2");
+    document.getElementById("undo-move").emit("click");
+    assertEqual(getAppInput(document), null);
+    assertDeepEqual(loadGame(storage).state, createGameState());
+    oldInput.value = "24";
+    oldInput.emit("input");
+    assertDeepEqual(loadGame(storage).state, createGameState());
   });
 
   return results;

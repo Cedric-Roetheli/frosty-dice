@@ -193,6 +193,7 @@ p { margin: 0; }
 .current-score strong { font-size: 1.25rem; }
 
 .board-sheet {
+  position: relative;
   padding: 6px;
   border: 1px solid rgb(255 255 255 / var(--board-glass-border-opacity));
   border-radius: 0.75rem;
@@ -333,7 +334,6 @@ input:focus-visible {
   outline-offset: 2px;
 }
 
-.number-entry,
 .attack-ice-actions {
   margin: 0.5rem 4px 0;
   padding-top: 0.5rem;
@@ -351,50 +351,32 @@ input:focus-visible {
   gap: 6px;
 }
 
-.number-entry > label {
-  display: block;
-  margin-bottom: 0.375rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.number-entry__controls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 6px;
-}
-
-.number-input {
-  width: 100%;
-  min-width: 0;
-  min-height: 48px;
-  padding: 6px 10px;
-  border: 1px solid #879ead;
-  border-radius: 0.5rem;
-  color: #172b3a;
-  background-color: #fff;
-  font: inherit;
-  font-size: 1.5rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.number-input[aria-invalid="true"] {
-  border: 2px solid #7d3d23;
-  background-color: #fff0e7;
-}
-
-.number-help {
-  margin-top: 0.375rem;
-  color: #496173;
-  font-size: 0.75rem;
+.board-cell--entry {
+  /* Match placed numbers, stay above Safari's 16px input-zoom threshold. */
+  height: clamp(3rem, 12vw, 3.5rem);
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  cursor: text;
 }
 
 .entry-feedback {
-  margin-top: 0.375rem;
+  position: absolute;
+  z-index: 2;
+  inset-inline: 0.75rem;
+  top: 0.75rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid rgb(125 61 35 / 45%);
+  border-radius: 0.5rem;
   color: #66311b;
-  font-size: 0.875rem;
+  background-color: rgb(255 240 231 / 96%);
+  font-size: 0.8125rem;
   font-weight: 600;
+  pointer-events: none;
 }
+
+.entry-feedback[data-edge="bottom"] { top: auto; bottom: 0.75rem; }
 
 .action-button {
   width: 100%;
@@ -410,8 +392,6 @@ input:focus-visible {
   cursor: pointer;
   touch-action: manipulation;
 }
-
-.number-entry .action-button { font-size: 0.875rem; }
 
 .secondary-button {
   border-color: #879ead;

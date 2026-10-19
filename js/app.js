@@ -38,11 +38,11 @@ export function initializeApp(document, storage) {
   let selectedCell = null;
   let selectedActionCell = null;
   let resetConfirmOpen = false;
+  let feedbackTimer = null;
+  const timers = document.defaultView ?? globalThis;
 
   const board = document.getElementById("game-board");
   const boardRows = document.getElementById("board-rows");
-  const entryForm = document.getElementById("number-entry-form");
-  const numberInput = document.getElementById("number-input");
   const entryFeedback = document.getElementById("entry-feedback");
   const attackActions = document.getElementById("attack-ice-actions");
   const attackButton = document.getElementById("toggle-attack-ice");
@@ -66,21 +66,58 @@ export function initializeApp(document, storage) {
   function clearEntry() {
     selectedCell = null;
     selectedActionCell = null;
-    numberInput.value = "";
-    numberInput.removeAttribute("aria-invalid");
+    timers.clearTimeout?.(feedbackTimer);
+    feedbackTimer = null;
     entryFeedback.textContent = "";
     entryFeedback.hidden = true;
   }
 
-  function showEntryError(message) {
+  function showEntryError(message, coordinate) {
     entryFeedback.textContent = message;
+    entryFeedback.dataset.edge = Number(coordinate[1]) <= 3 ? "bottom" : "top";
     entryFeedback.hidden = false;
-    numberInput.setAttribute("aria-invalid", "true");
-    numberInput.focus({ preventScroll: true });
+    feedbackTimer = timers.setTimeout?.(() => {
+      entryFeedback.hidden = true;
+      feedbackTimer = null;
+    }, 4500);
+  }
+
+  function createInlineInput(coordinate) {
+    const input = document.createElement("input");
+    input.id = "cell-" + coordinate;
+    input.type = "text";
+    input.dataset.coordinate = coordinate;
+    input.dataset.state = "empty";
+    input.className = "board-cell board-cell--selected board-cell--entry";
+    if (coordinate === "A1") input.classList.add("board-cell--start");
+    if (coordinate === "D7") input.classList.add("board-cell--goal");
+    input.setAttribute("inputmode", "numeric");
+    input.setAttribute("pattern", "[1-6]{2}");
+    input.setAttribute("autocomplete", "off");
+    input.setAttribute("enterkeyhint", "done");
+    input.setAttribute("aria-label", "Number for " + coordinate);
+    input.setAttribute("aria-describedby", "number-help entry-feedback");
+    // Do not use maxlength: a pasted 123 must be rejected, never truncated to 12.
+    const onInput = (event) => {
+      if (!event.isComposing && !/^[1-6]?$/.test(input.value)) attemptPlacement(input);
+    };
+    input.addEventListener("input", onInput);
+    input.addEventListener("compositionend", onInput);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.isComposing) {
+        event.preventDefault();
+        attemptPlacement(input);
+      }
+    });
+    input.addEventListener("blur", () => {
+      if (selectedCell === coordinate && document.getElementById(input.id) === input) cancelEntry(false);
+    });
+    return input;
   }
 
   function createCell(coordinate, street = false) {
     const record = getCell(game.board, coordinate);
+    if (record === null && selectedCell === coordinate) return createInlineInput(coordinate);
     const value = record?.value ?? null;
     const selected = selectedCell === coordinate || selectedActionCell === coordinate;
     const cell = document.createElement("button");
@@ -93,8 +130,7 @@ export function initializeApp(document, storage) {
     cell.className = "board-cell";
     cell.disabled = record?.status === "frozen";
     cell.setAttribute("aria-pressed", String(selected));
-    if (record === null) cell.setAttribute("aria-controls", "number-entry-form");
-    else if (!cell.disabled) cell.setAttribute("aria-controls", "attack-ice-actions");
+    if (record !== null && !cell.disabled) cell.setAttribute("aria-controls", "attack-ice-actions");
     if (record !== null) cell.classList.add("board-cell--occupied");
 
     const marker = coordinate === "A1" ? "Start" : coordinate === "D7" ? "Goal" : "";
@@ -208,7 +244,6 @@ export function initializeApp(document, storage) {
     goalStatus.hidden = goalMessage.length === 0;
     if (goalStatus.textContent !== goalMessage) goalStatus.textContent = goalMessage;
 
-    entryForm.hidden = selectedCell === null;
     attackActions.hidden = selectedActionCell === null;
     document.getElementById("attack-ice-cell").textContent = selectedActionCell ?? "";
     if (selectedActionCell !== null) {
@@ -216,8 +251,7 @@ export function initializeApp(document, storage) {
       attackButton.setAttribute("aria-label", attackButton.textContent + " Attack Ice at " + selectedActionCell);
     }
     undoButton.disabled = !canUndo(game);
-    document.getElementById("selected-cell").textContent = selectedCell ?? "";
-    appStatus.hidden = selectedCell !== null || selectedActionCell !== null;
+    appStatus.hidden = selectedActionCell !== null;
     newGameButton.hidden = resetConfirmOpen;
     resetConfirmation.hidden = !resetConfirmOpen;
   }
@@ -225,10 +259,15 @@ export function initializeApp(document, storage) {
   function cancelEntry(focusCell = true) {
     const coordinate = selectedCell ?? selectedActionCell;
     if (coordinate === null) return;
-    const message = selectedCell === null ? "Cell actions closed." : "Entry cancelled.";
+    const inline = selectedCell !== null;
     clearEntry();
-    showAppStatus(message + " Tap an empty cell to enter a number.");
-    render();
+    if (inline) {
+      // Keep other cells in place: blur precedes their click/keyboard focus.
+      document.getElementById("cell-" + coordinate).parentNode.replaceChildren(createCell(coordinate));
+    } else {
+      showAppStatus("Cell actions closed. Tap an empty cell to enter a number.");
+      render();
+    }
     if (focusCell) document.getElementById("cell-" + coordinate).focus({ preventScroll: true });
   }
 
@@ -251,40 +290,38 @@ export function initializeApp(document, storage) {
       return;
     }
     if (selectedCell === cell.dataset.coordinate) {
-      numberInput.focus();
+      document.getElementById("cell-" + selectedCell).focus({ preventScroll: true });
       return;
     }
     clearEntry();
     selectedCell = cell.dataset.coordinate;
     resetConfirmOpen = false;
     render();
-    numberInput.focus();
+    document.getElementById("cell-" + selectedCell).focus({ preventScroll: true });
   });
 
-  numberInput.addEventListener("input", () => {
-    numberInput.removeAttribute("aria-invalid");
-    entryFeedback.textContent = "";
-    entryFeedback.hidden = true;
-  });
-
-  entryForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    if (selectedCell === null) return;
+  function attemptPlacement(input) {
+    if (selectedCell === null || document.getElementById("cell-" + selectedCell) !== input) return;
+    const coordinate = selectedCell;
+    function reject(message) {
+      cancelEntry(false);
+      showEntryError(message, coordinate);
+      board.focus({ preventScroll: true });
+    }
     let value;
     try {
-      value = parseNumberInput(numberInput.value);
+      value = parseNumberInput(input.value);
     } catch {
-      showEntryError("Use two digits from 1–6.");
+      reject("Use two digits from 1–6.");
       return;
     }
     let nextGame;
     try {
       nextGame = placeGameNumber(game, selectedCell, value);
     } catch (error) {
-      showEntryError(placementFeedback(error.message));
+      reject(placementFeedback(error.message));
       return;
     }
-    const coordinate = selectedCell;
     game = nextGame;
     showStorageStatus(saveGame(game, storage) ? "" : "Local saving is unavailable. Changes may not survive a reload.");
     const placed = getCell(game.board, coordinate);
@@ -292,9 +329,8 @@ export function initializeApp(document, storage) {
     showAppStatus("Placed " + value + " at " + coordinate + "." + (placed.status === "frozen" ? " Frozen: 0 points; cannot support placement." : ""), "success");
     render();
     board.focus({ preventScroll: true });
-  });
+  }
 
-  document.getElementById("cancel-entry").addEventListener("click", () => cancelEntry());
   document.getElementById("cancel-attack-ice").addEventListener("click", () => cancelEntry());
   attackButton.addEventListener("click", () => {
     if (selectedActionCell === null) return;
@@ -316,7 +352,7 @@ export function initializeApp(document, storage) {
   });
   document.addEventListener("pointerdown", (event) => {
     if ((selectedCell === null && selectedActionCell === null)
-        || event.target.closest?.("#number-entry-form")
+        || event.target.closest?.("input[data-coordinate]")
         || event.target.closest?.("#attack-ice-actions")
         || event.target.closest?.("#undo-move")) return;
     const cell = event.target.closest?.("button[data-coordinate]");
