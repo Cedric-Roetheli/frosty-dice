@@ -244,9 +244,8 @@ Theme metadata and root/body canvas fallbacks use the sampled upper sky color,
 `#03020e`. The page and decorative layers have a `100dvh` minimum with a `100vh`
 fallback, while composition still uses `svh`. Existing safe-area padding stays.
 If the meadow PNG runs out, its full-page underlay continues with matching green
-`#24691e`, avoiding a light canvas beneath the scene. New Game / Reset text and
-its keyboard focus outline are white, with its transparent background, size,
-position, and confirmation flow unchanged.
+`#24691e`, avoiding a light canvas beneath the scene. The reset confirmation
+retains its existing appearance and behavior.
 
 Active Prime Ice and Attack Ice share 100% width/height and `object-fit: fill`,
 intentionally stretching the artwork to the cell proportions instead of scaling
@@ -269,11 +268,50 @@ The existing full-page meadow layer and green fallback cover the image and
 spacing without repeating plants, moving the horizon, or altering game UI or
 JavaScript. No image-specific tests or browser automation are required.
 
-A lightweight white Rules anchor sits to the right of New Game / Reset, sharing
-its typography and 48px minimum touch target. It links directly to `#rules`,
-with a 1.5rem scroll margin around the destination. Smooth scrolling is enabled
-only for `prefers-reduced-motion: no-preference`; otherwise navigation remains
-instant. Add no return link, sticky navigation, or gameplay state for this link.
+Illustrated landscape controls replace the former New Game / Reset and Rules
+text row, with no remaining row spacing. The supplied transparent PNGs remain
+unchanged: `reset_button.png` sits inside the existing `#new-game` button, and
+`rules_button.png` sits inside the existing `href="#rules"` anchor. Accessible
+names are “Reset game” and “View game rules”; images have empty alt text. Keep
+all existing reset handlers, confirmation, persistence, and Undo semantics.
+The confirmation panel remains below the board, hidden until requested.
+
+An absolute, non-intercepting meadow control layer starts at the end of main's
+existing horizon-height reservation, or after exceptionally tall game UI.
+Its depth equals the scaled PNG's painted
+ground (941/1440 of its displayed width). The signpost keeps its existing 3%
+top anchor and 80% horizontal center, with its width reduced to 80% of the
+previous size. The snowman is centered at the layer's top (0% Y) and 42% across,
+placing it higher than the signpost and closer to the horizontal center, at its
+unchanged size. This adds no layout height and leaves the sky, horizon,
+continuation, board, and actual Rules section styling/markup unchanged.
+Use no viewport JavaScript.
+
+Central CSS tuning properties are `--rules-signpost-x`, `--rules-signpost-y`,
+`--rules-signpost-size`, `--reset-snowman-x`, `--reset-snowman-y`, and
+`--reset-snowman-size`. X values refer to horizontal centers; signpost Y refers
+to its top and snowman Y to its center. Sizes preserve aspect ratios and are
+capped at 24%/45% of the game column to keep tap areas separate. The signpost's
+large transparent margins are excluded from its hit area with CSS; all drawn
+pixels, including the bird above the signpost, are retained. Compensate the
+expanded upper bounds so the original signpost keeps its approved visual size
+and position. Keep the entire snowman image visible. Add no card, fill,
+border, shadow, or visible label; show a white outline only for keyboard focus.
+
+The signpost links directly to `#rules`, retaining its 1.5rem scroll margin.
+Smooth scrolling remains enabled only for `prefers-reduced-motion: no-preference`;
+otherwise navigation is instant. Add no return link, sticky navigation, or
+gameplay state for this link.
+
+A plain, centered footer follows the Rules section and displays only the supplied
+`assets/contact_information.png`, with alt text “Frosty Dice contact information.”
+Use 96% width, capped at 32rem, preserving the original aspect ratio and
+transparency. Leave a 2rem gap above its image canvas (collapsing with the Rules
+section's existing bottom margin) and 1rem below, plus the existing body safe-area
+padding. The artwork's transparent margins provide additional breathing room.
+Add no card, background, border, duplicated contact text, links, or controls.
+The existing full-document meadow/green continuation extends behind the footer
+and bottom spacing; do not repeat or reposition the landscape or meadow controls.
 
 Use HTML, CSS, and vanilla JavaScript with relative asset/module paths. Keep
 rule logic independent from DOM code and storage mechanics in storage.js.

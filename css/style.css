@@ -21,6 +21,15 @@
   /* Both background canvases are 1440 × 3200; keep their aspect ratio. */
   --background-artwork-width: max(100vw, calc(var(--background-viewport-height) * 0.45));
 
+  /* Landscape controls: positions refer to the painted ground below the horizon. */
+  --meadow-painted-depth: calc(var(--background-artwork-width) * var(--background-meadow-scale) * 941 / 1440);
+  --rules-signpost-y: 3%; /* Top edge, as a fraction of painted ground depth. */
+  --rules-signpost-x: 80%; /* Horizontal center within the game/landscape column. */
+  --rules-signpost-size: clamp(4.4rem, 20vw, 5.6rem); /* 80% of the previous visible width. */
+  --reset-snowman-y: 0%; /* Center on the meadow layer's top, above the signpost. */
+  --reset-snowman-x: 52%;
+  --reset-snowman-size: clamp(8.5rem, 42vw, 11rem);
+
   /* Board glass: the outer sheet is much lighter than the readable cells. */
   --board-glass-opacity: 0.12;
   --board-glass-blur: 3px;
@@ -95,6 +104,7 @@ body::after {
 }
 
 main {
+  position: relative;
   /* Reserve meadow space after the game controls without moving any of them. */
   min-height: var(--background-horizon);
   max-width: 28rem;
@@ -120,6 +130,18 @@ main {
 }
 
 .rules-illustration img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.contact-illustration {
+  width: 96%;
+  max-width: 32rem;
+  margin: 2rem auto 1rem;
+}
+
+.contact-illustration img {
   display: block;
   width: 100%;
   height: auto;
@@ -449,39 +471,71 @@ noscript p {
   font-size: 0.8125rem;
 }
 
-.reset-panel { margin-top: 0.5rem; }
+.reset-panel { margin-top: 0; }
 
-.reset-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
+.meadow-controls {
+  /* main already reserves the horizon height; grow past unusually tall game UI. */
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  height: var(--meadow-painted-depth);
+  pointer-events: none;
 }
 
-.reset-controls > .action-button { flex: none; }
+.meadow-control {
+  position: absolute;
+  display: block;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  background: none;
+  appearance: none;
+  line-height: 0;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  pointer-events: auto;
+}
 
-.reset-panel #new-game,
+.meadow-control img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+  pointer-events: none;
+}
+
 .rules-link {
-  width: auto;
-  border-color: transparent;
-  color: #fff;
-  background-color: transparent;
-  font-size: 0.875rem;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
+  top: var(--rules-signpost-y);
+  left: var(--rules-signpost-x);
+  width: min(var(--rules-signpost-size), 24%);
+  aspect-ratio: 987 / 1631;
+  /* Extend upward by 353 source pixels; keep the original signpost's Y=508 anchor. */
+  transform: translate(-50%, calc(-100% * 353 / 1631));
+  /* Exclude only transparent padding from the hit area; keep all drawn pixels. */
+  overflow: hidden;
 }
 
-.reset-panel #new-game:focus-visible { outline-color: #fff; }
-
-.rules-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.rules-link img {
+  /* 2048px canvas; complete painted bounds, including bird: x=361..1348, y=155..1786. */
+  position: absolute;
+  width: calc(100% * 2048 / 987);
+  left: calc(100% * -361 / 987);
+  top: calc(100% * -155 / 1631);
 }
 
-.rules-link:focus-visible {
-  outline: 3px solid #fff;
-  outline-offset: 2px;
+.reset-snowman {
+  top: var(--reset-snowman-y);
+  left: var(--reset-snowman-x);
+  width: min(var(--reset-snowman-size), 45%);
+  transform: translate(-50%, -50%);
+}
+
+.meadow-control:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 4px;
 }
 
 .confirmation {
