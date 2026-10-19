@@ -26,7 +26,7 @@
   --rules-signpost-y: 3%; /* Top edge, as a fraction of painted ground depth. */
   --rules-signpost-x: 80%; /* Horizontal center within the game/landscape column. */
   --rules-signpost-size: clamp(4.4rem, 20vw, 5.6rem); /* 80% of the previous visible width. */
-  --reset-snowman-y: 0%; /* Center on the meadow layer's top, above the signpost. */
+  --reset-snowman-y: 12%; /* Center on the meadow layer's top, above the signpost. */
   --reset-snowman-x: 52%;
   --reset-snowman-size: clamp(8.5rem, 42vw, 11rem);
 
