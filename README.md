@@ -1,7 +1,7 @@
 # Frosty Dice :)
 
 A mobile-first companion for a physical tabletop dice game. Each player uses
-an independent phone as their game sheet. There is no backend or synchronization.
+their own phone as their game sheet. There is no backend or synchronization.
 
 Play Frosty Dice: [https://frostydice.com](https://frostydice.com).
 
