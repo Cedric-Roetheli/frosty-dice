@@ -50,7 +50,7 @@ export function runUndoTests() {
     const before = moves(["A1", 55], ["B1", 56], ["C1", 61]);
     assertEqual(calculateScore(before.board), 227);
     const complete = placeGameNumber(before, "D1", 62);
-    assertEqual(calculateScore(complete.board), 523);
+    assertEqual(calculateScore(complete.board), 578);
     assertDeepEqual(getScoreBreakdown(complete.board).streetRows, [1]);
     const restored = undoLastMove(complete);
     assertDeepEqual(restored.board, before.board);
@@ -59,7 +59,7 @@ export function runUndoTests() {
     assertEqual(calculateScore(iced.board), 289);
     assertDeepEqual(getScoreBreakdown(iced.board).streetRows, []);
     assertDeepEqual(undoLastMove(iced).board, complete.board);
-    assertEqual(calculateScore(undoLastMove(iced).board), 523);
+    assertEqual(calculateScore(undoLastMove(iced).board), 578);
   });
 
   test("Undo A1=23, B1=31, A2=23 restores B1 frozen and removes newly frozen A2", () => {
@@ -88,7 +88,7 @@ export function runUndoTests() {
   test("Undo removes a Street completed by the last placement and restores its prior numerator", () => {
     const before = moves(["A1", 11], ["B1", 12], ["C1", 13]);
     const complete = placeGameNumber(before, "D1", 14);
-    assertEqual(calculateScore(complete.board), 111);
+    assertEqual(calculateScore(complete.board), 122);
     assertDeepEqual(getScoreBreakdown(complete.board).streetRows, [1]);
     const restored = undoLastMove(complete);
     assertDeepEqual(restored.board, before.board);

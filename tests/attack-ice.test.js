@@ -190,21 +190,21 @@ export function runAttackIceTests() {
     assertDeepEqual(getScoreBreakdown(iced), { baseSum: 61, streetBonus: 0, streetRows: [], score: 61 });
     const restored = removeAttackIce(iced, "B1");
     assert(isStreetRow(restored[0]));
-    assertEqual(calculateScore(restored), 111);
+    assertEqual(calculateScore(restored), 122);
   });
 
   test("Moving Attack Ice restores the previous Street and suppresses the new row's Street", () => {
     const board = boardFixture(["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14],
       ["A2", 21], ["B2", 22], ["C2", 23], ["D2", 24]);
-    assertEqual(calculateScore(board), 313);
+    assertEqual(calculateScore(board), 346);
     const iced = applyAttackIce(board, "B1");
     assertDeepEqual(getScoreBreakdown(iced).streetRows, [2]);
-    assertEqual(calculateScore(iced), 263);
+    assertEqual(calculateScore(iced), 285);
     const moved = applyAttackIce(iced, "B2");
     assertDeepEqual(getScoreBreakdown(moved).streetRows, [1]);
-    assertEqual(calculateScore(moved), 223);
+    assertEqual(calculateScore(moved), 234);
     assertEqual(getScoreBreakdown(moved).baseSum, 173);
-    assertEqual(calculateScore(removeAttackIce(moved, "B2")), 313);
+    assertEqual(calculateScore(removeAttackIce(moved, "B2")), 346);
   });
 
   test("Removing Attack Ice never repairs a thawed row's Street eligibility", () => {
@@ -274,7 +274,7 @@ export function runAttackIceTests() {
   test("Attack Undo also restores Street and goal displays' authoritative inputs", () => {
     const before = { board: streetBoard(), undo: null };
     const iced = freezeGameCell(before, "B1");
-    assertEqual(calculateScore(undoLastMove(iced).board), 111);
+    assertEqual(calculateScore(undoLastMove(iced).board), 122);
     const goal = { board: boardFixture(["D7", 55]), undo: null };
     assert(hasReachedGoal(undoLastMove(freezeGameCell(goal, "D7")).board));
   });

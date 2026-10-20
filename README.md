@@ -94,8 +94,9 @@ Occupied cells cannot be overwritten. Undo restores a complete snapshot rather
 than changing a historical value or reversing effects individually. There is
 no standalone number-removal API.
 
-`js/scoring.js` provides `isStreetRow`, `getScoreBreakdown`, and `calculateScore`.
-Score is the normal-cell sum (repdigits 11/22/33/44/55/66 doubled), plus raw
+`js/scoring.js` provides `isStreetRow`, `getCellScoreMultiplier`,
+`getScoreBreakdown`, and `calculateScore`.
+Score is the normal-cell sum (repdigits 11/22/33/44/55/66 doubled), plus
 Street bonuses minus confirmed bid spending, with a minimum of 0 and no roll
 divisor. Score helpers accept optional
 `pointsSpent` after the board. Shared board validation lives in `js/board-state.js`
@@ -103,9 +104,11 @@ and is re-exported from `game.js`, so scoring and game actions share it without
 a circular dependency. `parseBidInput`, `validateBid`, and `confirmGameBid` keep
 bid parsing, affordability, and guarded spending independent of the DOM.
 Each complete A–D row of normal consecutive possible dice numbers receives
-its raw row sum as a bonus. The sequence skips impossible values, such as
-56 → 61. Repdigit bonuses apply only to the base contribution, not again to
-the Street bonus.
+its scoring contributions again as a Street bonus. The sequence skips impossible
+values, such as 56 → 61. A normal repdigit scores 2x; in a Street it scores 4x,
+while ordinary Street cells score 2x. The same pure multiplier determines points
+and one small corner indicator per applicable cell, using the existing Street
+marker style. There are no stacked indicators or additional bonuses.
 Frozen and thawed cells contribute 0 permanently and disqualify their Street row.
 Attack Ice retains normal base points, temporarily suppresses Streets, and leaves
 no damage when removed. The breakdown exposes `baseSum`, `streetBonus`, `streetRows`, and `score`.

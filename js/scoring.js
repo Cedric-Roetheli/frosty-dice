@@ -1,13 +1,19 @@
-import { BOARD_COLUMNS, isValidBoard, isValidBoardCell } from "./board-state.js?v=v3-scoring-1";
+import { BOARD_COLUMNS, isValidBoard, isValidBoardCell } from "./board-state.js?v=v3-multipliers-1";
 
 // Index in 11–16, 21–26, ... 61–66, after cell validation excludes impossible values.
 function streetPosition(value) {
   return (Math.floor(value / 10) - 1) * 6 + value % 10 - 1;
 }
 
-function cellContribution(cell) {
+export function getCellScoreMultiplier(cell, street = false) {
+  if (!isValidBoardCell(cell)) throw new TypeError("Use a valid cell record or an empty cell.");
   if (cell === null || cell.status !== "normal") return 0;
-  return cell.value * (cell.value % 11 === 0 ? 2 : 1);
+  const repdigitMultiplier = cell.value % 11 === 0 ? 2 : 1;
+  return repdigitMultiplier * (street && !cell.attackIce ? 2 : 1);
+}
+
+function cellContribution(cell, street = false) {
+  return cell === null ? 0 : cell.value * getCellScoreMultiplier(cell, street);
 }
 
 export function isStreetRow(row) {
@@ -32,11 +38,12 @@ export function getScoreBreakdown(board, pointsSpent = 0) {
   const streetRows = [];
   for (let rowIndex = 0; rowIndex < board.length; rowIndex += 1) {
     const row = board[rowIndex];
-    baseSum += row.reduce((sum, cell) => sum + cellContribution(cell), 0);
+    const rowSum = row.reduce((sum, cell) => sum + cellContribution(cell), 0);
+    baseSum += rowSum;
     if (isStreetRow(row)) {
       streetRows.push(rowIndex + 1);
-      // The existing Street bonus is the raw row sum, without repdigit bonuses.
-      streetBonus += row.reduce((sum, cell) => sum + cell.value, 0);
+      const streetTotal = row.reduce((sum, cell) => sum + cellContribution(cell, true), 0);
+      streetBonus += streetTotal - rowSum;
     }
   }
   return { baseSum, streetBonus, streetRows, score: Math.max(0, baseSum + streetBonus - pointsSpent) };

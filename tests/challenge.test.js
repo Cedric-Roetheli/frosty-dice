@@ -86,13 +86,13 @@ export function runChallengeTests() {
       state = placeGameNumber(state, coordinate, value);
     }
     const paid = confirmGameBid(state, 100);
-    assertEqual(score(paid), 423);
+    assertEqual(score(paid), 478);
     const iced = freezeGameCell(paid, "A1");
     const restored = deserializeGame(serializeGame(iced));
     assertDeepEqual(restored, iced);
     assertEqual(score(restored), 189);
     assertDeepEqual(getScoreBreakdown(restored.board, restored.pointsSpent).streetRows, []);
-    assertEqual(score(undoLastMove(restored)), 423);
+    assertEqual(score(undoLastMove(restored)), 478);
     assertDeepEqual(getScoreBreakdown(undoLastMove(restored).board, restored.pointsSpent).streetRows, [1]);
     assertDeepEqual(Object.keys(JSON.parse(serializeGame(restored)).state), ["board", "undo", "pointsSpent"]);
   });
@@ -138,7 +138,7 @@ export function runChallengeTests() {
     const state = { board: boardFixture(["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14]), undo: null };
     const after = confirmGameBid(state, 40);
     assertDeepEqual(getScoreBreakdown(after.board, after.pointsSpent), {
-      baseSum: 61, streetBonus: 50, streetRows: [1], score: 71,
+      baseSum: 61, streetBonus: 61, streetRows: [1], score: 82,
     });
   });
 

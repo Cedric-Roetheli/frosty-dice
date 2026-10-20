@@ -14,9 +14,9 @@ import {
   placeGameNumber,
   undoLastMove,
   unfreezeGameCell,
-} from "./game.js?v=v3-scoring-1";
-import { getScoreBreakdown } from "./scoring.js?v=v3-scoring-1";
-import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=v3-scoring-1";
+} from "./game.js?v=v3-multipliers-1";
+import { getCellScoreMultiplier, getScoreBreakdown } from "./scoring.js?v=v3-multipliers-1";
+import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=v3-multipliers-1";
 
 // Display labels only: every state, action, and accessible cell still uses A–D.
 const columnDisplayLabels = Object.freeze({ A: "P", B: "L", C: "A", D: "Y" });
@@ -189,13 +189,15 @@ export function initializeApp(document, storage) {
       labels.push("Freeze available");
     }
 
-    if (street && coordinate[0] === "D") {
-      labels.push("Street", "row value doubled");
-      const streetMarker = document.createElement("span");
-      streetMarker.className = "street-marker";
-      streetMarker.textContent = "×2";
-      streetMarker.setAttribute("aria-hidden", "true");
-      cell.append(streetMarker);
+    const multiplier = getCellScoreMultiplier(record, street);
+    if (multiplier > 1) {
+      if (street) labels.push("Street", "row value doubled");
+      labels.push("scores " + multiplier + " times its value");
+      const multiplierMarker = document.createElement("span");
+      multiplierMarker.className = "street-marker";
+      multiplierMarker.textContent = multiplier + "x";
+      multiplierMarker.setAttribute("aria-hidden", "true");
+      cell.append(multiplierMarker);
     }
 
     if (value !== null) {

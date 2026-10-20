@@ -179,10 +179,12 @@ number. Reverse and vertical sequences are not Streets.
 A currently Prime-frozen, thawed, or Attack-Iced cell cannot complete or score
 a Street, even if its stored value would otherwise fit the sequence. Incomplete rows and vertical
 sequences are not Streets.
-Each qualifying row adds its raw number sum once as a Street bonus. Repdigit
-doubling applies only to the base cell contribution, not again to this bonus.
+Each qualifying row doubles its normal scoring contributions, including the
+repdigit multiplier. An ordinary Street cell scores 2× its value; a Street
+repdigit scores 2×2 = 4× its value, with no additional bonus on top.
 For 11, 12, 13, 14, base points are 22 + 12 + 13 + 14 = 61 and the Street bonus
-is 11 + 12 + 13 + 14 = 50, for 111 points before bid spending.
+is another 61, for 122 points before bid spending. A normal 22 scores 44 outside
+a Street and 88 in a Street.
 Removing or moving Attack Ice restores that row's Street eligibility if its
 current values and underlying statuses otherwise qualify.
 
@@ -193,8 +195,10 @@ with a minimum displayed Score of 0.**
 
 Normal repdigits (Schnapszahlen) **11, 22, 33, 44, 55, and 66 score double**
 their number: for example, 22 contributes 44 and 66 contributes 132. Other
-normal numbers contribute their number. This is scoring only: no placement
-change, special action, state, marker, or animation is attached to a repdigit.
+normal numbers contribute their number. This changes no placement, special
+action, or stored state. Each scoring cell uses one small multiplier indicator:
+2x for a repdigit or an ordinary Street cell, and 4x for a Street repdigit.
+Ordinary non-Street cells and zero-scoring Prime-frozen/thawed cells have none.
 
 There is no roll count or division by rolls. The same score applies regardless
 of where the numbers came from. Currently frozen and thawed cells each contribute
@@ -206,6 +210,8 @@ Attack Ice leaves base points unchanged and only suppresses a qualifying row's
 Street bonus while present. It never creates permanent zero-point damage.
 A normal repdigit under Attack Ice retains its doubled contribution; an
 Attack-Iced thawed repdigit still scores 0.
+An Attack-Iced normal repdigit therefore retains only its 2x indicator; Attack
+Ice prevents the entire row from receiving its Street multiplier.
 
 All normal occupied cells count, without checking connectivity back to A1.
 An empty board scores 0. Multiple Streets each receive their full bonus.

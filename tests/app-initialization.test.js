@@ -202,6 +202,17 @@ function assertNoMoveHints(document) {
   assertEqual(document.getElementById("board-rows").querySelectorAll("button[data-number]").length, 0);
 }
 
+function assertAppMultiplier(document, coordinate, expected) {
+  const cell = document.getElementById("cell-" + coordinate);
+  const markers = cell.querySelectorAll("span").filter((span) => span.className === "street-marker");
+  assertEqual(markers.length, expected === null ? 0 : 1);
+  if (expected !== null) {
+    assertEqual(markers[0].textContent, expected);
+    assertEqual(markers[0].getAttribute("aria-hidden"), "true");
+    assert(cell.getAttribute("aria-label").includes("scores " + expected[0] + " times its value"));
+  }
+}
+
 function applyAppAttackAction(document, coordinate) {
   const cell = document.getElementById("cell-" + coordinate);
   document.emit("pointerdown", cell.querySelector("span") ?? cell);
@@ -595,7 +606,7 @@ export function runAppInitializationTests() {
     assert(thawed.textContent.includes("31") && thawed.textContent.includes("Thawed"));
     assertEqual(thawed.querySelector("img"), null);
     assert(thawed.getAttribute("aria-label").includes("permanently 0 points"));
-    assertEqual(document.getElementById("current-score").textContent, "157");
+    assertEqual(document.getElementById("current-score").textContent, "168");
     assertEqual(document.getElementById("goal-status").hidden, false);
     assertEqual(document.getElementById("street-bonus").hidden, false);
     assert(document.getElementById("board-rows").children[0].className.includes("street"));
@@ -604,7 +615,7 @@ export function runAppInitializationTests() {
 
   test("Completing a Street updates the score and row marker through the input flow", () => {
     const { document, storage } = startAppTest();
-    for (const [coordinate, value, score] of [["A1", 11, 22], ["B1", 12, 34], ["C1", 13, 47], ["D1", 14, 111]]) {
+    for (const [coordinate, value, score] of [["A1", 11, 22], ["B1", 12, 34], ["C1", 13, 47], ["D1", 14, 122]]) {
       submitAppNumber(document, coordinate, value);
       assertEqual(document.getElementById("current-score").textContent, String(score));
     }
@@ -614,28 +625,110 @@ export function runAppInitializationTests() {
     const lastCell = document.getElementById("cell-D1");
     const marker = lastCell.querySelectorAll("span").find((span) => span.className === "street-marker");
     assert(marker !== undefined);
-    assertEqual(marker.textContent, "×2");
+    assertEqual(marker.textContent, "2x");
     assertEqual(marker.getAttribute("aria-hidden"), "true");
     assert(lastCell.getAttribute("aria-label").includes("Street, row value doubled"));
     assertEqual(lastCell.querySelectorAll("span").at(-1).textContent, "14");
     assertDeepEqual(loadGame(storage).state.board[0].map((cell) => cell.value), [11, 12, 13, 14]);
   });
 
+  test("Normal repdigits use the existing corner marker while ordinary cells have none", () => {
+    for (const [value, expectedMarker, expectedScore] of [[22, "2x", "44"], [66, "2x", "132"], [35, null, "35"]]) {
+      const { document, storage } = startAppTest();
+      submitAppNumber(document, "A1", value);
+      assertAppMultiplier(document, "A1", expectedMarker);
+      assertEqual(document.getElementById("current-score").textContent, expectedScore);
+      assertEqual(document.getElementById("cell-A1").querySelectorAll("span").at(-1).textContent, String(value));
+      assertDeepEqual(loadGame(storage).state.board[0][0], { value, status: "normal" });
+    }
+  });
+
+  test("Street 22 uses one 4x marker, ordinary neighbors use 2x, and reload/Undo recompute them", () => {
+    const { document, storage } = startAppTest();
+    for (const [coordinate, value] of [["A1", 21], ["B1", 22], ["C1", 23], ["D1", 24]]) {
+      submitAppNumber(document, coordinate, value);
+    }
+    assertEqual(document.getElementById("current-score").textContent, "224");
+    for (const [coordinate, marker] of [["A1", "2x"], ["B1", "4x"], ["C1", "2x"], ["D1", "2x"]]) {
+      assertAppMultiplier(document, coordinate, marker);
+    }
+    assertEqual(document.getElementById("cell-B1").querySelectorAll("span").at(-1).textContent, "22");
+    const reloaded = startAppTest(storage.getItem(STORAGE_KEY));
+    assertEqual(reloaded.document.getElementById("current-score").textContent, "224");
+    assertAppMultiplier(reloaded.document, "B1", "4x");
+    reloaded.document.getElementById("undo-move").emit("click");
+    assertEqual(reloaded.document.getElementById("current-score").textContent, "88");
+    assertAppMultiplier(reloaded.document, "B1", "2x");
+    for (const coordinate of ["A1", "C1", "D1"]) assertAppMultiplier(reloaded.document, coordinate, null);
+  });
+
+  test("Ordinary 35 in a Street displays 2x and the row total includes exactly one 4x repdigit", () => {
+    const { document } = startAppTest();
+    for (const [coordinate, value] of [["A1", 33], ["B1", 34], ["C1", 35], ["D1", 36]]) {
+      submitAppNumber(document, coordinate, value);
+    }
+    assertEqual(document.getElementById("current-score").textContent, "342");
+    assertAppMultiplier(document, "A1", "4x");
+    for (const coordinate of ["B1", "C1", "D1"]) assertAppMultiplier(document, coordinate, "2x");
+  });
+
+  test("Prime-frozen/thawed 11 never displays a scoring multiplier, including beneath Attack Ice", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 11);
+    assertAppMultiplier(document, "A1", "2x");
+    submitAppNumber(document, "A2", 11);
+    assertFrozenCell(document.getElementById("cell-A2"));
+    assertAppMultiplier(document, "A2", null);
+    assertEqual(document.getElementById("current-score").textContent, "22");
+    submitAppNumber(document, "B1", 13);
+    assertEqual(document.getElementById("cell-A2").dataset.state, "thawed");
+    assertAppMultiplier(document, "A2", null);
+    assertAppMultiplier(document, "B1", null);
+    applyAppAttackAction(document, "A2");
+    assertAttackCell(document.getElementById("cell-A2"), "thawed");
+    assertAppMultiplier(document, "A2", null);
+    assertEqual(document.getElementById("current-score").textContent, "22");
+    const reloaded = startAppTest(storage.getItem(STORAGE_KEY));
+    assertAppMultiplier(reloaded.document, "A2", null);
+    assertAppMultiplier(reloaded.document, "B1", null);
+  });
+
+  test("Attack Ice reduces a Street repdigit to 2x and removes Street multipliers from its whole row", () => {
+    const { document, storage } = startAppTest();
+    for (const [coordinate, value] of [["A1", 21], ["B1", 22], ["C1", 23], ["D1", 24]]) {
+      submitAppNumber(document, coordinate, value);
+    }
+    applyAppAttackAction(document, "B1");
+    assertAttackCell(document.getElementById("cell-B1"));
+    assertAppMultiplier(document, "B1", "2x");
+    for (const coordinate of ["A1", "C1", "D1"]) assertAppMultiplier(document, coordinate, null);
+    assertEqual(document.getElementById("current-score").textContent, "112");
+    const reloaded = startAppTest(storage.getItem(STORAGE_KEY));
+    assertAppMultiplier(reloaded.document, "B1", "2x");
+    assertEqual(reloaded.document.getElementById("current-score").textContent, "112");
+    applyAppAttackAction(reloaded.document, "B1");
+    assertAppMultiplier(reloaded.document, "B1", "4x");
+    assertEqual(reloaded.document.getElementById("current-score").textContent, "224");
+    reloaded.document.getElementById("undo-move").emit("click");
+    assertAppMultiplier(reloaded.document, "B1", "2x");
+    assertEqual(reloaded.document.getElementById("current-score").textContent, "112");
+  });
+
   test("A boundary Street with repdigit 55 renders, saves, and restores through Attack Ice and Undo", () => {
     const { document, storage } = startAppTest();
-    for (const [coordinate, value, score] of [["A1", 55, "110"], ["B1", 56, "166"], ["C1", 61, "227"], ["D1", 62, "523"]]) {
+    for (const [coordinate, value, score] of [["A1", 55, "110"], ["B1", 56, "166"], ["C1", 61, "227"], ["D1", 62, "578"]]) {
       submitAppNumber(document, coordinate, value);
       assertEqual(document.getElementById("current-score").textContent, score);
     }
-    assertEqual(document.getElementById("street-bonus").textContent, "Street bonus +234 · 1 Street");
+    assertEqual(document.getElementById("street-bonus").textContent, "Street bonus +289 · 1 Street");
     assert(document.getElementById("board-rows").children[0].className.includes("street"));
     const reloaded = startAppTest(storage.getItem(STORAGE_KEY));
-    assertEqual(reloaded.document.getElementById("current-score").textContent, "523");
+    assertEqual(reloaded.document.getElementById("current-score").textContent, "578");
     applyAppAttackAction(reloaded.document, "A1");
     assertEqual(reloaded.document.getElementById("current-score").textContent, "289");
     assertEqual(reloaded.document.getElementById("street-bonus").hidden, true);
     reloaded.document.getElementById("undo-move").emit("click");
-    assertEqual(reloaded.document.getElementById("current-score").textContent, "523");
+    assertEqual(reloaded.document.getElementById("current-score").textContent, "578");
     assertEqual(reloaded.document.getElementById("street-bonus").hidden, false);
     document.getElementById("undo-move").emit("click");
     assertEqual(document.getElementById("current-score").textContent, "227");
@@ -664,7 +757,7 @@ export function runAppInitializationTests() {
     assertEqual(reloaded.document.getElementById("current-score").textContent, "0");
     reloaded.document.getElementById("undo-move").emit("click");
     assertEqual(reloaded.document.getElementById("current-score").textContent, "132");
-    assertEqual(reloaded.document.getElementById("cell-A1").textContent, "66");
+    assertEqual(reloaded.document.getElementById("cell-A1").querySelectorAll("span").at(-1).textContent, "66");
   });
 
   test("A legal non-frozen D7 placement displays goal status without stopping entry", () => {
@@ -919,7 +1012,7 @@ export function runAppInitializationTests() {
     for (const [coordinate, value] of [["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14]]) {
       submitAppNumber(document, coordinate, value);
     }
-    assertEqual(document.getElementById("current-score").textContent, "111");
+    assertEqual(document.getElementById("current-score").textContent, "122");
     assertEqual(document.getElementById("street-bonus").hidden, false);
     document.getElementById("undo-move").emit("click");
     assertEqual(document.getElementById("current-score").textContent, "47");
@@ -931,7 +1024,7 @@ export function runAppInitializationTests() {
   test("Undo of the D7 placement removes visible goal feedback and restores the previous score", () => {
     const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["C7", 46]) }));
     submitAppNumber(document, "D7", 55);
-    assertEqual(document.getElementById("cell-D7").textContent, "55");
+    assertEqual(document.getElementById("cell-D7").querySelectorAll("span").at(-1).textContent, "55");
     assertEqual(document.getElementById("goal-status").hidden, false);
     assertEqual(document.getElementById("current-score").textContent, "156");
     document.getElementById("undo-move").emit("click");
@@ -1139,7 +1232,7 @@ export function runAppInitializationTests() {
     assertEqual(document.getElementById("street-bonus").hidden, true);
     assert(!document.getElementById("board-rows").children[0].className.includes("street"));
     applyAppAttackAction(document, "B1");
-    assertEqual(document.getElementById("current-score").textContent, "111");
+    assertEqual(document.getElementById("current-score").textContent, "122");
     assertEqual(document.getElementById("street-bonus").hidden, false);
     assert(document.getElementById("board-rows").children[0].className.includes("street"));
     document.getElementById("undo-move").emit("click");

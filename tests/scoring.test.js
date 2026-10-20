@@ -1,5 +1,5 @@
 import { createEmptyBoard } from "../js/game.js";
-import { calculateScore, getScoreBreakdown, isStreetRow } from "../js/scoring.js";
+import { calculateScore, getCellScoreMultiplier, getScoreBreakdown, isStreetRow } from "../js/scoring.js";
 import { boardFixture, freezeBoardSnapshot, placedBoard } from "./fixtures.js";
 import { assert, assertDeepEqual, assertEqual, assertThrows } from "./assert.js";
 
@@ -48,15 +48,15 @@ export function runScoringTests() {
     assertDeepEqual(getScoreBreakdown(board), { baseSum: 82, streetBonus: 0, streetRows: [], score: 82 });
   });
 
-  test("A Street adds the raw row sum once without doubling its repdigit bonus", () => {
+  test("A Street doubles each scoring contribution including the repdigit multiplier", () => {
     const board = placedBoard(["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14]);
-    assertDeepEqual(getScoreBreakdown(board), { baseSum: 61, streetBonus: 50, streetRows: [1], score: 111 });
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 61, streetBonus: 61, streetRows: [1], score: 122 });
   });
 
   test("Multiple Streets each receive their full bonus", () => {
     const board = boardFixture(["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14],
       ["A3", 21], ["B3", 22], ["C3", 23], ["D3", 24], ["D7", 33]);
-    assertDeepEqual(getScoreBreakdown(board), { baseSum: 239, streetBonus: 140, streetRows: [1, 3], score: 379 });
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 239, streetBonus: 173, streetRows: [1, 3], score: 412 });
   });
 
   test("Frozen occupied values contribute zero points", () => {
@@ -175,9 +175,55 @@ export function runScoringTests() {
     assert(!isStreetRow(row));
   });
 
-  test("Boundary Street with 55 doubles only the cell contribution and keeps its raw bonus", () => {
+  test("Boundary Street with 55 combines the repdigit and Street multipliers exactly once", () => {
     const board = placedBoard(["A1", 55], ["B1", 56], ["C1", 61], ["D1", 62]);
-    assertDeepEqual(getScoreBreakdown(board), { baseSum: 289, streetBonus: 234, streetRows: [1], score: 523 });
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 289, streetBonus: 289, streetRows: [1], score: 578 });
+  });
+
+  test("Normal 22 and 66 have a 2x multiplier and contribute 44 and 132", () => {
+    for (const [value, points] of [[22, 44], [66, 132]]) {
+      const board = placedBoard(["A1", value]);
+      assertEqual(getCellScoreMultiplier(board[0][0]), 2);
+      assertEqual(calculateScore(board), points);
+    }
+  });
+
+  test("An ordinary Street cell has 2x while its repdigit neighbor has one combined 4x", () => {
+    const row = normalStreetRow(33, 34, 35, 36);
+    assert(isStreetRow(row));
+    assertEqual(getCellScoreMultiplier(row[2], true), 2);
+    assertEqual(row[2].value * getCellScoreMultiplier(row[2], true), 70);
+    assertEqual(getCellScoreMultiplier(row[0], true), 4);
+    assertEqual(getCellScoreMultiplier({ value: 35, status: "normal" }), 1);
+    assertEqual(getCellScoreMultiplier(null), 0);
+  });
+
+  test("Street 22 contributes exactly 88 without an additional repdigit or Street bonus", () => {
+    const board = placedBoard(["A1", 21], ["B1", 22], ["C1", 23], ["D1", 24]);
+    assert(isStreetRow(board[0]));
+    assertEqual(getCellScoreMultiplier(board[0][1], true), 4);
+    assertEqual(board[0][1].value * getCellScoreMultiplier(board[0][1], true), 88);
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 112, streetBonus: 112, streetRows: [1], score: 224 });
+    assertEqual(calculateScore(board) - (21 + 23 + 24) * 2, 88);
+  });
+
+  test("Prime-frozen and thawed repdigit 11 have no scoring multiplier even in Street context", () => {
+    for (const status of ["frozen", "thawed"]) {
+      const board = boardFixture(["A1", 11, status]);
+      assertEqual(getCellScoreMultiplier(board[0][0]), 0);
+      assertEqual(getCellScoreMultiplier(board[0][0], true), 0);
+      assertEqual(calculateScore(board), 0);
+    }
+  });
+
+  test("Attack Ice retains only base multipliers and suppresses the whole Street", () => {
+    const board = boardFixture(["A1", 21], ["B1", 22], ["C1", 23], ["D1", 24]);
+    board[0][1].attackIce = true;
+    assert(!isStreetRow(board[0]));
+    assertEqual(getCellScoreMultiplier(board[0][1], true), 2);
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 112, streetBonus: 0, streetRows: [], score: 112 });
+    assertEqual(getCellScoreMultiplier({ value: 35, status: "normal", attackIce: true }, true), 1);
+    assertEqual(getCellScoreMultiplier({ value: 11, status: "thawed", attackIce: true }, true), 0);
   });
 
   test("Scoring is pure and does not store derived information", () => {

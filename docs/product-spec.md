@@ -33,7 +33,7 @@ The app should:
 - Let players reason about moves themselves, without target highlighting or number suggestions.
 - Apply prime freezing only after legal placement, thawing the previous frozen cell.
 - Let players manually apply, remove, or atomically move one temporary Attack Ice.
-- Calculate normal cell contributions (repdigits doubled), plus raw Street bonuses, minus confirmed bids; exclude all ever-frozen values.
+- Calculate normal cell contributions (repdigits doubled), doubled again for scoring Streets, minus confirmed bids; exclude all ever-frozen values.
 - Detect the goal only when D7 is occupied and usable (no Prime Ice or Attack Ice).
 - Save and restore the local board and permanent damage status.
 - Offer one-step Undo of the last successful placement or Attack Ice action, restoring its complete prior board.
@@ -244,11 +244,16 @@ and the exact pre-action Undo do. There is no second resource, debt, automated
 winner, automatic Freeze, or bid cooldown/limit.
 
 V3 scoring doubles the base contribution of normal 11/22/33/44/55/66, without
-adding cell state or visual markers. Prime-frozen/thawed cells remain at 0;
+adding cell state. Prime-frozen/thawed cells remain at 0;
 Attack Ice retains the doubled underlying contribution. A Street is four
 successive possible dice numbers in a horizontal A–D row, ordered using digits
-1–6 (for example 56 → 61), with unchanged normal/no-ice eligibility. It adds
-the raw row sum once; repdigit doubling is not applied again to that bonus.
+1–6 (for example 56 → 61), with unchanged normal/no-ice eligibility. It doubles
+each scoring contribution: ordinary cells receive 2x and repdigits receive
+2x2 = 4x, without another additive bonus. The same pure multiplier helper drives
+scoring and the cell indicator. Reuse the existing Street marker's typography,
+size, corner position, and styling: show one 2x or 4x per applicable cell, never
+two markers. Ordinary non-Street cells and zero-scoring cells have none. An
+Attack-Iced normal repdigit retains 2x while its row loses all Street multipliers.
 Score stays derived and supplies the existing Challenge maximum. Existing
 spending, Undo, and version-7 persistence behavior remain unchanged.
 
@@ -266,7 +271,7 @@ distinct empty/normal/start/goal states; selected cells use 94% with their exist
 border treatment. Opacity and blur controls are grouped in style.css.
 
 Column labels stay readable and aligned with their columns. Street highlighting
-and feedback remain; the existing ×2 marker moves into the last cell's corner
+and feedback remain; the existing corner marker style shows each cell's 2x/4x
 without adding a column or changing cell height. Ice assets, their fit/clipping,
 and number stacking are unchanged. This is presentation only: placement, Prime
 Ice, Attack Ice, Undo, score, goal, storage, reset, and background composition

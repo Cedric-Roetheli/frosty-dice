@@ -142,7 +142,7 @@ export function runStorageTests() {
     const state = { board: boardFixture(["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14],
       ["C3", 31, "frozen"], ["D7", 46]), undo: null };
     const restored = deserializeGame(serializeGame(state));
-    assertEqual(calculateScore(restored.board), 157);
+    assertEqual(calculateScore(restored.board), 168);
     assertDeepEqual(getScoreBreakdown(restored.board).streetRows, [1]);
     assert(hasReachedGoal(restored.board));
     assertDeepEqual(getLegalTargetCells(restored.board, 11), ["A2", "C7"]);

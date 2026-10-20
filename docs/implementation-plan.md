@@ -324,6 +324,27 @@ Prime/Attack Ice, spending, Undo, and persistence. Artwork, approved layout,
 gameplay handlers, and the saved-state format were preserved. No browser
 automation, screenshots, commit, or push was performed.
 
+## V3 — Combined cell multipliers
+
+Reuse the existing Street corner marker for normal scoring repdigits and every
+scoring Street cell. Show one 2x for either multiplier, or one 4x when both
+apply; zero-scoring Prime-frozen/thawed cells have no indicator. Attack Ice
+retains the underlying repdigit 2x while suppressing the row's Street effects.
+
+Correct the former raw-row Street bonus so it doubles normal scoring
+contributions, including repdigits: 22 contributes 44 alone and 88 in a Street.
+Share one pure multiplier between scoring and rendering, without adding stored
+state. Preserve Street detection, all ice mechanics, input, Challenge, Undo,
+storage format, approved CSS, and page layout. Add focused pure and coordinator
+regressions, then run the suite once without browser automation or screenshots.
+
+**Status: Implemented.** The full suite ran once in JavaScriptCore:
+**326/326 passed**, including 47 scoring and 93 coordinator tests. Tests verify
+the single 2x/4x indicator, 22 scoring exactly 88 in a Street, ice exclusions,
+and multiplier recomputation after reload/Undo. CSS and artwork are unchanged.
+No browser automation, screenshots, commit, or push was performed. Check marker
+readability and ice transitions manually on iPhone.
+
 ## Workflow
 
 Read the specifications, implement the current scope, keep rules deterministic,

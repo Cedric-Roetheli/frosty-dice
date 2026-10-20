@@ -1,6 +1,6 @@
 // Pure rules and canonical board state. Cell names use A1–D7.
-import { BOARD_COLUMNS, BOARD_ROW_COUNT, isPrimeNumber, isValidBoard, isValidBoardCell, isValidNumber } from "./board-state.js?v=v3-scoring-1";
-import { calculateScore } from "./scoring.js?v=v3-scoring-1";
+import { BOARD_COLUMNS, BOARD_ROW_COUNT, isPrimeNumber, isValidBoard, isValidBoardCell, isValidNumber } from "./board-state.js?v=v3-multipliers-1";
+import { calculateScore } from "./scoring.js?v=v3-multipliers-1";
 
 export { BOARD_COLUMNS, BOARD_ROW_COUNT, isPrimeNumber, isValidBoard, isValidBoardCell, isValidNumber };
 
