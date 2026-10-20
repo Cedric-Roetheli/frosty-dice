@@ -282,6 +282,48 @@ when explicitly requested.
 
 Global end-of-game timing remains undecided and is not enforced by Step 1.
 
+## V3 — Secret Bid Challenge
+
+Replace the physical die-off with secret point bidding as defined in
+game-rules.md. Add a compact header Challenge control and an accessible modal
+with the unchanged bid.png artwork, an integrated numeric bid, Confirm, and
+Close. Confirm spends exactly once and keeps the locked bid open for reveal;
+players compare screens and resolve existing Attack Ice consequences manually.
+
+Persist only board state, point spending, and one complete pre-action Undo in
+version 7. Preserve supported legacy games, including version-6 Attack Ice and
+Undo. Unfinished/revealed bids and open dialogs are temporary. Invalid and
+cancelled bids preserve existing state and Undo; confirmed bids, including 0,
+replace the snapshot. Keep placement, Prime Ice, manual Attack Ice, Streets,
+goal, inline entry, and the approved landscape unchanged.
+
+No repdigit bonus, debt, player tracking, winner comparison, automatic Freeze,
+networking, dice rolling, cooldown, or Challenge limit is included. Add pure and
+coordinator tests, then run the suite once without browser automation or
+screenshots. Manual iPhone evaluation remains with the user.
+
+## V3 refinement 2 — Bid presentation and scoring
+
+Enlarge the centred banknote bid while retaining room for four digits, and
+outline the existing header Challenge button in white with restrained rounded
+corners. Preserve all approved game/landscape layout and Challenge behavior.
+
+Double only the base contribution of normal repdigits. Detect Streets using
+the ordered possible dice numbers (11–16, 21–26, ... 61–66), preserving horizontal
+direction and existing ice exclusions. Keep the raw row sum as the Street
+bonus so the repdigit bonus is not applied twice. Score remains derived and
+feeds the same bid validation, Undo, and persistence; add no new state or save
+format. Update focused scoring and integration regressions and run the full
+suite once without browser automation or screenshots. Manual iPhone evaluation
+remains with the user.
+
+**Status: Implemented for manual iPhone evaluation.** The full suite ran once
+in JavaScriptCore: **316/316 passed**, including the pending first-pass
+Challenge tests, 42 scoring tests, 88 coordinator tests, and regressions for
+Prime/Attack Ice, spending, Undo, and persistence. Artwork, approved layout,
+gameplay handlers, and the saved-state format were preserved. No browser
+automation, screenshots, commit, or push was performed.
+
 ## Workflow
 
 Read the specifications, implement the current scope, keep rules deterministic,

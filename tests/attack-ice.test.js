@@ -187,24 +187,24 @@ export function runAttackIceTests() {
     assert(isStreetRow(original[0]));
     const iced = applyAttackIce(original, "B1");
     assert(!isStreetRow(iced[0]));
-    assertDeepEqual(getScoreBreakdown(iced), { baseSum: 50, streetBonus: 0, streetRows: [], score: 50 });
+    assertDeepEqual(getScoreBreakdown(iced), { baseSum: 61, streetBonus: 0, streetRows: [], score: 61 });
     const restored = removeAttackIce(iced, "B1");
     assert(isStreetRow(restored[0]));
-    assertEqual(calculateScore(restored), 100);
+    assertEqual(calculateScore(restored), 111);
   });
 
   test("Moving Attack Ice restores the previous Street and suppresses the new row's Street", () => {
     const board = boardFixture(["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14],
       ["A2", 21], ["B2", 22], ["C2", 23], ["D2", 24]);
-    assertEqual(calculateScore(board), 280);
+    assertEqual(calculateScore(board), 313);
     const iced = applyAttackIce(board, "B1");
     assertDeepEqual(getScoreBreakdown(iced).streetRows, [2]);
-    assertEqual(calculateScore(iced), 230);
+    assertEqual(calculateScore(iced), 263);
     const moved = applyAttackIce(iced, "B2");
     assertDeepEqual(getScoreBreakdown(moved).streetRows, [1]);
-    assertEqual(calculateScore(moved), 190);
-    assertEqual(getScoreBreakdown(moved).baseSum, 140);
-    assertEqual(calculateScore(removeAttackIce(moved, "B2")), 280);
+    assertEqual(calculateScore(moved), 223);
+    assertEqual(getScoreBreakdown(moved).baseSum, 173);
+    assertEqual(calculateScore(removeAttackIce(moved, "B2")), 313);
   });
 
   test("Removing Attack Ice never repairs a thawed row's Street eligibility", () => {
@@ -213,7 +213,7 @@ export function runAttackIceTests() {
     const restored = removeAttackIce(applyAttackIce(board, "C1"), "C1");
     assertDeepEqual(restored, board);
     assert(!isStreetRow(restored[0]));
-    assertEqual(calculateScore(restored), 37);
+    assertEqual(calculateScore(restored), 48);
   });
 
   for (const status of ["normal", "thawed"]) {
@@ -274,7 +274,7 @@ export function runAttackIceTests() {
   test("Attack Undo also restores Street and goal displays' authoritative inputs", () => {
     const before = { board: streetBoard(), undo: null };
     const iced = freezeGameCell(before, "B1");
-    assertEqual(calculateScore(undoLastMove(iced).board), 100);
+    assertEqual(calculateScore(undoLastMove(iced).board), 111);
     const goal = { board: boardFixture(["D7", 55]), undo: null };
     assert(hasReachedGoal(undoLastMove(freezeGameCell(goal, "D7")).board));
   });

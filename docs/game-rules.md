@@ -124,8 +124,15 @@ clears the board, including frozen and thawed cells.
 ## 6. Physical Challenges and Attack Ice
 
 Instead of taking a normal turn, the active player may challenge any other
-player. Both roll one physical six-sided die. On a tie, they roll again until
-there is a winner.
+player. Both players secretly bid points on their own devices. A bid must be an
+integer from **0 through that player's current available Score**, inclusive;
+blank, negative, fractional, and unaffordable bids are invalid. Both players
+spend their confirmed bids, regardless of the outcome. The challenger must bid
+**strictly higher** to win; a tie favors the defender.
+
+Before confirmation, closing the bid cancels without spending. Confirmation
+spends the points once and locks the displayed bid for physical reveal. Closing
+after confirmation does not refund it. Reopening starts a new bid.
 
 - If the **challenger wins**, they may remove Attack Ice from their own board,
   if present, **AND** place Attack Ice on an eligible occupied cell of the
@@ -134,16 +141,20 @@ there is a winner.
   from their own board, if present, **OR** place Attack Ice on an eligible
   occupied cell of the challenger's board.
 
-Players resolve this physically. The app trusts their manual Freeze/Unfreeze
-actions; it does not track or enforce turns, Challenges, opponents, winners,
-dice rolls, or permissions.
+Players compare their confirmed bids physically and the winner resolves the
+Attack Ice consequences above using the existing manual Freeze/Unfreeze
+controls. The app records only this player's point spending; it does not ask
+for roles, compare bids, determine winners, apply Attack Ice automatically, or
+track opponents, turns, permissions, or synchronization. There is no debt,
+negative score, bid cooldown, or bid limit other than the available Score.
 
 Attack Ice may cover a normal or Prime-thawed occupied cell, but never a
 currently Prime-frozen cell or an empty cell. The number and underlying Prime
 status remain unchanged. An Attack-Iced cell is occupied and cannot be
 overwritten, cannot support placement, cannot complete a Street, and does not
 currently reach the D7 goal. Its base points are unchanged: a normal cell still
-scores its value; a thawed cell still scores 0.
+scores its normal contribution, including repdigit doubling; a thawed cell
+still scores 0.
 
 Each board may have at most **one Attack Ice**. Freeze on another eligible cell
 removes the old overlay and applies the new one as one atomic action. Unfreeze
@@ -156,28 +167,45 @@ still count as occupied prime contact when a new prime is legally placed.
 ## 7. Streets
 
 A Street is a complete horizontal A–D row of **four normal, never-Prime-frozen
-cells without Attack Ice** whose values are consecutive increasing integers.
+cells without Attack Ice** containing four consecutive possible Frosty Dice
+numbers in increasing order. Possible numbers have both digits from 1–6,
+ordered as 11–16, 21–26, 31–36, 41–46, 51–56, 61–66. Thus **56 → 61** is
+consecutive; impossible values 57–60 are skipped.
 
-11, 12, 13, 14 is a Street: its row sum of 50 contributes 100 points.
-11, 13, 14, 15 is not a Street.
+11, 12, 13, 14; 24, 25, 26, 31; and 55, 56, 61, 62 are Streets.
+11, 13, 14, 15 and 55, 56, 62, 63 are not Streets because they skip a possible
+number. Reverse and vertical sequences are not Streets.
 
 A currently Prime-frozen, thawed, or Attack-Iced cell cannot complete or score
 a Street, even if its stored value would otherwise fit the sequence. Incomplete rows and vertical
 sequences are not Streets.
-Each qualifying row receives its entire row sum a second time.
+Each qualifying row adds its raw number sum once as a Street bonus. Repdigit
+doubling applies only to the base cell contribution, not again to this bonus.
+For 11, 12, 13, 14, base points are 22 + 12 + 13 + 14 = 61 and the Street bonus
+is 11 + 12 + 13 + 14 = 50, for 111 points before bid spending.
 Removing or moving Attack Ice restores that row's Street eligibility if its
 current values and underlying statuses otherwise qualify.
 
 ## 8. Score
 
-**Score = sum of all normal, never-frozen occupied values + Street bonuses.**
+**Available Score = normal cell contributions + Street bonuses − confirmed bids,
+with a minimum displayed Score of 0.**
+
+Normal repdigits (Schnapszahlen) **11, 22, 33, 44, 55, and 66 score double**
+their number: for example, 22 contributes 44 and 66 contributes 132. Other
+normal numbers contribute their number. This is scoring only: no placement
+change, special action, state, marker, or animation is attached to a repdigit.
 
 There is no roll count or division by rolls. The same score applies regardless
 of where the numbers came from. Currently frozen and thawed cells each contribute
 0 and prevent their row from qualifying as a Street. A cell that has ever
 Prime-frozen never regains its points.
+This includes repdigits: a currently Prime-frozen or thawed 11 scores 0, while
+a normal 11 scores 22.
 Attack Ice leaves base points unchanged and only suppresses a qualifying row's
 Street bonus while present. It never creates permanent zero-point damage.
+A normal repdigit under Attack Ice retains its doubled contribution; an
+Attack-Iced thawed repdigit still scores 0.
 
 All normal occupied cells count, without checking connectivity back to A1.
 An empty board scores 0. Multiple Streets each receive their full bonus.
@@ -205,22 +233,26 @@ undecided.
 Undo is a one-step input correction, not a physical turn or an action with a
 cost. Occupied values cannot be edited directly.
 
-Immediately before a successful placement, Attack Freeze, Attack Unfreeze, or
-Attack Ice Move, capture a deep copy of the complete board, including every
-value, normal/frozen/thawed status, and Attack Ice overlay. Only a successful
+Immediately before a successful placement, Attack Freeze, Attack Unfreeze,
+Attack Ice Move, or confirmed bid (including 0), capture a deep copy of the
+complete board and point spending, including every value, normal/frozen/thawed
+status, and Attack Ice overlay. Only a successful
 state-changing action replaces the one available snapshot. Invalid attempts,
 actions with no change, selection, typing, and cancellation do not change it.
 
-Undo restores that entire board exactly and consumes the snapshot. Do not
+Undo restores that entire board and point spending exactly and consumes the snapshot. Do not
 reverse individual freeze/thaw effects or infer a previous board from the
 current numbers. Score, Streets, and local goal are recalculated from the
 restored board. A cell thawed by the undone move returns to its earlier frozen
 state, and a newly placed frozen cell disappears if it was previously empty.
 
 There is no earlier Undo after consumption, no Redo, and no multi-step history.
-A new successful placement or Attack Ice action creates one new snapshot.
-Persist it locally with the current board so Undo survives reopening the page. Confirmed New Game /
-Reset clears both boards. Undo itself is immediate and requires no confirmation;
+A new successful placement, Attack Ice action, or confirmed bid creates one new snapshot.
+Persist it locally with the current board and spending so Undo survives reopening
+the page. Confirmed New Game / Reset clears the board, spending, and Undo.
+Opening, editing, cancelling, or rejecting a bid never changes Undo. Close the
+Challenge dialog before using Undo; it is unavailable inside the dialog.
+Undo itself is immediate and requires no confirmation;
 it also discards any unsubmitted number-entry draft or open cell action.
 
 ## 11. Open rule question

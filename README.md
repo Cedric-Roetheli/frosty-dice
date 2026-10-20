@@ -22,6 +22,10 @@ Values/statuses restore through the versioned loader. New Game / Reset
 still requires confirmation. Selection and drafts are temporary UI state.
 Occupied values are readonly; tapping a normal or thawed cell offers Freeze or
 Unfreeze for temporary Attack Ice. Physical Challenges are resolved at the table.
+A compact Challenge control opens a secret point bid on the supplied banknote.
+Confirm spends the bid once and keeps it visible for physical reveal; Close
+cancels an unconfirmed bid or dismisses a confirmed one without refund. The app
+does not compare bids or automatically apply Attack Ice.
 The ↶ button immediately left of Score restores
 the entire board before the last successful placement or Attack Ice action, including all Prime
 statuses and Attack Ice, and consumes that one snapshot. It works after reload and closes any
@@ -40,7 +44,8 @@ The [game rules](./docs/game-rules.md) define mechanics and the
 
 ## Core model
 
-State is `{ board, undo }`. `undo` is null or a deep-cloned `{ board }` from before
+State is `{ board, undo, pointsSpent? }`; omitted spending means zero. `undo` is
+null or a deep-cloned `{ board, pointsSpent? }` from before
 the last successful state-changing action, never an older Undo. Each board has seven rows
 of four entries:
 
@@ -90,20 +95,32 @@ than changing a historical value or reversing effects individually. There is
 no standalone number-removal API.
 
 `js/scoring.js` provides `isStreetRow`, `getScoreBreakdown`, and `calculateScore`.
-Score is the full normal-cell sum plus Street bonuses, with no roll divisor.
-Each complete A–D row of normal consecutive increasing values is doubled.
+Score is the normal-cell sum (repdigits 11/22/33/44/55/66 doubled), plus raw
+Street bonuses minus confirmed bid spending, with a minimum of 0 and no roll
+divisor. Score helpers accept optional
+`pointsSpent` after the board. Shared board validation lives in `js/board-state.js`
+and is re-exported from `game.js`, so scoring and game actions share it without
+a circular dependency. `parseBidInput`, `validateBid`, and `confirmGameBid` keep
+bid parsing, affordability, and guarded spending independent of the DOM.
+Each complete A–D row of normal consecutive possible dice numbers receives
+its raw row sum as a bonus. The sequence skips impossible values, such as
+56 → 61. Repdigit bonuses apply only to the base contribution, not again to
+the Street bonus.
 Frozen and thawed cells contribute 0 permanently and disqualify their Street row.
 Attack Ice retains normal base points, temporarily suppresses Streets, and leaves
 no damage when removed. The breakdown exposes `baseSum`, `streetBonus`, `streetRows`, and `score`.
 
 ## Local snapshot format
 
-`js/storage.js` stores `{ version: 6, state: { board, undo } }` under
-`frosty-dice.game`. Undo is null or one `{ board }` snapshot. Values, Prime statuses, and
+`js/storage.js` stores `{ version: 7, state: { board, undo, pointsSpent? } }` under
+`frosty-dice.game`. Undo is null or one `{ board, pointsSpent? }` snapshot. Values, Prime statuses, and
 Attack overlays are deep-copied; derived displays, input drafts, source metadata, and
 older history are omitted. Saved snapshot/current-board pairs must match one
-legal placement or Attack Ice action under the shared engine; restoration copies the snapshot itself.
+legal placement, Attack Ice action, or confirmed affordable bid under the shared
+engine; restoration copies the snapshot itself. Unfinished bids and dialog state
+are never stored.
 
+Valid version-6 saves preserve Prime/Attack Ice and Undo with zero spending.
 Valid version-5 saves preserve their existing Undo without Attack Ice.
 Attack Ice fields in legacy versions are rejected rather than guessed.
 Valid version-3/4 board-only saves restore unchanged with Undo unavailable.
@@ -111,7 +128,8 @@ Legacy permanent damage is preserved. Unambiguous version-2 boolean records
 still migrate; version-1 numeric, malformed, ambiguous, mixed, and unknown
 formats fall back safely with a visible status and preserve the original save.
 
-Loading never rewrites data. Successful placement, Attack Ice actions, and Undo save version 6;
+Loading never rewrites data. Successful placement, Attack Ice actions, confirmed
+bids, and Undo save version 7;
 consumption writes `undo: null`, and confirmed reset removes the game key.
 Missing saves return `missing`; storage errors return `unavailable`. No
 unrelated keys are touched.
@@ -180,6 +198,8 @@ performed; no commit or push was made.
   rollback, deep-copy isolation, consumption, and bounded-history validation.
 - `tests/attack-ice.test.js`: independent overlay effects, atomic movement, Prime
   coexistence, placement support, base points, Streets, D7, and exact Undo.
+- `tests/challenge.test.js`: integer bid validation, available Score, spending,
+  complete Undo, serialization, migration, and malformed spending guards.
 - `tests/app-initialization.test.js`: cell-first selection/submission, error
   correction, cancellation, occupied-cell guards, score/Street/goal feedback,
   save restoration/reset, one-step Undo, and A1=23 → B1=31 → A2=23 integration.
@@ -189,6 +209,13 @@ Attack Ice adds 33 focused pure tests, 17 coordinator tests through the actual
 registered UI handlers, and eight persistence/migration tests. The full suite
 ran once in JavaScriptCore: **253/253 passed**, retaining all existing cases.
 No browser automation, screenshots, or viewport tests were performed.
+
+The V3 Secret Bid and scoring refinement suite ran once in JavaScriptCore:
+**316/316 passed**, including repdigit contributions, possible-number Streets,
+unchanged ice eligibility, Challenge spending, complete Undo, and persistence.
+Coordinator tests use document/storage doubles; no browser automation or
+screenshots were performed. The larger banknote bid and outlined Challenge
+button remain for manual iPhone evaluation.
 
 ## GitHub Pages
 

@@ -4,17 +4,19 @@ import {
   BOARD_ROW_COUNT as rowCount,
   canApplyAttackIce,
   canUndo,
+  confirmGameBid,
   createGameState,
   freezeGameCell,
   getCell,
   hasReachedGoal,
   parseNumberInput,
+  parseBidInput,
   placeGameNumber,
   undoLastMove,
   unfreezeGameCell,
-} from "./game.js?v=attack-ice-1";
-import { getScoreBreakdown } from "./scoring.js?v=attack-ice-1";
-import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=attack-ice-1";
+} from "./game.js?v=v3-scoring-1";
+import { getScoreBreakdown } from "./scoring.js?v=v3-scoring-1";
+import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=v3-scoring-1";
 
 // Display labels only: every state, action, and accessible cell still uses A–D.
 const columnDisplayLabels = Object.freeze({ A: "P", B: "L", C: "A", D: "Y" });
@@ -39,6 +41,7 @@ export function initializeApp(document, storage) {
   let selectedActionCell = null;
   let resetConfirmOpen = false;
   let feedbackTimer = null;
+  let challengeConfirmed = false;
   const timers = document.defaultView ?? globalThis;
 
   const board = document.getElementById("game-board");
@@ -51,6 +54,13 @@ export function initializeApp(document, storage) {
   const storageStatus = document.getElementById("storage-status");
   const newGameButton = document.getElementById("new-game");
   const resetConfirmation = document.getElementById("reset-confirmation");
+  const challengeButton = document.getElementById("open-challenge");
+  const challengeDialog = document.getElementById("challenge-dialog");
+  const challengeForm = document.getElementById("challenge-form");
+  const bidInput = document.getElementById("challenge-bid");
+  const confirmBidButton = document.getElementById("confirm-bid");
+  const closeChallengeButton = document.getElementById("close-challenge");
+  const bidFeedback = document.getElementById("bid-feedback");
   const scoreFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 
   function showStorageStatus(message) {
@@ -233,7 +243,7 @@ export function initializeApp(document, storage) {
   }
 
   function render() {
-    const scoring = getScoreBreakdown(game.board);
+    const scoring = getScoreBreakdown(game.board, game.pointsSpent ?? 0);
     renderBoard(scoring.streetRows);
     document.getElementById("current-score").textContent = scoreFormat.format(scoring.score);
     const streetBonus = document.getElementById("street-bonus");
@@ -272,6 +282,7 @@ export function initializeApp(document, storage) {
   }
 
   boardRows.addEventListener("click", (event) => {
+    if (challengeDialog.open) return;
     const cell = event.target.closest("button[data-coordinate]");
     if (!cell) return;
     const coordinate = cell.dataset.coordinate;
@@ -301,6 +312,7 @@ export function initializeApp(document, storage) {
   });
 
   function attemptPlacement(input) {
+    if (challengeDialog.open) return;
     if (selectedCell === null || document.getElementById("cell-" + selectedCell) !== input) return;
     const coordinate = selectedCell;
     function reject(message) {
@@ -333,6 +345,7 @@ export function initializeApp(document, storage) {
 
   document.getElementById("cancel-attack-ice").addEventListener("click", () => cancelEntry());
   attackButton.addEventListener("click", () => {
+    if (challengeDialog.open) return;
     if (selectedActionCell === null) return;
     const coordinate = selectedActionCell;
     const removing = getCell(game.board, coordinate)?.attackIce === true;
@@ -361,6 +374,11 @@ export function initializeApp(document, storage) {
     cancelEntry(false);
   });
   document.addEventListener("keydown", (event) => {
+    if (challengeDialog.open && event.key === "Escape") {
+      event.preventDefault();
+      closeChallenge();
+      return;
+    }
     if (event.key === "Escape" && (selectedCell !== null || selectedActionCell !== null)) {
       event.preventDefault();
       cancelEntry();
@@ -368,6 +386,7 @@ export function initializeApp(document, storage) {
   });
 
   undoButton.addEventListener("click", () => {
+    if (challengeDialog.open) return;
     if (!canUndo(game)) return;
     game = undoLastMove(game);
     clearEntry();
@@ -379,6 +398,7 @@ export function initializeApp(document, storage) {
   });
 
   newGameButton.addEventListener("click", () => {
+    if (challengeDialog.open) return;
     clearEntry();
     resetConfirmOpen = true;
     showAppStatus("Tap an empty cell to enter a number.");
@@ -391,6 +411,7 @@ export function initializeApp(document, storage) {
     newGameButton.focus();
   });
   document.getElementById("confirm-new-game").addEventListener("click", () => {
+    if (challengeDialog.open) return;
     if (!resetConfirmOpen) return;
     if (!clearSavedGame(storage)) {
       showStorageStatus("The saved game could not be cleared. Your current game was kept; try again or cancel.");
@@ -403,6 +424,71 @@ export function initializeApp(document, storage) {
     showAppStatus("New game started. Tap an empty cell to enter a number.", "success");
     render();
     board.focus({ preventScroll: true });
+  });
+
+  function closeChallenge() {
+    if (!challengeDialog.open) return;
+    challengeDialog.close();
+    challengeButton.focus({ preventScroll: true });
+  }
+
+  challengeButton.addEventListener("click", () => {
+    if (challengeDialog.open) return;
+    clearEntry();
+    resetConfirmOpen = false;
+    render();
+    challengeConfirmed = false;
+    bidInput.value = "";
+    bidInput.readOnly = false;
+    bidInput.removeAttribute("aria-invalid");
+    confirmBidButton.disabled = false;
+    confirmBidButton.textContent = "CONFIRM";
+    bidFeedback.textContent = "";
+    const available = getScoreBreakdown(game.board, game.pointsSpent ?? 0).score;
+    bidInput.max = String(available);
+    document.getElementById("bid-limit").textContent = "Available Score: " + scoreFormat.format(available);
+    challengeDialog.showModal();
+    bidInput.focus({ preventScroll: true });
+  });
+
+  challengeForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!challengeDialog.open || challengeConfirmed) return;
+    let bid;
+    let nextGame;
+    try {
+      bid = parseBidInput(bidInput.value);
+      nextGame = confirmGameBid(game, bid);
+    } catch (error) {
+      bidFeedback.textContent = error.message;
+      bidInput.setAttribute("aria-invalid", "true");
+      bidInput.focus({ preventScroll: true });
+      return;
+    }
+    game = nextGame;
+    challengeConfirmed = true;
+    bidInput.value = String(bid);
+    bidInput.readOnly = true;
+    bidInput.removeAttribute("aria-invalid");
+    confirmBidButton.disabled = true;
+    confirmBidButton.textContent = "CONFIRMED";
+    bidFeedback.textContent = "Bid spent. Reveal when ready.";
+    showStorageStatus(saveGame(game, storage) ? "" : "Local saving is unavailable. Changes may not survive a reload.");
+    render();
+    // Move focus off the input to dismiss the keyboard while keeping the reveal open.
+    closeChallengeButton.focus({ preventScroll: true });
+  });
+
+  bidInput.addEventListener("input", () => {
+    if (!challengeConfirmed) {
+      bidFeedback.textContent = "";
+      bidInput.removeAttribute("aria-invalid");
+    }
+  });
+  closeChallengeButton.addEventListener("click", closeChallenge);
+  challengeDialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeChallenge();
   });
 
   clearEntry();

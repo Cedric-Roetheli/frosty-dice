@@ -33,10 +33,11 @@ The app should:
 - Let players reason about moves themselves, without target highlighting or number suggestions.
 - Apply prime freezing only after legal placement, thawing the previous frozen cell.
 - Let players manually apply, remove, or atomically move one temporary Attack Ice.
-- Calculate a plain sum with Street bonuses, excluding all ever-frozen values.
+- Calculate normal cell contributions (repdigits doubled), plus raw Street bonuses, minus confirmed bids; exclude all ever-frozen values.
 - Detect the goal only when D7 is occupied and usable (no Prime Ice or Attack Ice).
 - Save and restore the local board and permanent damage status.
 - Offer one-step Undo of the last successful placement or Attack Ice action, restoring its complete prior board.
+- Offer a secret point-bid Challenge dialog; persist confirmed spending and include it in one-step Undo.
 - Allow a confirmed new-game reset.
 - Remain mobile-first, accessible, static, and GitHub Pages compatible.
 
@@ -46,7 +47,8 @@ save, or replacement special action for repeated-digit numbers.
 
 ## 4. Local game state
 
-Canonical state is `{ board, undo }`. Each board has seven rows of four cells;
+Canonical state is `{ board, undo, pointsSpent? }`. Missing `pointsSpent` means
+zero; confirmed bids store a nonnegative integer. Each board has seven rows of four cells;
 occupied cells retain a value and a normal/frozen/thawed status. At most one
 cell in each board is currently frozen. Thawed cells are usable but permanently
 scoreless. These statuses are authoritative historical data.
@@ -55,18 +57,21 @@ temporary overlay. Absence means no Attack Ice. At most one cell has that flag;
 it cannot coexist with `status: "frozen"` on the same cell. Removing the flag
 never changes the underlying value or Prime status.
 
-`undo` is either `null` or `{ board }`, a deep-cloned pre-action board including
-Attack Ice and every Prime status.
-The snapshot never contains an older Undo. The board contains all gameplay
-data; score, Streets, legal targets, and goal are derived and not persisted.
-Selection and number drafts stay outside canonical state.
+`undo` is either `null` or `{ board, pointsSpent? }`, a deep-cloned pre-action
+board and spending including Attack Ice and every Prime status. Confirmed bids
+include explicit pre-bid spending, even when zero.
+The snapshot never contains an older Undo. Score, Streets, legal targets, and
+goal are derived and not persisted. Selection, number drafts, unfinished bids,
+the revealed bid, and the open/confirmed dialog state remain temporary UI data.
 
-Version 6 saves the current board and this one nullable snapshot together.
+Version 7 saves the board, spending, and this one nullable snapshot together.
 Validate both boards, reject recursive history or a snapshot that does not
-precede the current board by one legal placement or Attack Ice action, and retain canonical cell
+precede the current state by one legal placement, Attack Ice action, or affordable
+confirmed bid, and retain canonical cell
 statuses without legacy boolean flags.
 
-Valid version-5 games migrate with their existing Undo intact and no Attack Ice.
+Valid version-6 games migrate with their Prime/Attack Ice and Undo intact and no
+spending. Valid version-5 games migrate with their existing Undo intact and no Attack Ice.
 Valid version-3 and version-4 board-only games migrate with Undo unavailable.
 Preserve their values and damage exactly; there is no prior board to recover.
 Version 4's legacy permanent damage remains scoreless. Version-2 boolean
@@ -75,10 +80,11 @@ ambiguous multiple freezes, mixed encodings, malformed snapshots, and unknown
 versions fall back to a fresh state and a visible invalid-save message. Attack
 Ice fields in older versions are rejected as mixed development saves. Current
 games with multiple Attack overlays or an overlay on a Prime-frozen cell are
-also rejected safely; no status is guessed or silently discarded.
+also rejected safely; no status is guessed or silently discarded. Spending
+fields in versions before 7 are rejected as mixed development saves.
 
 Loading never rewrites or deletes a save. The next successful placement or
-Attack Ice action or Undo saves version 6. Consuming Undo saves `undo: null`; confirmed reset clears
+Attack Ice action, confirmed bid, or Undo saves version 7. Consuming Undo saves `undo: null`; confirmed reset clears
 the saved game entirely. Missing saves and storage-access/quota errors must
 not crash the application. Data stays on the local device.
 
@@ -177,10 +183,10 @@ same position when disabled, with a subdued appearance and a mobile touch
 target of at least 48px. Use an accessible label/title, “Undo last move,” and
 no permanent descriptive text or external icon library.
 
-Only successful placement or state-changing Freeze/Unfreeze/Move publishes a
+Only successful placement, state-changing Freeze/Unfreeze/Move, or confirmed bid publishes a
 new pre-action snapshot. Failed
 attempts and canceled entry preserve the existing snapshot. Undo immediately
-restores the complete board, saves it, recalculates score/Street/goal displays,
+restores the complete board and pre-action spending, saves it, recalculates score/Street/goal displays,
 and consumes the snapshot. Clear selection, input, and validation feedback before
 rendering the restored state. Close any cell actions as well. Prime and Attack
 Ice visuals follow the restored complete board.
@@ -193,15 +199,18 @@ Occupied values are readonly, and there is no direct value correction interface.
 ## 8. Physical Challenges and manual Attack Ice
 
 Instead of a normal turn, the active player may challenge any other player.
-Both roll one physical W6; ties reroll until someone wins. A winning challenger
+Both secretly bid an integer from 0 through their current available Score and
+spend their confirmed bid regardless of outcome. They compare screens physically:
+the challenger must bid strictly higher, so ties favor the defender. A winning challenger
 may remove their own Attack Ice **AND** apply Attack Ice on the loser's board.
 A winning challenged player chooses **ONE**: remove their own Attack Ice **OR**
 apply it on the challenger's board. A new Freeze replaces/moves any existing
 Attack Ice on that board. Full mechanics are in game-rules.md section 6.
 
-The app records only manual Freeze/Unfreeze actions and trusts the table. It
-adds no Challenge button, permission system, player selection, turn tracking,
-dice controls, or networking. The contextual panel contains only its cell label,
+The app records local bid spending and manual Freeze/Unfreeze actions, trusting
+the table for roles, comparison, winners, and consequences. It adds no permission
+system, player selection, turn tracking, dice controls, or networking.
+The contextual panel contains only its cell label,
 one Freeze/Unfreeze button, and Cancel; it is hidden outside selection. Outside
 taps, Escape, switching to number entry, Undo, or reset close it. Selection and
 cancellation never save or change Undo. After an action, automatically save,
@@ -212,6 +221,41 @@ Attack Ice temporarily prevents placement support, Street eligibility, and D7
 goal detection. Unfreeze restores underlying behavior without permanent damage.
 Freeze on another eligible cell atomically moves the single overlay and creates
 one Undo snapshot. There is still no Edit or number-removal feature.
+
+A compact Challenge button sits beside Undo in the existing header. It opens a
+native modal dialog over a dimmed, visible game without changing page layout.
+Show MAKE YOUR BID, the unchanged transparent `assets/bid.png`, a large dark
+numeric input centred in the illustrated circle, CONFIRM, and secondary CLOSE.
+Keep the banknote dominant with no surrounding card. The component can accept a
+future animation near the heading without adding a placeholder now.
+
+Validate whole, nonnegative, affordable bids on confirmation, including 0; blank,
+fractional, negative, or unaffordable entries show a concise reserved-space live
+message without changing state or Undo. Confirmation spends once, saves, updates
+the normal Score, locks the visible input, disables repeated confirmation, and
+keeps the dialog open for reveal. Move focus off the input to dismiss the keyboard.
+Close/Escape before confirmation cancel; afterwards they close without refund.
+Backdrop clicks do nothing. Restore focus to Challenge on close. Reopening starts
+a new blank bid using the then-current Score. Native dialog semantics isolate
+keyboard focus and prevent using underlying Undo until the dialog closes.
+
+Unfinished/revealed bids and open dialogs do not survive reload; only spending
+and the exact pre-action Undo do. There is no second resource, debt, automated
+winner, automatic Freeze, or bid cooldown/limit.
+
+V3 scoring doubles the base contribution of normal 11/22/33/44/55/66, without
+adding cell state or visual markers. Prime-frozen/thawed cells remain at 0;
+Attack Ice retains the doubled underlying contribution. A Street is four
+successive possible dice numbers in a horizontal A–D row, ordered using digits
+1–6 (for example 56 → 61), with unchanged normal/no-ice eligibility. It adds
+the raw row sum once; repdigit doubling is not applied again to that bonus.
+Score stays derived and supplies the existing Challenge maximum. Existing
+spending, Undo, and version-7 persistence behavior remain unchanged.
+
+The bid input keeps its exact centre and transparent dark appearance, with a
+larger font scaled to the banknote and enough width for four digits. The header
+Challenge button has a white outline and a restrained rounded rectangle shape,
+retaining its position, 48px touch height, and transparent fill.
 
 ## 9. Technical constraints
 

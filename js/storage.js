@@ -1,7 +1,7 @@
-import { BOARD_COLUMNS, BOARD_ROW_COUNT, cloneGameState, createGameState, isPrimeNumber, isValidBoard, isValidGameState } from "./game.js?v=attack-ice-1";
+import { BOARD_COLUMNS, BOARD_ROW_COUNT, cloneGameState, createGameState, isPrimeNumber, isValidBoard, isValidGameState } from "./game.js?v=v3-scoring-1";
 
 export const STORAGE_KEY = "frosty-dice.game";
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 function isStorageRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -31,19 +31,29 @@ function hasLegacyCells(board) {
 }
 
 function migrateVersion5State(state) {
-  return isValidStoredState(state) && hasLegacyCells(state.board)
+  return hasNoLegacySpending(state) && isValidStoredState(state) && hasLegacyCells(state.board)
     && (state.undo == null || hasLegacyCells(state.undo.board)) ? state : null;
 }
 
+function hasNoLegacySpending(state) {
+  return isStorageRecord(state) && !Object.prototype.hasOwnProperty.call(state, "pointsSpent")
+    && (state.undo == null || (isStorageRecord(state.undo)
+      && !Object.prototype.hasOwnProperty.call(state.undo, "pointsSpent")));
+}
+
+function migrateVersion6State(state) {
+  return hasNoLegacySpending(state) && isValidStoredState(state) ? state : null;
+}
+
 function migrateBoardOnlyState(state) {
-  if (!isStorageRecord(state) || !hasLegacyCells(state.board)) return null;
+  if (!hasNoLegacySpending(state) || !hasLegacyCells(state.board)) return null;
   // Older formats never stored a previous board: do not infer an Undo history.
   const migrated = { board: state.board, undo: null };
   return isValidStoredState(migrated) ? migrated : null;
 }
 
 function migrateVersion2State(state) {
-  if (!isStorageRecord(state) || !Array.isArray(state.board) || state.board.length !== BOARD_ROW_COUNT) return null;
+  if (!hasNoLegacySpending(state) || !Array.isArray(state.board) || state.board.length !== BOARD_ROW_COUNT) return null;
   const board = [];
   for (const row of state.board) {
     if (!Array.isArray(row) || row.length !== BOARD_COLUMNS.length) return null;
@@ -88,6 +98,7 @@ export function deserializeGame(serialized) {
     const payload = JSON.parse(serialized);
     if (!isStorageRecord(payload)) return null;
     const state = payload.version === SAVE_VERSION ? payload.state
+      : payload.version === 6 ? migrateVersion6State(payload.state)
       : payload.version === 5 ? migrateVersion5State(payload.state)
       : payload.version === 4 ? migrateBoardOnlyState(payload.state)
       : payload.version === 3 ? migrateVersion3State(payload.state)

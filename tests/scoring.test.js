@@ -48,20 +48,20 @@ export function runScoringTests() {
     assertDeepEqual(getScoreBreakdown(board), { baseSum: 82, streetBonus: 0, streetRows: [], score: 82 });
   });
 
-  test("A Street row contributes its full value twice", () => {
+  test("A Street adds the raw row sum once without doubling its repdigit bonus", () => {
     const board = placedBoard(["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14]);
-    assertDeepEqual(getScoreBreakdown(board), { baseSum: 50, streetBonus: 50, streetRows: [1], score: 100 });
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 61, streetBonus: 50, streetRows: [1], score: 111 });
   });
 
   test("Multiple Streets each receive their full bonus", () => {
     const board = boardFixture(["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14],
       ["A3", 21], ["B3", 22], ["C3", 23], ["D3", 24], ["D7", 33]);
-    assertDeepEqual(getScoreBreakdown(board), { baseSum: 173, streetBonus: 140, streetRows: [1, 3], score: 313 });
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 239, streetBonus: 140, streetRows: [1, 3], score: 379 });
   });
 
   test("Frozen occupied values contribute zero points", () => {
     const board = placedBoard(["A1", 11], ["B1", 13]);
-    assertEqual(calculateScore(board), 11);
+    assertEqual(calculateScore(board), 22);
     assertEqual(calculateScore(boardFixture(["D7", 61, "frozen"])), 0);
   });
 
@@ -70,7 +70,7 @@ export function runScoringTests() {
       ["C1", 13], ["D2", 14], ["D1", 14]);
     assertDeepEqual(board[0].map((cell) => cell.value), [11, 12, 13, 14]);
     assertEqual(board[0][2].status, "frozen");
-    assertDeepEqual(getScoreBreakdown(board), { baseSum: 76, streetBonus: 0, streetRows: [], score: 76 });
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 87, streetBonus: 0, streetRows: [], score: 87 });
   });
 
   test("Thawing never restores a damaged cell's points or its row's Street bonus", () => {
@@ -78,7 +78,7 @@ export function runScoringTests() {
       ["C1", 13], ["D2", 14], ["D1", 14], ["A2", 11]);
     assertEqual(board[0][2].status, "thawed");
     assertEqual(board[1][0].status, "frozen");
-    assertDeepEqual(getScoreBreakdown(board), { baseSum: 76, streetBonus: 0, streetRows: [], score: 76 });
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 87, streetBonus: 0, streetRows: [], score: 87 });
   });
 
   test("Successive freezes keep both current and previously frozen values scoreless", () => {
@@ -90,11 +90,14 @@ export function runScoringTests() {
     assertEqual(calculateScore(placedBoard(["A1", 23], ["B1", 31], ["A2", 23], ["C1", 46])), 69);
   });
 
-  test("Score does not depend on any legacy roll-count argument", () => {
+  test("Score subtracts confirmed spending without any roll divisor", () => {
     const board = placedBoard(["A1", 16]);
-    for (const formerCount of [0, 1, 2, 100, undefined, NaN, "invalid"]) {
-      assertEqual(calculateScore(board, formerCount), 16);
-      assertEqual(getScoreBreakdown(board, formerCount).score, 16);
+    for (const [spent, expected] of [[0, 16], [1, 15], [2, 14], [16, 0], [100, 0], [undefined, 16]]) {
+      assertEqual(calculateScore(board, spent), expected);
+      assertEqual(getScoreBreakdown(board, spent).score, expected);
+    }
+    for (const spent of [-1, 1.5, null, NaN, Infinity, "invalid"]) {
+      assertThrows(() => calculateScore(board, spent), "nonnegative integer");
     }
   });
 
@@ -104,7 +107,77 @@ export function runScoringTests() {
 
   test("Vertical consecutive values receive no Street bonus", () => {
     const board = boardFixture(["A1", 11], ["A2", 12], ["A3", 13], ["A4", 14]);
-    assertDeepEqual(getScoreBreakdown(board), { baseSum: 50, streetBonus: 0, streetRows: [], score: 50 });
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 61, streetBonus: 0, streetRows: [], score: 61 });
+  });
+
+  for (const value of [11, 22, 33, 44, 55, 66]) {
+    test("Normal repdigit " + value + " contributes " + value * 2 + " without changing the cell record", () => {
+      const board = freezeBoardSnapshot(placedBoard(["A1", value]));
+      assertEqual(calculateScore(board), value * 2);
+      assertDeepEqual(board[0][0], { value, status: "normal" });
+    });
+  }
+
+  test("An ordinary normal 35 continues contributing 35", () => {
+    assertEqual(calculateScore(placedBoard(["A1", 35])), 35);
+  });
+
+  test("Prime-frozen and thawed repdigit 11 score zero even under permitted Attack Ice", () => {
+    for (const status of ["frozen", "thawed"]) {
+      const board = boardFixture(["A1", 11, status]);
+      assertEqual(calculateScore(board), 0);
+      if (status === "thawed") {
+        board[0][0].attackIce = true;
+        assertEqual(calculateScore(board), 0);
+      }
+    }
+  });
+
+  test("Attack Ice preserves the doubled underlying contribution of a normal repdigit", () => {
+    for (const value of [11, 22, 33, 44, 55, 66]) {
+      const board = boardFixture(["A1", value]);
+      board[0][0].attackIce = true;
+      assertEqual(calculateScore(board), value * 2);
+    }
+  });
+
+  for (const values of [[23, 24, 25, 26], [24, 25, 26, 31], [25, 26, 31, 32],
+    [55, 56, 61, 62], [56, 61, 62, 63], [63, 64, 65, 66]]) {
+    test(values.join(",") + " forms a Street in possible dice-number order", () => {
+      assert(isStreetRow(normalStreetRow(...values)));
+    });
+  }
+
+  for (const values of [[23, 24, 25, 31], [55, 56, 62, 63], [11, 13, 14, 15],
+    [32, 31, 26, 25], [65, 66, 11, 12], [15, 16, 17, 21], [56, 57, 61, 62]]) {
+    test(values.join(",") + " does not form a Street", () => {
+      assert(!isStreetRow(normalStreetRow(...values)));
+    });
+  }
+
+  test("Every four-number window of the 36 possible numbers qualifies in order", () => {
+    const numbers = [11, 12, 13, 14, 15, 16, 21, 22, 23, 24, 25, 26,
+      31, 32, 33, 34, 35, 36, 41, 42, 43, 44, 45, 46,
+      51, 52, 53, 54, 55, 56, 61, 62, 63, 64, 65, 66];
+    for (let start = 0; start <= numbers.length - 4; start += 1) {
+      assert(isStreetRow(normalStreetRow(...numbers.slice(start, start + 4))));
+    }
+  });
+
+  test("Boundary Streets retain Prime Ice, permanent damage, and Attack Ice exclusions", () => {
+    for (const status of ["frozen", "thawed"]) {
+      const row = normalStreetRow(56, 61, 62, 63);
+      row[1].status = status;
+      assert(!isStreetRow(row));
+    }
+    const row = normalStreetRow(56, 61, 62, 63);
+    row[2].attackIce = true;
+    assert(!isStreetRow(row));
+  });
+
+  test("Boundary Street with 55 doubles only the cell contribution and keeps its raw bonus", () => {
+    const board = placedBoard(["A1", 55], ["B1", 56], ["C1", 61], ["D1", 62]);
+    assertDeepEqual(getScoreBreakdown(board), { baseSum: 289, streetBonus: 234, streetRows: [1], score: 523 });
   });
 
   test("Scoring is pure and does not store derived information", () => {

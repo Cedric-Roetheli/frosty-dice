@@ -17,6 +17,7 @@ class AppTestElement {
     this.value = "";
     this.hidden = false;
     this.disabled = false;
+    this.open = false;
     this.text = "";
   }
   get textContent() { return this.text + this.children.map((child) => child.textContent).join(""); }
@@ -55,6 +56,8 @@ class AppTestElement {
   querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; }
   closest(selector) { return this.matches(selector) ? this : this.parentNode?.closest(selector) ?? null; }
   addEventListener(type, handler) { (this.listeners[type] ??= []).push(handler); }
+  showModal() { this.open = true; }
+  close() { this.open = false; }
   emit(type, target = this, properties = {}) {
     const event = { target, ...properties, preventDefault() { this.defaultPrevented = true; } };
     for (const handler of this.listeners[type] ?? []) handler(event);
@@ -122,6 +125,14 @@ function appTestDocument() {
   const confirmation = add("div", "reset-confirmation");
   add("button", "cancel-new-game", confirmation);
   add("button", "confirm-new-game", confirmation);
+  add("button", "open-challenge");
+  const challenge = add("dialog", "challenge-dialog");
+  const bidForm = add("form", "challenge-form", challenge);
+  add("input", "challenge-bid", bidForm);
+  add("p", "bid-limit", bidForm);
+  add("p", "bid-feedback", bidForm);
+  add("button", "confirm-bid", bidForm);
+  add("button", "close-challenge", bidForm);
   document.getElementById("app-status").textContent = "Loading board…";
   return document;
 }
@@ -324,7 +335,7 @@ export function runAppInitializationTests() {
     const { document, storage } = startAppTest();
     submitAppNumber(document, "A1", 33);
     assertDeepEqual(JSON.parse(storage.getItem(STORAGE_KEY)).state, { board: boardFixture(["A1", 33]), undo: { board: boardFixture() } });
-    assertEqual(document.getElementById("current-score").textContent, "33");
+    assertEqual(document.getElementById("current-score").textContent, "66");
     assertEqual(getAppInput(document), null);
     assertEqual(document.getElementById("schnapszahl-panel"), null);
   });
@@ -584,7 +595,7 @@ export function runAppInitializationTests() {
     assert(thawed.textContent.includes("31") && thawed.textContent.includes("Thawed"));
     assertEqual(thawed.querySelector("img"), null);
     assert(thawed.getAttribute("aria-label").includes("permanently 0 points"));
-    assertEqual(document.getElementById("current-score").textContent, "146");
+    assertEqual(document.getElementById("current-score").textContent, "157");
     assertEqual(document.getElementById("goal-status").hidden, false);
     assertEqual(document.getElementById("street-bonus").hidden, false);
     assert(document.getElementById("board-rows").children[0].className.includes("street"));
@@ -593,7 +604,7 @@ export function runAppInitializationTests() {
 
   test("Completing a Street updates the score and row marker through the input flow", () => {
     const { document, storage } = startAppTest();
-    for (const [coordinate, value, score] of [["A1", 11, 11], ["B1", 12, 23], ["C1", 13, 36], ["D1", 14, 100]]) {
+    for (const [coordinate, value, score] of [["A1", 11, 22], ["B1", 12, 34], ["C1", 13, 47], ["D1", 14, 111]]) {
       submitAppNumber(document, coordinate, value);
       assertEqual(document.getElementById("current-score").textContent, String(score));
     }
@@ -608,6 +619,52 @@ export function runAppInitializationTests() {
     assert(lastCell.getAttribute("aria-label").includes("Street, row value doubled"));
     assertEqual(lastCell.querySelectorAll("span").at(-1).textContent, "14");
     assertDeepEqual(loadGame(storage).state.board[0].map((cell) => cell.value), [11, 12, 13, 14]);
+  });
+
+  test("A boundary Street with repdigit 55 renders, saves, and restores through Attack Ice and Undo", () => {
+    const { document, storage } = startAppTest();
+    for (const [coordinate, value, score] of [["A1", 55, "110"], ["B1", 56, "166"], ["C1", 61, "227"], ["D1", 62, "523"]]) {
+      submitAppNumber(document, coordinate, value);
+      assertEqual(document.getElementById("current-score").textContent, score);
+    }
+    assertEqual(document.getElementById("street-bonus").textContent, "Street bonus +234 · 1 Street");
+    assert(document.getElementById("board-rows").children[0].className.includes("street"));
+    const reloaded = startAppTest(storage.getItem(STORAGE_KEY));
+    assertEqual(reloaded.document.getElementById("current-score").textContent, "523");
+    applyAppAttackAction(reloaded.document, "A1");
+    assertEqual(reloaded.document.getElementById("current-score").textContent, "289");
+    assertEqual(reloaded.document.getElementById("street-bonus").hidden, true);
+    reloaded.document.getElementById("undo-move").emit("click");
+    assertEqual(reloaded.document.getElementById("current-score").textContent, "523");
+    assertEqual(reloaded.document.getElementById("street-bonus").hidden, false);
+    document.getElementById("undo-move").emit("click");
+    assertEqual(document.getElementById("current-score").textContent, "227");
+    assertEqual(document.getElementById("street-bonus").hidden, true);
+  });
+
+  test("The Challenge UI can spend all 132 points from a normal 66 and Undo restores them", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 66);
+    assertEqual(document.getElementById("current-score").textContent, "132");
+    document.getElementById("open-challenge").emit("click");
+    assertEqual(document.getElementById("bid-limit").textContent, "Available Score: 132");
+    const input = document.getElementById("challenge-bid");
+    assertEqual(input.max, "132");
+    input.value = "133";
+    document.getElementById("challenge-form").emit("submit");
+    assertEqual(document.getElementById("bid-feedback").textContent, "Not enough points.");
+    assertEqual(document.getElementById("current-score").textContent, "132");
+    input.value = "132";
+    document.getElementById("challenge-form").emit("submit");
+    assertEqual(document.getElementById("current-score").textContent, "0");
+    assertEqual(input.value, "132");
+    assertEqual(input.readOnly, true);
+    assertEqual(document.getElementById("challenge-dialog").open, true);
+    const reloaded = startAppTest(storage.getItem(STORAGE_KEY));
+    assertEqual(reloaded.document.getElementById("current-score").textContent, "0");
+    reloaded.document.getElementById("undo-move").emit("click");
+    assertEqual(reloaded.document.getElementById("current-score").textContent, "132");
+    assertEqual(reloaded.document.getElementById("cell-A1").textContent, "66");
   });
 
   test("A legal non-frozen D7 placement displays goal status without stopping entry", () => {
@@ -862,10 +919,10 @@ export function runAppInitializationTests() {
     for (const [coordinate, value] of [["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14]]) {
       submitAppNumber(document, coordinate, value);
     }
-    assertEqual(document.getElementById("current-score").textContent, "100");
+    assertEqual(document.getElementById("current-score").textContent, "111");
     assertEqual(document.getElementById("street-bonus").hidden, false);
     document.getElementById("undo-move").emit("click");
-    assertEqual(document.getElementById("current-score").textContent, "36");
+    assertEqual(document.getElementById("current-score").textContent, "47");
     assertEqual(document.getElementById("street-bonus").hidden, true);
     assert(!document.getElementById("board-rows").children[0].className.includes("street"));
     assertEqual(loadGame(storage).state.board[0][3], null);
@@ -876,7 +933,7 @@ export function runAppInitializationTests() {
     submitAppNumber(document, "D7", 55);
     assertEqual(document.getElementById("cell-D7").textContent, "55");
     assertEqual(document.getElementById("goal-status").hidden, false);
-    assertEqual(document.getElementById("current-score").textContent, "101");
+    assertEqual(document.getElementById("current-score").textContent, "156");
     document.getElementById("undo-move").emit("click");
     assertEqual(document.getElementById("cell-D7").textContent, "End");
     assertEqual(document.getElementById("goal-status").hidden, true);
@@ -1078,15 +1135,15 @@ export function runAppInitializationTests() {
     const { document } = startAppTest();
     for (const [coordinate, value] of [["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14]]) submitAppNumber(document, coordinate, value);
     applyAppAttackAction(document, "B1");
-    assertEqual(document.getElementById("current-score").textContent, "50");
+    assertEqual(document.getElementById("current-score").textContent, "61");
     assertEqual(document.getElementById("street-bonus").hidden, true);
     assert(!document.getElementById("board-rows").children[0].className.includes("street"));
     applyAppAttackAction(document, "B1");
-    assertEqual(document.getElementById("current-score").textContent, "100");
+    assertEqual(document.getElementById("current-score").textContent, "111");
     assertEqual(document.getElementById("street-bonus").hidden, false);
     assert(document.getElementById("board-rows").children[0].className.includes("street"));
     document.getElementById("undo-move").emit("click");
-    assertEqual(document.getElementById("current-score").textContent, "50");
+    assertEqual(document.getElementById("current-score").textContent, "61");
     assertAttackCell(document.getElementById("cell-B1"));
   });
 
@@ -1193,7 +1250,7 @@ export function runAppInitializationTests() {
     assert(document.getElementById("storage-status").textContent.includes("saving is unavailable"));
   });
 
-  test("Version 5 loads with Undo intact and the next Freeze writes version 6", () => {
+  test("Version 5 loads with Undo intact and the next Freeze writes the current version", () => {
     const state = placeGameNumber(placeGameNumber(createGameState(), "A1", 23), "B1", 31);
     const saved = JSON.stringify({ version: 5, state });
     const { document, storage } = startAppTest(saved);
@@ -1206,12 +1263,196 @@ export function runAppInitializationTests() {
     assertFrozenCell(document.getElementById("cell-B1"));
   });
 
-  test("Attack Ice introduces no Challenge, Edit, roll, player, or permission interface", () => {
+  test("Attack Ice remains manual without Edit, roll, player, or permission controls", () => {
     const { document } = startAppTest();
     assertEqual(document.getElementById("attack-ice-actions").hidden, true);
-    for (const id of ["challenge", "challenge-button", "edit-cell", "edit-number", "player-select", "opponents", "own-roll-form", "permissions"]) {
+    for (const id of ["edit-cell", "edit-number", "player-select", "opponents", "own-roll-form", "permissions"]) {
       assertEqual(document.getElementById(id), null);
     }
+  });
+
+  test("Opening, typing, and cancelling Challenge never spend or replace Undo", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 46);
+    const saved = storage.getItem(STORAGE_KEY);
+    document.getElementById("open-challenge").emit("click");
+    assertEqual(document.getElementById("challenge-dialog").open, true);
+    assertEqual(document.activeElement, document.getElementById("challenge-bid"));
+    assertEqual(document.getElementById("bid-limit").textContent, "Available Score: 46");
+    document.getElementById("challenge-bid").value = "12";
+    document.getElementById("challenge-bid").emit("input");
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+    document.getElementById("close-challenge").emit("click");
+    assertEqual(document.getElementById("challenge-dialog").open, false);
+    assertEqual(document.activeElement, document.getElementById("open-challenge"));
+    assertEqual(document.getElementById("current-score").textContent, "46");
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+    document.getElementById("undo-move").emit("click");
+    assertEqual(document.getElementById("cell-A1").textContent, "Start");
+  });
+
+  test("Invalid bids leave score, board, saved data, and existing Undo untouched", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 46);
+    const saved = storage.getItem(STORAGE_KEY);
+    document.getElementById("open-challenge").emit("click");
+    for (const value of ["", "47", "-1", "1.5", "12.0", "word", "1e1", " 12", "12\n"]) {
+      document.getElementById("challenge-bid").value = value;
+      const event = document.getElementById("challenge-form").emit("submit");
+      assert(event.defaultPrevented);
+      assertEqual(storage.getItem(STORAGE_KEY), saved);
+      assertEqual(document.getElementById("current-score").textContent, "46");
+      assertEqual(document.getElementById("challenge-bid").readOnly, false);
+      assertEqual(document.getElementById("challenge-bid").getAttribute("aria-invalid"), "true");
+      assert(document.getElementById("bid-feedback").textContent.length > 0);
+      assertEqual(document.getElementById("challenge-dialog").open, true);
+    }
+  });
+
+  test("Confirm spends exactly once, updates Score, locks the visible bid, and stays open", () => {
+    const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A1", 23], ["B1", 24]), undo: null }));
+    document.getElementById("open-challenge").emit("click");
+    const input = document.getElementById("challenge-bid");
+    input.value = "12";
+    document.getElementById("challenge-form").emit("submit");
+    assertEqual(document.getElementById("current-score").textContent, "35");
+    assertEqual(input.value, "12");
+    assertEqual(input.readOnly, true);
+    assertEqual(document.getElementById("confirm-bid").disabled, true);
+    assertEqual(document.getElementById("challenge-dialog").open, true);
+    assertEqual(document.activeElement, document.getElementById("close-challenge"));
+    const saved = storage.getItem(STORAGE_KEY);
+    for (let tap = 0; tap < 3; tap += 1) document.getElementById("challenge-form").emit("submit");
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+    assertEqual(loadGame(storage).state.pointsSpent, 12);
+    assertDeepEqual(loadGame(storage).state.board, boardFixture(["A1", 23], ["B1", 24]));
+    assertEqual(document.getElementById("attack-ice-actions").hidden, true);
+  });
+
+  test("Close after confirmation never refunds and reopening starts a new bid", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 46);
+    document.getElementById("open-challenge").emit("click");
+    document.getElementById("challenge-bid").value = "12";
+    document.getElementById("challenge-form").emit("submit");
+    const saved = storage.getItem(STORAGE_KEY);
+    document.getElementById("close-challenge").emit("click");
+    assertEqual(document.getElementById("current-score").textContent, "34");
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+    document.getElementById("open-challenge").emit("click");
+    assertEqual(document.getElementById("challenge-bid").value, "");
+    assertEqual(document.getElementById("challenge-bid").readOnly, false);
+    assertEqual(document.getElementById("confirm-bid").disabled, false);
+    assertEqual(document.getElementById("bid-limit").textContent, "Available Score: 34");
+    document.getElementById("challenge-bid").value = "34";
+    document.getElementById("challenge-form").emit("submit");
+    assertEqual(document.getElementById("current-score").textContent, "0");
+    assertEqual(loadGame(storage).state.pointsSpent, 46);
+  });
+
+  test("A zero bid is accepted and replaces the previous single-step Undo", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 46);
+    document.getElementById("open-challenge").emit("click");
+    document.getElementById("challenge-bid").value = "0";
+    document.getElementById("challenge-form").emit("submit");
+    assertEqual(document.getElementById("challenge-bid").readOnly, true);
+    assertEqual(document.getElementById("current-score").textContent, "46");
+    document.getElementById("close-challenge").emit("click");
+    document.getElementById("undo-move").emit("click");
+    assertEqual(document.getElementById("cell-A1").textContent, "46");
+    assertEqual(loadGame(storage).state.undo, null);
+    assertEqual(document.getElementById("undo-move").disabled, true);
+  });
+
+  test("Undo is unavailable through the modal and restores the pre-bid score after closing", () => {
+    const { document, storage } = startAppTest();
+    for (const [coordinate, value] of [["A1", 23], ["B1", 31], ["A2", 23]]) submitAppNumber(document, coordinate, value);
+    applyAppAttackAction(document, "B1");
+    const boardBefore = loadGame(storage).state.board;
+    document.getElementById("open-challenge").emit("click");
+    document.getElementById("challenge-bid").value = "12";
+    document.getElementById("challenge-form").emit("submit");
+    const saved = storage.getItem(STORAGE_KEY);
+    document.getElementById("undo-move").emit("click");
+    document.getElementById("new-game").emit("click");
+    selectAppCell(document, "C1");
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+    assertEqual(document.getElementById("challenge-dialog").open, true);
+    document.getElementById("close-challenge").emit("click");
+    document.getElementById("undo-move").emit("click");
+    assertEqual(document.getElementById("current-score").textContent, "23");
+    assertDeepEqual(loadGame(storage).state.board, boardBefore);
+    assertEqual(loadGame(storage).state.pointsSpent, 0);
+    assertEqual(loadGame(storage).state.undo, null);
+  });
+
+  test("Reload restores reduced Score and bid Undo but never an open modal or draft", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 46);
+    document.getElementById("open-challenge").emit("click");
+    document.getElementById("challenge-bid").value = "12";
+    document.getElementById("challenge-form").emit("submit");
+    const restored = startAppTest(storage.getItem(STORAGE_KEY));
+    assertEqual(restored.document.getElementById("current-score").textContent, "34");
+    assertEqual(restored.document.getElementById("challenge-dialog").open, false);
+    assertEqual(restored.document.getElementById("challenge-bid").value, "");
+    restored.document.getElementById("undo-move").emit("click");
+    assertEqual(restored.document.getElementById("current-score").textContent, "46");
+  });
+
+  test("Escape and native dialog cancellation close without accidental confirmation or refund", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 46);
+    const saved = storage.getItem(STORAGE_KEY);
+    document.getElementById("open-challenge").emit("click");
+    document.getElementById("challenge-bid").value = "12";
+    document.emit("keydown", document.getElementById("challenge-bid"), { key: "Escape" });
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+    assertEqual(document.getElementById("challenge-dialog").open, false);
+    document.getElementById("open-challenge").emit("click");
+    document.getElementById("challenge-bid").value = "12";
+    document.getElementById("challenge-dialog").emit("click"); // Dimmed background does nothing.
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+    document.getElementById("challenge-form").emit("submit");
+    const confirmed = storage.getItem(STORAGE_KEY);
+    assert(document.getElementById("challenge-dialog").emit("cancel").defaultPrevented);
+    assertEqual(document.getElementById("challenge-dialog").open, false);
+    assertEqual(storage.getItem(STORAGE_KEY), confirmed);
+  });
+
+  test("Challenge discards only UI drafts, and confirmed reset clears all point spending", () => {
+    const { document, storage } = startAppTest();
+    submitAppNumber(document, "A1", 46);
+    selectAppCell(document, "A2");
+    typeAppNumber(document, "4");
+    const saved = storage.getItem(STORAGE_KEY);
+    document.getElementById("open-challenge").emit("click");
+    assertEqual(getAppInput(document), null);
+    assertEqual(document.getElementById("cell-A2").textContent, "");
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+    document.getElementById("challenge-bid").value = "12";
+    document.getElementById("challenge-form").emit("submit");
+    document.getElementById("close-challenge").emit("click");
+    submitAppNumber(document, "A2", 46);
+    assertEqual(document.getElementById("current-score").textContent, "80");
+    document.getElementById("new-game").emit("click");
+    document.getElementById("confirm-new-game").emit("click");
+    assertEqual(storage.getItem(STORAGE_KEY), null);
+    assertEqual(document.getElementById("current-score").textContent, "0");
+  });
+
+  test("A bid save failure preserves the visible action and Undo with a storage warning", () => {
+    const document = appTestDocument();
+    const initial = serializeGame({ board: boardFixture(["A1", 46]), undo: null });
+    initializeApp(document, { getItem() { return initial; }, setItem() { throw new Error("Quota exceeded"); } });
+    document.getElementById("open-challenge").emit("click");
+    document.getElementById("challenge-bid").value = "12";
+    document.getElementById("challenge-form").emit("submit");
+    assertEqual(document.getElementById("current-score").textContent, "34");
+    assertEqual(document.getElementById("challenge-bid").readOnly, true);
+    assertEqual(document.getElementById("undo-move").disabled, false);
+    assert(document.getElementById("storage-status").textContent.includes("saving is unavailable"));
   });
 
 

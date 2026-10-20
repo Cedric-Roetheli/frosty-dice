@@ -198,6 +198,22 @@ p { margin: 0; }
 
 .undo-button:focus-visible { outline-color: #fff; }
 
+.challenge-button {
+  flex: none;
+  min-height: 48px;
+  padding: 0 3.5px;
+  border: 0.5px solid #fff;
+  border-radius: 0.375rem;
+  color: #fff;
+  background: transparent;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.challenge-button:focus-visible { outline-color: #fff; }
+
 .game-stats p {
   display: flex;
   flex-direction: column;
@@ -557,3 +573,87 @@ noscript p {
   overflow: hidden;
   clip-path: inset(50%);
 }
+
+/* Native top-layer dialog: opening it adds no space to the game or landscape. */
+.challenge-dialog {
+  width: min(100% - 1.5rem, 25rem);
+  max-width: none;
+  max-height: calc(100% - 1.5rem);
+  margin: auto;
+  padding: 0.75rem;
+  border: 0;
+  color: #fff;
+  background: transparent;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.challenge-dialog::backdrop { background: rgb(3 2 14 / 82%); }
+
+.challenge-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.challenge-content h2 { font-size: 1.125rem; letter-spacing: 0.06em; }
+
+.challenge-banknote {
+  position: relative;
+  width: min(100%, 55svh);
+  margin-block: -0.5rem;
+  container-type: inline-size;
+}
+
+.challenge-banknote img { display: block; width: 100%; height: auto; }
+
+.challenge-bid {
+  position: absolute;
+  /* Centre of the illustrated circle on the untouched 2048px square canvas. */
+  left: 50.3%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  width: 36%;
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: #10260e;
+  -webkit-text-fill-color: currentColor;
+  background: transparent;
+  font: inherit;
+  font-size: clamp(2rem, 10vw, 3.25rem);
+  /* Scale with the banknote so four tabular digits fit within its circle. */
+  font-size: clamp(2rem, 13cqw, 3.5rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  text-align: center;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.challenge-bid::-webkit-inner-spin-button,
+.challenge-bid::-webkit-outer-spin-button { margin: 0; -webkit-appearance: none; }
+
+.challenge-bid:read-only { cursor: default; }
+.bid-limit { font-size: 0.8125rem; }
+.bid-feedback { min-height: 2.5rem; padding-top: 0.25rem; font-size: 0.875rem; }
+.challenge-confirm { width: min(100%, 14rem); }
+.challenge-confirm:disabled { opacity: 0.65; cursor: default; }
+
+.challenge-close {
+  min-width: 80px;
+  min-height: 48px;
+  padding: 0.5rem;
+  border: 0;
+  color: #fff;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.challenge-close:focus-visible { outline-color: #fff; }

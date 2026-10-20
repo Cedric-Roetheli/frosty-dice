@@ -1,4 +1,4 @@
-import { canPlaceNumber, canUndo, cloneGameState, createGameState, getCell, hasReachedGoal, isValidGameState, placeGameNumber, undoLastMove } from "../js/game.js";
+import { canPlaceNumber, canUndo, cloneGameState, createGameState, freezeGameCell, getCell, hasReachedGoal, isValidGameState, placeGameNumber, undoLastMove } from "../js/game.js";
 import { calculateScore, getScoreBreakdown } from "../js/scoring.js";
 import { boardFixture, freezeBoardSnapshot } from "./fixtures.js";
 import { assert, assertDeepEqual, assertEqual, assertThrows } from "./assert.js";
@@ -38,6 +38,30 @@ export function runUndoTests() {
     assertEqual(restored.undo, null);
   });
 
+  test("Undo of a normal 66 restores the empty board and removes its doubled 132 points", () => {
+    const after = placeGameNumber(createGameState(), "A1", 66);
+    assertEqual(calculateScore(after.board), 132);
+    const restored = undoLastMove(after);
+    assertDeepEqual(restored, createGameState());
+    assertEqual(calculateScore(restored.board), 0);
+  });
+
+  test("Undo restores a boundary Street and its repdigit score after Attack Ice", () => {
+    const before = moves(["A1", 55], ["B1", 56], ["C1", 61]);
+    assertEqual(calculateScore(before.board), 227);
+    const complete = placeGameNumber(before, "D1", 62);
+    assertEqual(calculateScore(complete.board), 523);
+    assertDeepEqual(getScoreBreakdown(complete.board).streetRows, [1]);
+    const restored = undoLastMove(complete);
+    assertDeepEqual(restored.board, before.board);
+    assertEqual(calculateScore(restored.board), 227);
+    const iced = freezeGameCell(complete, "A1");
+    assertEqual(calculateScore(iced.board), 289);
+    assertDeepEqual(getScoreBreakdown(iced.board).streetRows, []);
+    assertDeepEqual(undoLastMove(iced).board, complete.board);
+    assertEqual(calculateScore(undoLastMove(iced).board), 523);
+  });
+
   test("Undo A1=23, B1=31, A2=23 restores B1 frozen and removes newly frozen A2", () => {
     const before = moves(["A1", 23], ["B1", 31]);
     const after = placeGameNumber(before, "A2", 23);
@@ -64,11 +88,11 @@ export function runUndoTests() {
   test("Undo removes a Street completed by the last placement and restores its prior numerator", () => {
     const before = moves(["A1", 11], ["B1", 12], ["C1", 13]);
     const complete = placeGameNumber(before, "D1", 14);
-    assertEqual(calculateScore(complete.board), 100);
+    assertEqual(calculateScore(complete.board), 111);
     assertDeepEqual(getScoreBreakdown(complete.board).streetRows, [1]);
     const restored = undoLastMove(complete);
     assertDeepEqual(restored.board, before.board);
-    assertEqual(calculateScore(restored.board), 36);
+    assertEqual(calculateScore(restored.board), 47);
     assertDeepEqual(getScoreBreakdown(restored.board).streetRows, []);
   });
 
@@ -78,7 +102,7 @@ export function runUndoTests() {
     before = placeGameNumber(placeGameNumber(before, "B7", 24), "C7", 46);
     const reached = placeGameNumber(before, "D7", 55);
     assert(hasReachedGoal(reached.board));
-    assertEqual(calculateScore(reached.board), 209);
+    assertEqual(calculateScore(reached.board), 264);
     const restored = undoLastMove(reached);
     assert(!hasReachedGoal(restored.board));
     assertDeepEqual(restored.board, before.board);

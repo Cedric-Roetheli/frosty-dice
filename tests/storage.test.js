@@ -21,9 +21,9 @@ export function runStorageTests() {
     catch (error) { results.push({ name, passed: false, message: error.message }); }
   }
 
-  test("Version 6 saves contain only current gameplay and one nullable Undo snapshot", () => {
+  test("Version 7 saves contain only current gameplay and one nullable Undo snapshot", () => {
     const state = createGameState();
-    assertEqual(SAVE_VERSION, 6);
+    assertEqual(SAVE_VERSION, 7);
     assertDeepEqual(JSON.parse(serializeGame(state)), { version: SAVE_VERSION, state });
     assertDeepEqual(deserializeGame(serializeGame(state)), state);
   });
@@ -142,7 +142,7 @@ export function runStorageTests() {
     const state = { board: boardFixture(["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14],
       ["C3", 31, "frozen"], ["D7", 46]), undo: null };
     const restored = deserializeGame(serializeGame(state));
-    assertEqual(calculateScore(restored.board), 146);
+    assertEqual(calculateScore(restored.board), 157);
     assertDeepEqual(getScoreBreakdown(restored.board).streetRows, [1]);
     assert(hasReachedGoal(restored.board));
     assertDeepEqual(getLegalTargetCells(restored.board, 11), ["A2", "C7"]);
@@ -152,6 +152,19 @@ export function runStorageTests() {
     const storage = memoryGameStorage();
     assertDeepEqual(loadGame(storage), { state: createGameState(), status: "missing" });
     assertEqual(storage.values.size, 0);
+  });
+
+  test("Version 6 repdigits restore unchanged and recalculate their new doubled score", () => {
+    const state = placeGameNumber(createGameState(), "A1", 66);
+    const serialized = JSON.stringify({ version: 6, state });
+    const storage = memoryGameStorage();
+    storage.setItem(STORAGE_KEY, serialized);
+    const restored = loadGame(storage);
+    assertEqual(restored.status, "restored");
+    assertEqual(storage.getItem(STORAGE_KEY), serialized);
+    assertDeepEqual(restored.state, state);
+    assertEqual(calculateScore(restored.state.board), 132);
+    assertEqual(calculateScore(undoLastMove(restored.state).board), 0);
   });
 
   test("Malformed, old, or incompatible saves are rejected and left intact", () => {
@@ -393,7 +406,7 @@ export function runStorageTests() {
     assertDeepEqual(undoLastMove(loadGame(storage).state).board, state.undo.board);
     assert(!isCellAttackIced(loadGame(storage).state.board, "B1"));
     assert(saveGame(freezeGameCell(loadGame(storage).state, "B1"), storage));
-    assertEqual(JSON.parse(storage.getItem(STORAGE_KEY)).version, 6);
+    assertEqual(JSON.parse(storage.getItem(STORAGE_KEY)).version, SAVE_VERSION);
     assert(isCellAttackIced(loadGame(storage).state.board, "B1"));
   });
 

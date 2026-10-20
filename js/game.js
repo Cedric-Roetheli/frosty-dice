@@ -1,63 +1,15 @@
 // Pure rules and canonical board state. Cell names use A1–D7.
-export const BOARD_COLUMNS = Object.freeze(["A", "B", "C", "D"]);
-export const BOARD_ROW_COUNT = 7;
-const DICE_PRIMES = Object.freeze([11, 13, 23, 31, 41, 43, 53, 61]);
-const CELL_STATUSES = Object.freeze(["normal", "frozen", "thawed"]);
+import { BOARD_COLUMNS, BOARD_ROW_COUNT, isPrimeNumber, isValidBoard, isValidBoardCell, isValidNumber } from "./board-state.js?v=v3-scoring-1";
+import { calculateScore } from "./scoring.js?v=v3-scoring-1";
+
+export { BOARD_COLUMNS, BOARD_ROW_COUNT, isPrimeNumber, isValidBoard, isValidBoardCell, isValidNumber };
 
 export function createEmptyBoard() {
   return Array.from({ length: BOARD_ROW_COUNT }, () => BOARD_COLUMNS.map(() => null));
 }
 
-export function isValidNumber(value) {
-  if (!Number.isInteger(value)) {
-    return false;
-  }
-  const tens = Math.floor(value / 10);
-  const units = value % 10;
-  return tens >= 1 && tens <= 6 && units >= 1 && units <= 6;
-}
-
-export function isPrimeNumber(value) {
-  return isValidNumber(value) && DICE_PRIMES.includes(value);
-}
-
 export function isValidCell(coordinate) {
   return typeof coordinate === "string" && coordinate.length === 2 && /^[A-D][1-7]$/.test(coordinate);
-}
-
-export function isValidBoardCell(cell) {
-  return cell === null || (typeof cell === "object" && !Array.isArray(cell)
-    && isValidNumber(cell.value) && CELL_STATUSES.includes(cell.status)
-    && (!Object.prototype.hasOwnProperty.call(cell, "attackIce") || typeof cell.attackIce === "boolean")
-    && (cell.status !== "frozen" || (isPrimeNumber(cell.value) && !cell.attackIce)));
-}
-
-// Validate the snapshot, without replaying placement history or A1 connectivity.
-export function isValidBoard(board) {
-  if (!Array.isArray(board) || board.length !== BOARD_ROW_COUNT) {
-    return false;
-  }
-  let frozenCount = 0;
-  let attackIceCount = 0;
-  for (const row of board) {
-    if (!Array.isArray(row) || row.length !== BOARD_COLUMNS.length) {
-      return false;
-    }
-    for (const cell of row) {
-      if (!isValidBoardCell(cell)) {
-        return false;
-      }
-      if (cell !== null && cell.status === "frozen") {
-        frozenCount += 1;
-        if (frozenCount > 1) return false;
-      }
-      if (cell?.attackIce) {
-        attackIceCount += 1;
-        if (attackIceCount > 1) return false;
-      }
-    }
-  }
-  return true;
 }
 
 export function getCell(board, coordinate) {
@@ -249,10 +201,28 @@ function isGameRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function hasValidSpending(record) {
+  return !Object.prototype.hasOwnProperty.call(record, "pointsSpent")
+    || (Number.isSafeInteger(record.pointsSpent) && record.pointsSpent >= 0);
+}
+
+// Omitted spending is zero, preserving board-only callers and migrated saves.
+function spendingFields(record) {
+  return Object.prototype.hasOwnProperty.call(record, "pointsSpent") ? { pointsSpent: record.pointsSpent } : {};
+}
+
 // A snapshot contains only gameplay data, never an older Undo or derived displays.
-export function isValidUndoSnapshot(snapshot, board) {
-  if (!isGameRecord(snapshot) || Object.keys(snapshot).join(",") !== "board"
+export function isValidUndoSnapshot(snapshot, board, pointsSpent = 0) {
+  if (!isGameRecord(snapshot) || !Object.keys(snapshot).every((key) => ["board", "pointsSpent"].includes(key))
+      || !hasValidSpending(snapshot) || !Number.isSafeInteger(pointsSpent) || pointsSpent < 0
       || !isValidBoard(snapshot.board) || !isValidBoard(board)) return false;
+  const previousSpending = snapshot.pointsSpent ?? 0;
+  // An explicit spending snapshot also identifies an intentional zero-point bid.
+  if (Object.prototype.hasOwnProperty.call(snapshot, "pointsSpent")
+      && JSON.stringify(cloneBoard(snapshot.board)) === JSON.stringify(cloneBoard(board))) {
+    return validateBid(pointsSpent - previousSpending, calculateScore(snapshot.board, previousSpending)).valid;
+  }
+  if (previousSpending !== pointsSpent) return false;
   let move = null;
   let previousAttack = null;
   let currentAttack = null;
@@ -285,25 +255,56 @@ export function isValidUndoSnapshot(snapshot, board) {
 }
 
 export function isValidGameState(state) {
-  return isGameRecord(state) && isValidBoard(state.board)
-    && (state.undo == null || isValidUndoSnapshot(state.undo, state.board));
+  return isGameRecord(state) && hasValidSpending(state) && isValidBoard(state.board)
+    && (state.undo == null || isValidUndoSnapshot(state.undo, state.board, state.pointsSpent ?? 0));
 }
 
 export function cloneGameState(state) {
   if (!isValidGameState(state)) throw new TypeError("Use a valid game board and Undo snapshot.");
   return {
     board: cloneBoard(state.board),
-    undo: state.undo == null ? null : { board: cloneBoard(state.undo.board) },
+    undo: state.undo == null ? null : { board: cloneBoard(state.undo.board), ...spendingFields(state.undo) },
+    ...spendingFields(state),
   };
 }
 
 function applyGameAction(state, operation, ...args) {
   if (!isValidGameState(state)) throw new TypeError("Use a valid game board and Undo snapshot.");
-  const snapshot = { board: cloneBoard(state.board) };
+  const snapshot = { board: cloneBoard(state.board), ...spendingFields(state) };
   const board = operation(state.board, ...args);
   if (board === state.board) return state;
   // A failed action throws before a new state can replace the existing snapshot.
-  return { board, undo: snapshot };
+  return { board, undo: snapshot, ...spendingFields(state) };
+}
+
+export function parseBidInput(input) {
+  if (typeof input !== "string" || input.length === 0 || /[^0-9]/.test(input)) {
+    throw new RangeError("Enter a whole number, 0 or more.");
+  }
+  const bid = Number(input);
+  if (!Number.isSafeInteger(bid)) throw new RangeError("Enter a whole number, 0 or more.");
+  return bid;
+}
+
+export function validateBid(bid, availableScore) {
+  if (!Number.isSafeInteger(bid) || bid < 0) return { valid: false, reason: "Enter a whole number, 0 or more." };
+  if (!Number.isSafeInteger(availableScore) || availableScore < 0 || bid > availableScore) {
+    return { valid: false, reason: "Not enough points." };
+  }
+  return { valid: true, reason: null };
+}
+
+export function confirmGameBid(state, bid) {
+  if (!isValidGameState(state)) throw new TypeError("Use a valid game board and Undo snapshot.");
+  const pointsSpent = state.pointsSpent ?? 0;
+  const validation = validateBid(bid, calculateScore(state.board, pointsSpent));
+  if (!validation.valid) throw new RangeError(validation.reason);
+  if (!Number.isSafeInteger(pointsSpent + bid)) throw new RangeError("Not enough points.");
+  return {
+    board: cloneBoard(state.board),
+    undo: { board: cloneBoard(state.board), pointsSpent },
+    pointsSpent: pointsSpent + bid,
+  };
 }
 
 export function placeGameNumber(state, coordinate, value) {
@@ -325,7 +326,7 @@ export function canUndo(state) {
 export function undoLastMove(state) {
   if (!isValidGameState(state)) throw new TypeError("Use a valid game board and Undo snapshot.");
   if (state.undo == null) return state;
-  return { board: cloneBoard(state.undo.board), undo: null };
+  return { board: cloneBoard(state.undo.board), undo: null, ...spendingFields(state.undo) };
 }
 
 // Optional input helpers for a chosen physical pair; no turn or origin is stored.
