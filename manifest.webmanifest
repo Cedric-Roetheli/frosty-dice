@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "Frosty Dice",
+  "short_name": "Frosty Dice",
+  "description": "A companion game sheet for Frosty Dice, played with physical dice.",
+  "lang": "en",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#03020e",
+  "background_color": "#03020e",
+  "icons": [
+    {
+      "src": "./assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

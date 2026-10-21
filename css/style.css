@@ -48,6 +48,11 @@
   :root { --background-min-height: 100dvh; }
 }
 
+/* Without browser bars, raise only the meadow and its anchored controls. */
+@media (display-mode: standalone) {
+  :root { --background-horizon: calc(var(--background-viewport-height) * 0.85); }
+}
+
 * { box-sizing: border-box; }
 
 [hidden] { display: none !important; }

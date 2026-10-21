@@ -345,6 +345,52 @@ and multiplier recomputation after reload/Undo. CSS and artwork are unchanged.
 No browser automation, screenshots, commit, or push was performed. Check marker
 readability and ice transitions manually on iPhone.
 
+## Optional PWA — Installable offline game sheet
+
+Add a root-domain standalone manifest, standard 192/512px icons and an Apple
+180px touch icon from the unchanged source, Apple metadata, and quiet independent
+registration. Keep the normal website usable immediately without installation.
+
+Precache the real versioned HTML/CSS/modules and every required illustration.
+Use a coherent versioned cache with root/index fallback. Check the worker on
+online launches; a newly cached release waits for old windows to close before
+activation and cleanup. Document the mandatory cache-version bump for runtime
+file changes. Keep game state solely in the unchanged localStorage version 7.
+Record iOS storage separation and the need to warm each installed context online.
+
+Add focused non-browser Cache/Fetch/registration tests and run the full suite
+once. Preserve all existing game tests, rules, UI, CNAME, and deployment structure.
+No browser automation, screenshots, commit, or push. Manual device validation
+and deployment remain with the user.
+
+**Status: Implemented for manual device testing.** The full suite ran once in
+JavaScriptCore: **339/339 passed**, retaining all 326 existing game tests and
+adding 13 PWA checks. Static checks verified all 21 precache URLs against actual
+references, exact icon resizes, and 23 successful local HTTP responses including
+worker/module/manifest MIME types. Existing game modules, tests, CSS, artwork,
+rules, storage version 7, and CNAME are unchanged. No browser automation,
+screenshots, commit, or push was performed.
+
+## PWA real-device follow-up — Conditional images and standalone meadow
+
+The local precache already includes all 21 runtime URLs, including both ice
+assets, bid artwork, backgrounds, controls, Rules/contact illustrations, and
+icons. Harden exact-URL cache lookup against CDN `Vary` header differences
+between generic precache fetches and later image requests. Keep the atomic
+install and waiting/activation strategy; bump the cache from v1 to v2 and
+request the standalone stylesheet with a matching new query-string version.
+
+Standalone mode alone uses an 85% stable-viewport horizon, compensating for the
+taller viewport without browser bars. Normal Safari retains its approved 95%.
+Preserve artwork scaling, sky, board, and meadow-relative control anchors.
+
+**Status: Implemented for manual iPhone recheck.** The full automated suite
+ran once in JavaScriptCore: **340/340 passed**, including 14 PWA tests and all
+326 existing game tests. A new regression covers first-time offline image
+requests with different `Vary` headers. Static checks verified all 21 runtime
+URLs against the precache and 23 successful HTTP responses/MIME types.
+No browser automation, screenshots, commit, or push was performed.
+
 ## Workflow
 
 Read the specifications, implement the current scope, keep rules deterministic,

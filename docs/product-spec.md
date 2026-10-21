@@ -40,6 +40,7 @@ The app should:
 - Offer a secret point-bid Challenge dialog; persist confirmed spending and include it in one-step Undo.
 - Allow a confirmed new-game reset.
 - Remain mobile-first, accessible, static, and GitHub Pages compatible.
+- Offer optional home-screen installation and offline play after complete local precaching, while keeping the normal website immediately usable.
 
 There is no roll counter, number-origin tracking, number-removal action, opponent
 state, synchronization, backend, database, account, digital dice roller, cloud
@@ -364,6 +365,50 @@ and bottom spacing; do not repeat or reposition the landscape or meadow controls
 
 Use HTML, CSS, and vanilla JavaScript with relative asset/module paths. Keep
 rule logic independent from DOM code and storage mechanics in storage.js.
-Introduce no dependencies, framework, build system, PWA, or networking feature.
+Introduce no dependencies, framework, build system, backend, or multiplayer networking.
 
-Deployment and device/browser evaluation remain future work.
+## 10. Optional PWA
+
+Production is the custom root domain https://frostydice.com. Add a standalone
+manifest with ID/start URL/scope `/` and the existing dark sky color `#03020e`.
+Provide 192/512px PNG icons and an Apple 180px touch icon resized without
+cropping or changing the existing opaque source artwork. No maskable icon is
+declared because the artwork extends to the edges. Apple standalone metadata
+uses a black status bar with content below it; preserve the viewport and
+normal-browser styling.
+
+Installation through the browser is optional. Add no install gate, prompt,
+button, accounts, backend, push, analytics, cloud saves, or new gameplay.
+Registration is independent of game initialization and fails silently. Existing
+game code, UI, localStorage version 7, Undo, and reset remain unchanged.
+
+Cache the complete static application, including all lazy Rules/contact/bid/ice
+artwork. Each installed/browser context needs an online visit long enough for
+the required batch to finish. Offline root/index navigation uses cached index.
+Cache-first resources stay in one versioned snapshot. Online launches check
+the worker for updates without the HTTP cache. New versions precache fresh
+files, wait for existing windows/tabs to close, then activate, clean only older
+Frosty Dice PWA caches, and claim clients. No forced reload interrupts a game.
+Maintainers must bump the worker cache version for every changed cached file
+and keep the precache URLs aligned with actual module/asset query strings.
+Missing cache entries fall back to network; unrelated requests pass through.
+For these fixed static URLs, cache lookup ignores `Vary` request-header
+differences so conditional image requests reuse the precached artwork offline.
+Exact paths and query-string versions still apply.
+
+Standalone display mode uses an 85%-of-stable-viewport meadow horizon to
+compensate for the missing browser bars. Normal browser mode retains 95%.
+Keep the existing meadow-relative control anchors, artwork sizing, sky, and
+board geometry unchanged; do not introduce viewport JavaScript.
+
+Game data remains in localStorage, never the Cache API. Safari and an installed
+iOS Home Screen app use separate website storage, so a Safari game is not
+automatically copied at installation; neither store is cleared by the PWA code.
+Test initial caching and persistence within each context. No state migration
+between contexts is implemented. Standard browser storage eviction still applies.
+
+The normal static Python server works on localhost; real-device PWA tests use
+HTTPS. CNAME and GitHub Pages deployment configuration are unchanged. Initial
+manual iPhone testing confirmed installation, standalone launch, local state,
+and offline gameplay. Recheck conditional artwork and the standalone meadow
+correction on the device; Android validation remains pending.

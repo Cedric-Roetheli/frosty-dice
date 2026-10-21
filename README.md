@@ -139,7 +139,7 @@ unrelated keys are touched.
 
 ## Tests and local serving
 
-There is no installation, dependency, build step, or backend. To serve the
+There is no dependency installation, build step, or backend. To serve the
 independent test page locally:
 
 ```sh
@@ -207,6 +207,8 @@ performed; no commit or push was made.
   correction, cancellation, occupied-cell guards, score/Street/goal feedback,
   save restoration/reset, one-step Undo, and A1=23 → B1=31 → A2=23 integration.
 - `tests/fixtures.js` and `tests/assert.js`: dependency-free test helpers.
+- `tests/pwa.test.js`: isolated worker/Cache/Fetch and registration doubles for
+  offline navigation, required assets, update isolation, cleanup, and failures.
 
 Attack Ice adds 33 focused pure tests, 17 coordinator tests through the actual
 registered UI handlers, and eight persistence/migration tests. The full suite
@@ -223,5 +225,60 @@ button remain for manual iPhone evaluation.
 ## GitHub Pages
 
 Assets and native JavaScript modules use relative paths, so the repository
-requires no routing fallback or server code. Keep these constraints when
-integrating the new core into the UI. Deployment remains deferred.
+requires no server routing or build step. Production uses the custom root
+domain [frostydice.com](https://frostydice.com); CNAME is unchanged.
+
+## Optional PWA and offline play
+
+The website remains immediately playable without installation, accounts, or a
+backend. Safari's Add to Home Screen and Chrome's Install/Add to Home Screen
+can additionally open Frosty Dice as a standalone app. The manifest uses `/`
+for its ID, start URL, and scope, with dark sky launch colors. Icons at 192,
+512, and Apple 180 pixels are resized from the unchanged opaque 1024px source;
+they use the complete artwork, without a maskable declaration or forced crop.
+
+After the first online visit **in each browser/installed-app context**, keep
+it online until the worker has installed its complete cache. All game modules,
+backgrounds, controls, Rules/contact illustrations, bid artwork, ice, and icons
+are precached, including lazily displayed artwork. Offline root/index navigation
+then opens the cached game and all existing actions work locally. Game state
+remains in `localStorage` version 7; the Cache API contains only static files.
+Browser-managed storage can be evicted, so offline use requires an intact cache.
+
+On iOS, Safari and an installed Home Screen app have separate website data:
+installation does not migrate a Safari game. The existing Safari save is kept;
+launch the installed app online once and test its own save/cache separately.
+See [WebKit's storage explanation](https://webkit.org/blog/14787/webkit-features-in-safari-17-2/).
+No state transfer or cloud save is added.
+
+`js/pwa.js` registers `/service-worker.js` after page load, with
+`updateViaCache: "none"`; unsupported/blocked registration is silent. The
+worker serves a coherent **cache-first, versioned application snapshot**,
+falling back to the network on cache misses. `/`, `/index.html`, and their
+query variants use cached `/index.html`. Unrelated/external requests pass through.
+Exact static URLs ignore `Vary` request-header differences during cache lookup,
+so conditional image requests can reuse the generic precache responses offline.
+
+For **every deployment that changes a cached file**, bump `CACHE_NAME`'s version
+in `service-worker.js` and update `PRECACHE_URLS` for changed URLs/new files.
+The worker precaches fresh responses (`cache: "reload"`) as one required batch;
+failed installation leaves the previous release available. Each online page
+load checks the worker script for updates, even when HTML is cached. A new
+worker waits for all existing Frosty Dice windows/tabs to close, then activates,
+deletes only older `frosty-dice-pwa-*` caches, and claims clients. Reopen to use
+the new snapshot. There is no forced mid-game reload or automatic state reset.
+This follows the [service-worker lifecycle](https://web.dev/articles/service-worker-lifecycle).
+
+The existing Python HTTP-server workflow remains valid on `localhost`.
+Real-device installation/offline tests should use HTTPS at frostydice.com;
+ordinary unencrypted LAN HTTP is not a service-worker test environment.
+In browser developer tools, confirm an activated worker and all 21 entries in
+`frosty-dice-pwa-v2` before testing airplane-mode launch. The installed app alone
+uses an 85%-of-stable-viewport meadow horizon; the normal browser keeps its
+approved 95% horizon. The artwork and the meadow controls' relative anchors are
+unchanged. Manual iPhone testing confirmed installation and offline gameplay;
+the conditional-image fix and standalone horizon correction need a device recheck.
+The full automated suite ran once in JavaScriptCore: **340/340 passed**,
+including 14 PWA tests and all 326 existing game tests. Static checks confirmed
+21/21 runtime URLs in the precache and 23/23 HTTP responses/MIME types.
+No browser automation or screenshots were performed.
