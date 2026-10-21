@@ -1,7 +1,7 @@
 // Bump this version for EVERY deployment changing a cached file, and update URLs
 // below when adding/removing files or changing their query-string versions.
 const CACHE_PREFIX = "frosty-dice-pwa-";
-const CACHE_NAME = CACHE_PREFIX + "v2";
+const CACHE_NAME = CACHE_PREFIX + "v3";
 const APP_SHELL = "/index.html";
 const PRECACHE_URLS = [
   APP_SHELL,
