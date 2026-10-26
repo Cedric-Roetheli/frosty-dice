@@ -421,6 +421,59 @@ modules, version-7 storage, existing CSS outside the selector, standalone meadow
 correction, and worker lifecycle/fetch strategy are unchanged. No browser
 automation, screenshots, commit, or push was performed.
 
+## Cosmetic refinement — Points, illustrated title, and footer cowboy
+
+Change only the visible header label from Score to Points. Use a lossless
+transparent 1674 × 1187 crop of the supplied title artwork in the existing h1,
+with responsive 4.5rem–6rem width and descriptive alt text. Preserve source
+artwork, existing header controls, number styling, and all game logic.
+
+Add the full surfing-cowboy illustration to the left of the unchanged contact
+artwork in a responsive 1:2 footer grid, with natural image heights and no
+cropping, surfaces, overlap, or landscape changes. Precache the title derivative
+and cowboy, updating the CSS URL and cache from v4 to v5. Preserve worker update
+and activation behavior. Run the existing suite once; visual review remains
+manual on iPhone, without browser automation or screenshots.
+
+**Status: Implemented for manual iPhone evaluation.** The unchanged automated
+suite ran once in JavaScriptCore: **353/353 passed**. Static checks verified
+28/28 runtime precache URLs, 30 successful HTTP responses/MIME types, the
+lossless transparent title crop, and unchanged supplied artwork. Game and
+Rules controllers, all tests, storage, board/landscape CSS, existing header
+controls, and the service-worker lifecycle/fetch strategy are unchanged.
+No browser automation, screenshots, commit, or push was performed.
+
+## Additional Rules — Readable bilingual popup
+
+Keep the original Rules illustrations and the working light-blue language
+toggle. Measure the yellow box separately for each image and position an
+invisible semantic button over that box alone, with a small magnifier below
+its edge. Do not change the Rules section position or surrounding artwork.
+
+Use the selected language and the user-supplied paragraphs verbatim in a native
+glass modal with white 18px text, safe-area spacing, internal scrolling, and a
+close button. Handle backdrop taps and Escape, preserve native focus isolation,
+and restore opener focus and page scroll after locking background scrolling.
+Keep game state, language preferences, Challenge, and all mechanics unchanged.
+
+Embed text in the existing cached controller; update the CSS/controller URL
+versions and cache from v6 to v7. Preserve precache coverage, offline navigation,
+registration, waiting, and activation cleanup. Add focused non-browser popup,
+language, focus/scroll, close-path, and game-save regressions, then run the full
+automated suite once. Manual visual evaluation remains on iPhone; do not use
+browser automation or screenshots, commit, or push.
+
+**Status: Implemented for manual iPhone evaluation.** The full suite ran once
+in JavaScriptCore: **364/364 passed**, including 22 Rules tests, 16 PWA tests,
+and all 326 existing game tests. Eleven new cases cover exact EN/DE content,
+box-only activation, native keyboard activation, close/Escape/cancel/backdrop,
+scroll/focus restoration, repeated opening, failed opening, and unchanged
+canonical game saves. Existing preference and reset coverage is retained.
+Static checks verified 28 runtime precache URLs, 30 HTTP responses/MIME types,
+unchanged artwork/light-blue fills, and unchanged gameplay/Challenge modules,
+prior CSS, and worker update strategy. No browser automation, screenshots,
+commit, or push was performed.
+
 ## Workflow
 
 Read the specifications, implement the current scope, keep rules deterministic,

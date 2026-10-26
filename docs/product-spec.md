@@ -324,7 +324,7 @@ and English buttons cover its two halves, with at least 48px touch targets,
 native keyboard activation, `aria-pressed`, and a visible keyboard focus ring.
 Keep the selector unframed and the existing signpost anchor/navigation intact.
 
-Only the active language's letter bodies receive saturated yellow `#FFD600`.
+Only the active language's letter bodies receive icy light blue `#66D9FF`.
 Use precise transparent overlays `language_de_fill.png` and
 `language_en_fill.png` below the original colorful outlines. Preserve D's hole,
 E's cutouts, and N's shape; do not tint the original or use rectangular fills.
@@ -338,6 +338,29 @@ in place without navigation, scrolling scripts, or fixed-height clipping.
 The existing full-page meadow layer and green fallback cover the image and
 spacing without repeating plants, moving the horizon, or altering game UI or
 JavaScript. No image-specific tests or browser automation are required.
+
+The yellow Additional Rules box at the bottom of either illustration has its
+own transparent semantic button. Keep the rest of the image non-interactive.
+Measure each image independently: both current 2480 × 3508 sources have a
+box at x=73, y=2754, width=2312, height=696 pixels. Convert those coordinates
+to percentages of that image's own dimensions so responsive scaling stays
+aligned. Keep the original artwork unchanged. A small magnifying-glass hint
+sits below the lower-right edge without covering text or enlarging the hit area.
+
+Open a native modal with the selected Rules language and the supplied English
+or German paragraphs verbatim. Use Additional Rules / Zusätzliche Regeln,
+white 18px text, comfortable paragraph spacing, a restrained dark frosted panel,
+and a dark translucent backdrop. Respect safe areas and permit the text to
+scroll while the close button remains available. Close with ×, backdrop tap,
+Escape, or native cancellation. Keep focus inside via native dialog behavior,
+return focus to the box, and restore the previous page styles and scroll
+position after temporarily locking background scrolling. Do not alter the
+normal scrolling behavior outside the modal.
+
+The popup copy is a readable reproduction of the supplied illustration text,
+not a game-rule change. Keep all mechanics, including defender-favored bidding
+ties, unchanged. Opening/closing the modal never writes the game or language
+preference. Embed all text in the existing rules controller for offline use.
 
 Illustrated landscape controls replace the former New Game / Reset and Rules
 text row, with no remaining row spacing. The supplied transparent PNGs remain
@@ -374,15 +397,25 @@ Smooth scrolling remains enabled only for `prefers-reduced-motion: no-preference
 otherwise navigation is instant. Add no return link, sticky navigation, or
 gameplay state for this link.
 
-A plain, centered footer follows the Rules section and displays only the supplied
-`assets/contact_information.png`, with alt text “Frosty Dice contact information.”
-Use 96% width, capped at 32rem, preserving the original aspect ratio and
-transparency. Leave a 2rem gap above its image canvas (collapsing with the Rules
+A plain, centered footer follows the Rules section with the unchanged
+`assets/surfing_cowboy.png` on the left and `assets/contact_information.png`
+on the right. Use a two-column grid in a 1:2 ratio, centered vertically, with
+a responsive 0.25rem–1rem gap. Use 96% width, capped at 36rem. Both images
+retain their complete canvases, natural aspect ratios, and transparency,
+without cropping or overlapping. Leave a 2rem gap above the footer (collapsing with the Rules
 section's existing bottom margin) and 1rem below, plus the existing body safe-area
 padding. The artwork's transparent margins provide additional breathing room.
 Add no card, background, border, duplicated contact text, links, or controls.
 The existing full-document meadow/green continuation extends behind the footer
 and bottom spacing; do not repeat or reposition the landscape or meadow controls.
+
+The header's numerical score is visibly labeled Points, with unchanged scoring,
+white text, Challenge/Undo controls, and layout. Its h1 uses a transparent crop
+of the supplied `frosty_dice_title.png`, preserving the original source. Keep
+the complete lettering and colors, omitting surrounding padding and the isolated
+lower export speck. The derivative is 1674 × 1187 with 4px breathing room;
+display it at `clamp(4.5rem, 24vw, 6rem)` wide and automatic height, with alt text
+Frosty Dice. Add no new header surface or controls.
 
 Use HTML, CSS, and vanilla JavaScript with relative asset/module paths. Keep
 rule logic independent from DOM code and storage mechanics in storage.js.

@@ -148,7 +148,7 @@ export async function runPwaTests(sources) {
     assert(sources.html.includes('href="#rules"'));
     assert(sources.html.includes('<h2 id="rules-heading">Rules</h2>'));
     assert(sources.html.includes('id="rules-image" src="./assets/Rules.png"'));
-    assert(sources.html.includes('src="./js/rules.js"'));
+    assert(sources.html.includes('src="./js/rules.js?v=additional-rules-1"'));
     for (const [language, label, pressed] of [["de", "Deutsch", "false"], ["en", "English", "true"]]) {
       const button = sources.html.match(new RegExp('<button id="rules-language-' + language + '"[^>]*>'))?.[0];
       assert(button, language);
@@ -253,7 +253,7 @@ export async function runPwaTests(sources) {
     await worker.lifecycle("install");
     worker.offline = true;
     for (const path of ["/assets/Rules.png", "/assets/rules_german.png", "/assets/language_select.png",
-      "/assets/language_de_fill.png", "/assets/language_en_fill.png", "/js/rules.js"]) {
+      "/assets/language_de_fill.png", "/assets/language_en_fill.png", "/js/rules.js?v=additional-rules-1"]) {
       assert(worker.PRECACHE_URLS.includes(path), path);
       assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
     }

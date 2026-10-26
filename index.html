@@ -12,19 +12,19 @@
     <link rel="icon" href="data:,">
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="./css/style.css?v=bilingual-rules-1">
+    <link rel="stylesheet" href="./css/style.css?v=additional-rules-1">
     <script type="module" src="./js/app.js?v=v3-multipliers-1"></script>
     <script type="module" src="./js/pwa.js"></script>
-    <script type="module" src="./js/rules.js"></script>
+    <script type="module" src="./js/rules.js?v=additional-rules-1"></script>
   </head>
   <body>
     <main>
       <header class="page-header">
-        <h1>Frosty Dice</h1>
+        <h1 class="page-title"><img src="./assets/frosty_dice_title_cropped.png" alt="Frosty Dice" width="1674" height="1187"></h1>
         <div class="game-stats">
           <button id="open-challenge" class="challenge-button" type="button" aria-haspopup="dialog" aria-controls="challenge-dialog">Challenge</button>
           <button id="undo-move" class="undo-button" type="button" aria-label="Undo last move" title="Undo last move" disabled><span aria-hidden="true">↶</span></button>
-          <p class="current-score"><span>Score</span><strong id="current-score">0</strong></p>
+          <p class="current-score"><span>Points</span><strong id="current-score">0</strong></p>
         </div>
       </header>
 
@@ -83,11 +83,27 @@
         <button id="rules-language-de" class="rules-language-selector__button" type="button" lang="de" aria-label="Deutsch" aria-pressed="false" aria-controls="rules-image"></button>
         <button id="rules-language-en" class="rules-language-selector__button" type="button" lang="en" aria-label="English" aria-pressed="true" aria-controls="rules-image"></button>
       </div>
-      <img id="rules-image" src="./assets/Rules.png" alt="Hand-drawn Frosty Dice game rules" lang="en" width="2480" height="3508" loading="lazy" decoding="async">
+      <div class="rules-image-container">
+        <img id="rules-image" src="./assets/Rules.png" alt="Hand-drawn Frosty Dice game rules" lang="en" width="2480" height="3508" loading="lazy" decoding="async">
+        <button id="open-additional-rules" class="rules-additional-trigger" type="button" aria-label="Open Additional Rules" aria-haspopup="dialog" aria-controls="additional-rules-dialog" hidden>
+          <svg class="rules-zoom-hint" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+            <circle cx="10" cy="10" r="6"></circle>
+            <path d="m14.5 14.5 6 6"></path>
+          </svg>
+        </button>
+      </div>
     </section>
     <footer class="contact-illustration">
+      <img src="./assets/surfing_cowboy.png" alt="A cowboy surfing on horseback" width="2048" height="2048" loading="lazy" decoding="async">
       <img src="./assets/contact_information.png" alt="Frosty Dice contact information" width="4096" height="1714" loading="lazy" decoding="async">
     </footer>
+    <dialog id="additional-rules-dialog" class="additional-rules-dialog" aria-labelledby="additional-rules-heading">
+      <div class="additional-rules-header">
+        <h2 id="additional-rules-heading">Additional Rules</h2>
+        <button id="close-additional-rules" class="additional-rules-close" type="button" aria-label="Close Additional Rules" autofocus><span aria-hidden="true">×</span></button>
+      </div>
+      <div id="additional-rules-text" class="additional-rules-text" tabindex="0"></div>
+    </dialog>
     <dialog id="challenge-dialog" class="challenge-dialog" aria-labelledby="challenge-heading" aria-describedby="bid-limit">
       <form id="challenge-form" class="challenge-content" novalidate>
         <h2 id="challenge-heading">MAKE YOUR BID</h2>

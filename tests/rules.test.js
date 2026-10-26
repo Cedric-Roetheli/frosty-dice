@@ -2,19 +2,36 @@ import { initializeRules, RULES_LANGUAGE_KEY } from "../js/rules.js";
 import { initializeApp } from "../js/app.js";
 import { STORAGE_KEY } from "../js/storage.js";
 import { appTestDocument, appTestStorage } from "./app-initialization.test.js";
-import { assert, assertEqual } from "./assert.js";
+import { assert, assertDeepEqual, assertEqual } from "./assert.js";
 
 function rulesDocument() {
   const document = appTestDocument();
   for (const [tag, id] of [["h2", "rules-heading"], ["img", "rules-image"],
     ["img", "rules-fill-de"], ["img", "rules-fill-en"],
-    ["button", "rules-language-de"], ["button", "rules-language-en"]]) {
+    ["button", "rules-language-de"], ["button", "rules-language-en"],
+    ["button", "open-additional-rules"], ["dialog", "additional-rules-dialog"],
+    ["h2", "additional-rules-heading"], ["div", "additional-rules-text"],
+    ["button", "close-additional-rules"]]) {
     const node = document.createElement(tag);
     node.id = id;
+    node.style = {};
     if (tag === "button") node.type = "button";
     document.root.append(node);
   }
   document.getElementById("rules-heading").textContent = "Rules";
+  document.body = document.root;
+  document.body.style = { position: "", top: "", left: "", width: "", overflow: "" };
+  document.defaultView.scrollX = 0;
+  document.defaultView.scrollY = 0;
+  document.defaultView.scrollCalls = [];
+  document.defaultView.scrollTo = (options) => {
+    document.defaultView.scrollCalls.push(options);
+    document.defaultView.scrollX = options.left;
+    document.defaultView.scrollY = options.top;
+  };
+  document.getElementById("additional-rules-dialog").getBoundingClientRect = () => ({
+    left: 20, top: 20, right: 300, bottom: 500,
+  });
   return document;
 }
 
@@ -36,6 +53,15 @@ function assertLanguage(document, language) {
   }
 }
 
+function openAdditionalRules(document) {
+  document.getElementById("open-additional-rules").emit("click");
+  return document.getElementById("additional-rules-dialog");
+}
+
+function closeAdditionalRules(document) {
+  document.getElementById("close-additional-rules").emit("click");
+}
+
 export function runRulesTests() {
   const results = [];
   function test(name, action) {
@@ -51,7 +77,7 @@ export function runRulesTests() {
     assertEqual(storage.getItem(RULES_LANGUAGE_KEY), null);
   });
 
-  test("DE selects the German illustration, yellow fill, and dedicated preference", () => {
+  test("DE selects the German illustration, active fill, and dedicated preference", () => {
     const document = rulesDocument();
     const storage = appTestStorage();
     initializeRules(document, storage);
@@ -181,6 +207,188 @@ export function runRulesTests() {
     selectLanguage(document, "en");
     assertLanguage(document, "en");
     assertEqual(storage.getItem(RULES_LANGUAGE_KEY), "de");
+    const dialog = openAdditionalRules(document);
+    assertEqual(dialog.lang, "en");
+    closeAdditionalRules(document);
+  });
+
+  test("The English yellow box opens the exact English paragraphs with accessible focus", () => {
+    const document = rulesDocument();
+    initializeRules(document, appTestStorage());
+    const dialog = openAdditionalRules(document);
+    assertEqual(dialog.open, true);
+    assertEqual(dialog.lang, "en");
+    assertEqual(document.getElementById("additional-rules-heading").textContent, "Additional Rules");
+    assertDeepEqual(document.getElementById("additional-rules-text").children.map((node) => node.textContent), [
+      "All numbers placed on the board turn into points.",
+      "Placing two prime numbers next to eachother freezes the cell.",
+      "Points may be used to challenge another player. The challenge is a blind auction and works as follows: both players secretly bid points, bids are then confirmed and revealed. The higher bid wins.",
+      "Both bids are spent and the points subtracted from the players.",
+      "The winner may freeze a cell of the losers board or unfreeze their own cell.",
+    ]);
+    assertEqual(document.activeElement, document.getElementById("close-additional-rules"));
+    assertEqual(document.body.style.position, "fixed");
+  });
+
+  test("The German yellow box opens the exact German heading and paragraphs", () => {
+    const document = rulesDocument();
+    initializeRules(document, appTestStorage());
+    selectLanguage(document, "de");
+    const dialog = openAdditionalRules(document);
+    assertEqual(dialog.lang, "de");
+    assertEqual(document.getElementById("additional-rules-heading").textContent, "Zusätzliche Regeln");
+    assertEqual(document.getElementById("close-additional-rules").getAttribute("aria-label"), "Zusätzliche Regeln schließen");
+    assertDeepEqual(document.getElementById("additional-rules-text").children.map((node) => node.textContent), [
+      "Alle Zahlen, die auf dem Spielfeld platziert werden, zählen als Punkte.",
+      "Werden zwei Primzahlen nebeneinander platziert, friert das entsprechende Feld ein.",
+      "Punkte können verwendet werden, um einen anderen Spieler herauszufordern. Die Herausforderung erfolgt in Form einer verdeckten Auktion und funktioniert wie folgt:",
+      "Beide Spieler bieten geheim eine bestimmte Anzahl Punkte. Sobald beide Gebote bestätigt wurden, werden sie aufgedeckt. Der Spieler mit dem höheren Gebot gewinnt.",
+      "Beide Spieler verlieren die jeweils gebotenen Punkte, unabhängig davon, wer gewonnen hat.",
+      "Der Gewinner darf entweder ein Feld auf dem Spielfeld des Verlierers einfrieren oder eines seiner eigenen eingefrorenen Felder auftauen.",
+    ]);
+  });
+
+  test("Only the measured yellow-box button opens the popup for either image", () => {
+    const document = rulesDocument();
+    initializeRules(document, appTestStorage());
+    document.getElementById("rules-image").emit("click");
+    assertEqual(document.getElementById("additional-rules-dialog").open, false);
+    for (const language of ["en", "de"]) {
+      selectLanguage(document, language);
+      const trigger = document.getElementById("open-additional-rules");
+      assertEqual(trigger.hidden, false);
+      assertEqual(parseFloat(trigger.style.left), 73 / 2480 * 100);
+      assertEqual(parseFloat(trigger.style.top), 2754 / 3508 * 100);
+      assertEqual(parseFloat(trigger.style.width), 2312 / 2480 * 100);
+      assertEqual(parseFloat(trigger.style.height), 696 / 3508 * 100);
+      trigger.focus();
+      trigger.emit("click", trigger, { detail: 0 });
+      assertEqual(document.getElementById("additional-rules-dialog").open, true);
+      closeAdditionalRules(document);
+    }
+  });
+
+  test("The close button restores exact page styles, scroll position, and opener focus", () => {
+    const document = rulesDocument();
+    const previous = { position: "relative", top: "4px", left: "2px", width: "98%", overflow: "visible" };
+    Object.assign(document.body.style, previous);
+    document.defaultView.scrollX = 7;
+    document.defaultView.scrollY = 1730;
+    initializeRules(document, appTestStorage());
+    const dialog = openAdditionalRules(document);
+    assertEqual(document.body.style.top, "-1730px");
+    assertEqual(document.body.style.overflow, "hidden");
+    closeAdditionalRules(document);
+    assertEqual(dialog.open, false);
+    assertDeepEqual(document.body.style, previous);
+    assertDeepEqual(document.defaultView.scrollCalls, [{ left: 7, top: 1730, behavior: "instant" }]);
+    assertEqual(document.activeElement, document.getElementById("open-additional-rules"));
+    assertDeepEqual(document.activeElement.lastFocusOptions, { preventScroll: true });
+  });
+
+  test("Escape closes the popup and stops the event before underlying game handlers", () => {
+    const document = rulesDocument();
+    initializeRules(document, appTestStorage());
+    const dialog = openAdditionalRules(document);
+    let stopped = false;
+    const event = dialog.emit("keydown", dialog, { key: "Escape", stopPropagation() { stopped = true; } });
+    assertEqual(event.defaultPrevented, true);
+    assertEqual(stopped, true);
+    assertEqual(dialog.open, false);
+    assertEqual(document.body.style.position, "");
+  });
+
+  test("Native cancellation also closes the popup and unlocks scrolling", () => {
+    const document = rulesDocument();
+    initializeRules(document, appTestStorage());
+    const dialog = openAdditionalRules(document);
+    assertEqual(dialog.emit("cancel").defaultPrevented, true);
+    assertEqual(dialog.open, false);
+    assertEqual(document.body.style.position, "");
+  });
+
+  test("A backdrop tap closes, while content, padding, and dragging out do not", () => {
+    const document = rulesDocument();
+    initializeRules(document, appTestStorage());
+    const dialog = openAdditionalRules(document);
+    const text = document.getElementById("additional-rules-text");
+    dialog.emit("pointerdown", text, { clientX: 40, clientY: 40 });
+    dialog.emit("click", text, { clientX: 40, clientY: 40 });
+    assertEqual(dialog.open, true);
+    dialog.emit("pointerdown", dialog, { clientX: 30, clientY: 30 });
+    dialog.emit("click", dialog, { clientX: 30, clientY: 30 });
+    assertEqual(dialog.open, true);
+    dialog.emit("pointerdown", text, { clientX: 40, clientY: 40 });
+    dialog.emit("click", dialog, { clientX: 10, clientY: 10 });
+    assertEqual(dialog.open, true);
+    dialog.emit("pointerdown", dialog, { clientX: 10, clientY: 10 });
+    dialog.emit("click", dialog, { clientX: 10, clientY: 10 });
+    assertEqual(dialog.open, false);
+    assertEqual(document.body.style.position, "");
+  });
+
+  test("Reopening uses the current language, replaces old paragraphs, and starts at the top", () => {
+    const document = rulesDocument();
+    initializeRules(document, appTestStorage());
+    openAdditionalRules(document);
+    document.getElementById("additional-rules-text").scrollTop = 200;
+    closeAdditionalRules(document);
+    selectLanguage(document, "de");
+    const dialog = openAdditionalRules(document);
+    assertEqual(dialog.lang, "de");
+    assertEqual(document.getElementById("additional-rules-text").children.length, 6);
+    assertEqual(document.getElementById("additional-rules-text").scrollTop, 0);
+    closeAdditionalRules(document);
+    selectLanguage(document, "en");
+    openAdditionalRules(document);
+    assertEqual(document.getElementById("additional-rules-text").children.length, 5);
+  });
+
+  test("Repeated opening and late close events cannot overwrite the saved scroll position", () => {
+    const document = rulesDocument();
+    document.defaultView.scrollY = 1730;
+    initializeRules(document, appTestStorage());
+    const dialog = openAdditionalRules(document);
+    document.defaultView.scrollY = 0;
+    openAdditionalRules(document);
+    dialog.emit("close");
+    assertEqual(document.body.style.position, "fixed");
+    closeAdditionalRules(document);
+    assertEqual(document.defaultView.scrollY, 1730);
+    assertEqual(document.defaultView.scrollCalls.length, 1);
+  });
+
+  test("External dialog closure restores scrolling, including when opening fails", () => {
+    const document = rulesDocument();
+    initializeRules(document, appTestStorage());
+    const dialog = openAdditionalRules(document);
+    dialog.close();
+    dialog.emit("close");
+    assertEqual(document.body.style.position, "");
+    dialog.showModal = () => { throw new Error("Cannot open"); };
+    let rejected = false;
+    try { openAdditionalRules(document); } catch { rejected = true; }
+    assertEqual(rejected, true);
+    assertEqual(document.body.style.position, "");
+  });
+
+  test("Opening and closing Additional Rules preserves the real game, Undo, Challenge, and language preference", () => {
+    const document = rulesDocument();
+    const storage = appTestStorage();
+    initializeApp(document, storage);
+    initializeRules(document, storage);
+    selectLanguage(document, "de");
+    document.getElementById("board-rows").emit("click", document.getElementById("cell-A1"));
+    document.getElementById("cell-A1").value = "22";
+    document.getElementById("cell-A1").emit("input");
+    const savedGame = storage.getItem(STORAGE_KEY);
+    openAdditionalRules(document);
+    closeAdditionalRules(document);
+    assertEqual(storage.getItem(STORAGE_KEY), savedGame);
+    assertEqual(storage.getItem(RULES_LANGUAGE_KEY), "de");
+    assertEqual(document.getElementById("current-score").textContent, "44");
+    assertEqual(document.getElementById("undo-move").disabled, false);
+    assertEqual(document.getElementById("challenge-dialog").open, false);
   });
 
   return results;
