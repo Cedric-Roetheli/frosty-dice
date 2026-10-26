@@ -144,6 +144,21 @@ export async function runPwaTests(sources) {
     assert(sources.html.includes('src="./js/pwa.js"'));
   });
 
+  await test("Rules keep their anchor and English heading with semantic accessible language buttons", () => {
+    assert(sources.html.includes('href="#rules"'));
+    assert(sources.html.includes('<h2 id="rules-heading">Rules</h2>'));
+    assert(sources.html.includes('id="rules-image" src="./assets/Rules.png"'));
+    assert(sources.html.includes('src="./js/rules.js"'));
+    for (const [language, label, pressed] of [["de", "Deutsch", "false"], ["en", "English", "true"]]) {
+      const button = sources.html.match(new RegExp('<button id="rules-language-' + language + '"[^>]*>'))?.[0];
+      assert(button, language);
+      assert(button.includes('type="button"'));
+      assert(button.includes('aria-label="' + label + '"'));
+      assert(button.includes('aria-pressed="' + pressed + '"'));
+      assert(button.includes('aria-controls="rules-image"'));
+    }
+  });
+
   await test("Registration waits for page load and checks for updates without the HTTP cache", async () => {
     const calls = [];
     await registrationHarness(sources.registration, { async register(...args) { calls.push(args); } });
@@ -177,12 +192,12 @@ export async function runPwaTests(sources) {
   await test("A failed new installation leaves the previous cache intact and never claims clients", async () => {
     const worker = workerHarness(sources.worker);
     const original = new Map([[absolute("/index.html"), response("previous release")]]);
-    worker.stores.set("frosty-dice-pwa-v1", original);
+    worker.stores.set("frosty-dice-pwa-v3", original);
     worker.installFailure = true;
     let rejected = false;
     try { await worker.lifecycle("install"); } catch { rejected = true; }
     assert(rejected);
-    assertEqual(worker.stores.get("frosty-dice-pwa-v1"), original);
+    assertEqual(worker.stores.get("frosty-dice-pwa-v3"), original);
     assertEqual(worker.claimed, false);
   });
 
@@ -190,10 +205,12 @@ export async function runPwaTests(sources) {
     const worker = workerHarness(sources.worker);
     await worker.lifecycle("install");
     worker.stores.set("frosty-dice-pwa-v1", new Map());
+    worker.stores.set("frosty-dice-pwa-v3", new Map());
     worker.stores.set("another-app-cache", new Map());
     await worker.lifecycle("activate");
     assert(worker.stores.has(worker.CACHE_NAME));
     assert(!worker.stores.has("frosty-dice-pwa-v1"));
+    assert(!worker.stores.has("frosty-dice-pwa-v3"));
     assert(worker.stores.has("another-app-cache"));
     assertEqual(worker.claimed, true);
   });
@@ -227,6 +244,18 @@ export async function runPwaTests(sources) {
         headers: { "accept-encoding": "gzip, deflate, br", accept: "image/webp,image/*,*/*;q=0.8" },
       });
       assertEqual(result.body, "cached:" + absolute(path), path);
+    }
+    assertEqual(worker.networkCalls.length, 0);
+  });
+
+  await test("Both Rules illustrations, selector, fill overlays, and controller are precached for offline switching", async () => {
+    const worker = workerHarness(sources.worker);
+    await worker.lifecycle("install");
+    worker.offline = true;
+    for (const path of ["/assets/Rules.png", "/assets/rules_german.png", "/assets/language_select.png",
+      "/assets/language_de_fill.png", "/assets/language_en_fill.png", "/js/rules.js"]) {
+      assert(worker.PRECACHE_URLS.includes(path), path);
+      assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
     }
     assertEqual(worker.networkCalls.length, 0);
   });

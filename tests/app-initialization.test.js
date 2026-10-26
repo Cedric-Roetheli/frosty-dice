@@ -71,7 +71,7 @@ class AppTestElement {
   }
 }
 
-function appTestDocument() {
+export function appTestDocument() {
   let nextTimer = 0;
   const pendingTimers = new Map();
   const document = {
@@ -137,7 +137,7 @@ function appTestDocument() {
   return document;
 }
 
-function appTestStorage(serialized = null) {
+export function appTestStorage(serialized = null) {
   const values = new Map();
   if (serialized !== null) values.set(STORAGE_KEY, serialized);
   return {

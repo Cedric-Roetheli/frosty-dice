@@ -391,6 +391,36 @@ requests with different `Vary` headers. Static checks verified all 21 runtime
 URLs against the precache and 23 successful HTTP responses/MIME types.
 No browser automation, screenshots, commit, or push was performed.
 
+## Bilingual Rules — Illustrated language selector
+
+Keep the English Rules heading and existing signpost navigation. Add the
+unchanged DE/EN illustration with semantic transparent buttons and precise
+yellow interior overlays beneath its original outlines. Switch between the
+unchanged English/German rules assets in place, preserving each natural aspect
+ratio and all handwritten content. Keep existing landscape/game UI unchanged.
+
+Store only the independent `en`/`de` preference under
+`frosty-dice.rules-language`, defaulting safely to English. Keep Reset, Undo,
+Challenge, canonical saves, and version 7 unchanged. Use an independent rules
+controller, native keyboard activation, pressed state, and visible focus.
+
+Precache the new controller, German illustration, selector, and two generated
+fill PNGs. Bump the cache from `frosty-dice-pwa-v3` to `frosty-dice-pwa-v4` while
+preserving atomic install, waiting, cleanup, and offline navigation. Add focused
+controller/reset/storage and offline regressions; run the full suite once.
+Manual visual testing remains on iPhone, without browser automation or screenshots.
+
+**Status: Implemented for manual iPhone evaluation.** The full suite ran once
+in JavaScriptCore: **353/353 passed**, including 11 Rules tests, 16 PWA tests,
+and all 326 existing game tests. Checks cover preference restoration, invalid
+or blocked storage, keyboard-originated clicks, exclusive active fills, and the
+real confirmed-reset path preserving the preference. Static checks verified
+26/26 runtime precache URLs, 28 successful HTTP responses/MIME types, unchanged
+source illustrations, and accurate transparent letter cutouts. Gameplay
+modules, version-7 storage, existing CSS outside the selector, standalone meadow
+correction, and worker lifecycle/fetch strategy are unchanged. No browser
+automation, screenshots, commit, or push was performed.
+
 ## Workflow
 
 Read the specifications, implement the current scope, keep rules deterministic,

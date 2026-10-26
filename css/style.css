@@ -140,6 +140,52 @@ main {
   height: auto;
 }
 
+.rules-language-selector {
+  position: relative;
+  width: 40%;
+  min-width: 7rem;
+  max-width: 12rem;
+  min-height: 48px;
+  margin: 0 auto 0.5rem;
+  isolation: isolate;
+}
+
+.rules-language-selector__fill {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.rules-language-selector__art {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.rules-language-selector__button {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+#rules-language-en { left: 50%; }
+
+.rules-language-selector__button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
 .contact-illustration {
   width: 96%;
   max-width: 32rem;

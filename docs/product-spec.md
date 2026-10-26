@@ -304,16 +304,37 @@ Both images remain clipped inside existing cell bounds, behind numbers and
 markers. Cells, grid dimensions, interactions, and Prime-thawed treatment do not
 change. General visual redesign and PNG optimization remain deferred.
 
-A transparent rules illustration (`assets/Rules.png`) appears in a plain section
-after the game interface, with a large centered white Rules heading and no card
-surface.
+A bilingual rules illustration appears in a plain section after the game
+interface, with a large centered white Rules heading that stays English and
+no card surface.
 Keep the game region at least as tall as the existing horizon height, without
 moving its controls. Add responsive spacing matching the scaled PNG's lower
 painted ground (941/1440 of its displayed width), plus 1.5rem, so the section
 begins near the transition to solid-green continuation. Leave 0.5rem between
-the heading and image and 2rem of bottom breathing room.
-Use 96% of available width, capped at 36rem, centered with its original square
-aspect ratio. Keep the artwork unchanged and provide descriptive alt text.
+the heading and selector, selector and image, and 2rem of bottom breathing room.
+Use 96% of available width, capped at 36rem, centered. Display `assets/Rules.png`
+for English and `assets/rules_german.png` for German, without cropping either.
+Use each image's actual width/height to reserve space, with responsive width
+and automatic height. Do not assume matching aspect ratios or internal margins.
+Keep both artworks unchanged and provide descriptive alt text and language.
+
+Place the unchanged `assets/language_select.png` directly below the heading at
+40% container width, bounded by 7rem and 12rem. Transparent semantic Deutsch
+and English buttons cover its two halves, with at least 48px touch targets,
+native keyboard activation, `aria-pressed`, and a visible keyboard focus ring.
+Keep the selector unframed and the existing signpost anchor/navigation intact.
+
+Only the active language's letter bodies receive saturated yellow `#FFD600`.
+Use precise transparent overlays `language_de_fill.png` and
+`language_en_fill.png` below the original colorful outlines. Preserve D's hole,
+E's cutouts, and N's shape; do not tint the original or use rectangular fills.
+Generate these assets during development, with no runtime image processing.
+
+English is the default. The independent `frosty-dice.rules-language` preference
+stores only `en` or `de`; invalid or inaccessible preferences fall back to
+English, and blocked writes do not prevent switching during the visit. Reset,
+Undo, Challenge, game saves, and save version 7 remain independent. Switch
+in place without navigation, scrolling scripts, or fixed-height clipping.
 The existing full-page meadow layer and green fallback cover the image and
 spacing without repeating plants, moving the horizon, or altering game UI or
 JavaScript. No image-specific tests or browser automation are required.
@@ -395,6 +416,8 @@ Missing cache entries fall back to network; unrelated requests pass through.
 For these fixed static URLs, cache lookup ignores `Vary` request-header
 differences so conditional image requests reuse the precached artwork offline.
 Exact paths and query-string versions still apply.
+Precache both rules illustrations, the language selector, both fill overlays,
+and the independent rules controller so language switching works offline.
 
 Standalone display mode uses an 85%-of-stable-viewport meadow horizon to
 compensate for the missing browser bars. Normal browser mode retains 95%.

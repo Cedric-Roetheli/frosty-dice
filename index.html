@@ -12,9 +12,10 @@
     <link rel="icon" href="data:,">
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="./css/style.css?v=pwa-standalone-2">
+    <link rel="stylesheet" href="./css/style.css?v=bilingual-rules-1">
     <script type="module" src="./js/app.js?v=v3-multipliers-1"></script>
     <script type="module" src="./js/pwa.js"></script>
+    <script type="module" src="./js/rules.js"></script>
   </head>
   <body>
     <main>
@@ -75,7 +76,14 @@
     </main>
     <section id="rules" class="rules-illustration" aria-labelledby="rules-heading">
       <h2 id="rules-heading">Rules</h2>
-      <img src="./assets/Rules.png" alt="Hand-drawn Frosty Dice game rules" width="2048" height="2048" loading="lazy" decoding="async">
+      <div class="rules-language-selector" role="group" aria-label="Rules language">
+        <img id="rules-fill-de" class="rules-language-selector__fill" src="./assets/language_de_fill.png" alt="" width="1024" height="512" aria-hidden="true" hidden>
+        <img id="rules-fill-en" class="rules-language-selector__fill" src="./assets/language_en_fill.png" alt="" width="1024" height="512" aria-hidden="true">
+        <img class="rules-language-selector__art" src="./assets/language_select.png" alt="" width="1024" height="512" aria-hidden="true">
+        <button id="rules-language-de" class="rules-language-selector__button" type="button" lang="de" aria-label="Deutsch" aria-pressed="false" aria-controls="rules-image"></button>
+        <button id="rules-language-en" class="rules-language-selector__button" type="button" lang="en" aria-label="English" aria-pressed="true" aria-controls="rules-image"></button>
+      </div>
+      <img id="rules-image" src="./assets/Rules.png" alt="Hand-drawn Frosty Dice game rules" lang="en" width="2480" height="3508" loading="lazy" decoding="async">
     </section>
     <footer class="contact-illustration">
       <img src="./assets/contact_information.png" alt="Frosty Dice contact information" width="4096" height="1714" loading="lazy" decoding="async">
