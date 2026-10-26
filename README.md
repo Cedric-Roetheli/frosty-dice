@@ -1,318 +1,116 @@
-# Frosty Dice :)
+# Frosty Dice
 
-A mobile-first companion for a physical tabletop dice game. Each player uses
-their own phone as their game sheet. There is no backend or synchronization.
+Frosty Dice brings physical dice and a digital game board to the same table.
+Each player opens their own board in the browser. Roll with friends, choose
+your numbers, and let the app handle placement validation and points.
 
-Play Frosty Dice: [https://frostydice.com](https://frostydice.com).
+**[Play Frosty Dice → https://frostydice.com](https://frostydice.com)**
 
-## Current work
+## How to Play
 
-The redesign's first step changes the pure rules, canonical state, scoring,
-local-save format, and unit tests. The active player uses four physical dice;
-the core accepts a number without tracking its origin, rolls, or turns.
+1. On your turn, roll **four physical six-sided dice** and choose two. All other
+   players may use the remaining pair on their own boards.
+2. Form a two-digit number from your pair, in either order: 1 and 6 make 16 or
+   61. Tap an empty cell and type both digits; placement is attempted immediately
+   after the second digit.
+3. Begin at **Start (A1)** on your personal **4×7 board**. Later placements need
+   one usable adjacent neighbor: greater than the number to the left, smaller
+   than the number to the right, or equal to the number above or below. One
+   matching relationship is enough; diagonals do not count.
+4. Build points with **repdigits** (11, 22, …, 66), which score double, and
+   **Streets**: full rows of four normal cells without Attack Ice, consecutive
+   in possible dice-number order, such as 24, 25, 26, 31. Streets double each
+   cell's contribution, giving a Street repdigit **4x** its value.
+5. Watch for **Prime Ice**: placing a prime beside another prime freezes the new
+   cell. A previous freeze thaws but remains permanently scoreless. Use
+   **Secret Bid Challenges** to contest temporary **Attack Ice** with other
+   players; compare bids and resolve the outcome together at the table.
+6. Aim for the highest score while reaching the **End flag (D7)** with a usable
+   cell. The app shows your local goal; table-wide end-of-game timing is not
+   enforced.
 
-The board is the main input interface. Tap an empty cell and type directly into
-it; the second digit automatically attempts placement. The shared game operation
-validates the move without number suggestions or legal-target highlighting.
-Illegal attempts restore the empty cell and show a temporary overlay reason.
-Leaving the cell, Escape, or a tap elsewhere discards an unfinished draft.
+See the [complete game rules](./docs/game-rules.md) for ice effects, Challenge
+outcomes, scoring details, and the open question about end-of-game timing.
 
-Successful placements update the score, Streets, and goal and save automatically.
-Values/statuses restore through the versioned loader. New Game / Reset
-still requires confirmation. Selection and drafts are temporary UI state.
-Occupied values are readonly; tapping a normal or thawed cell offers Freeze or
-Unfreeze for temporary Attack Ice. Physical Challenges are resolved at the table.
-A compact Challenge control opens a secret point bid on the supplied banknote.
-Confirm spends the bid once and keeps it visible for physical reveal; Close
-cancels an unconfirmed bid or dismisses a confirmed one without refund. The app
-does not compare bids or automatically apply Attack Ice.
-The ↶ button immediately left of Score restores
-the entire board before the last successful placement or Attack Ice action, including all Prime
-statuses and Attack Ice, and consumes that one snapshot. It works after reload and closes any
-unsubmitted entry. Illegal attempts and cancellation preserve Undo; confirmed
-reset clears it. There is no direct value correction, Redo, or history stack.
-Prime-frozen cells show `icecube.png` beneath their value; Attack-Iced cells
-show `icecube2.png`. Thawed cells retain a quiet Thawed marker and have no Prime
-ice cube, even when temporarily covered by Attack Ice.
-Obsolete roll/source/counter/Schnapszahl/removal controls have been removed.
-The board layout and frozen-cell treatment are preserved; broad visual polish
-is deferred. No browser automation or visual testing is part of this task.
+## Features
 
-Read [AGENTS.md](./AGENTS.md) and the [specifications](./docs/) before changes.
-The [game rules](./docs/game-rules.md) define mechanics and the
-[implementation plan](./docs/implementation-plan.md) defines the redesign steps.
+- Mobile-friendly board with direct inline number entry and placement validation.
+- Automatic points, Street detection, and single **2x / 4x** cell indicators.
+- Prime freeze/thaw states and manual Attack Ice controls.
+- Secret Bid Challenge with confirmed point spending and a bid reveal screen.
+- One-step **Undo**, automatic local saves, and a confirmed New Game reset.
+- English/German illustrated Rules with a light-blue language selection and a
+  readable **Additional Rules** popup.
+- Hand-drawn title, illustrated D7 flag, and surfing-cowboy footer.
+- Installable **Progressive Web App (PWA)** with offline play after initial caching.
 
-## Core model
+Play directly in the browser or use its **Add to Home Screen / Install** option.
+Open each browser or installed app online first and let the complete offline
+cache finish installing. On iOS, an installed app has separate website data;
+your existing Safari game is not automatically transferred. Saves stay in that
+browser/app on that device, with no account or cloud sync. Browser storage can
+be cleared or evicted.
 
-State is `{ board, undo, pointsSpent? }`; omitted spending means zero. `undo` is
-null or a deep-cloned `{ board, pointsSpent? }` from before
-the last successful state-changing action, never an older Undo. Each board has seven rows
-of four entries:
+## Development
 
-- `null`: empty.
-- `{ value: 16, status: "normal" }`: a normal occupied cell.
-- `{ value: 13, status: "frozen" }`: the currently frozen occupied prime.
-- `{ value: 31, status: "thawed" }`: an occupied, usable, permanently scoreless prime.
+Built with **HTML, CSS, and vanilla JavaScript ES modules**. No framework,
+third-party dependencies, backend, or build step is required.
 
-A1 is `board[0][0]`; D7 is `board[6][3]`. Values must contain two digits from
-1–6. Status must be one of these three values. A current freeze must hold a
-prime. Legacy thawed values retain permanent zero points.
-An independent optional `attackIce: true` flag represents temporary Attack Ice;
-removing it leaves the value and Prime status intact. Board validation rejects
-more than one Prime freeze, more than one Attack Ice, or both on the same cell.
-
-Statuses are historical state. When a legal new prime touches any occupied
-prime, it freezes and the previous currently frozen cell thaws. Frozen and
-thawed primes both count as prime contact; only normal/thawed neighbors can make
-a placement legal. Validate before thawing. Previously thawed cells retain
-their number, never recover their points, and cannot be overwritten. Current
-adjacency must never retroactively freeze existing normal cells.
-
-## Pure APIs
-
-`js/game.js` provides:
-
-- `createEmptyBoard`, `createGameState`, and `cloneBoard`.
-- `isValidNumber`, `isPrimeNumber`, `isValidCell`, and board/cell validation.
-- `getCell`, `getCellValue`, and empty/occupied/frozen/thawed/usable cell helpers.
-- `validatePlacement`, `canPlaceNumber`, and `getLegalTargetCells`.
-- `placeNumber` for boards and `placeGameNumber` for source-neutral state.
-- `canApplyAttackIce`, `isCellAttackIced`, `applyAttackIce`, and `removeAttackIce`
-  for the independent overlay; `freezeGameCell`/`unfreezeGameCell` capture Undo.
-- `canUndo` and `undoLastMove` for consuming one complete prior-board snapshot.
-- `isValidGameState`, `isValidUndoSnapshot`, and `cloneGameState` for bounded,
-  independently cloned canonical state.
-- `parseNumberInput`, `generateDiceNumbers`, and `getDiceOptions` for optional
-  number entry from an already chosen physical pair. These helpers do not roll.
-- `hasReachedGoal`: true for a normal or thawed occupied D7, false under Prime Ice or Attack Ice.
-
-Placement is immutable and guarded. Empty boards start at A1; other placements
-need at least one usable orthogonal relationship. Normal left/right neighbors
-require strictly greater/smaller values respectively; normal upper/lower
-neighbors require equality. Diagonals, Prime-frozen neighbors, and Attack-Iced neighbors cannot support it.
-Occupied cells cannot be overwritten. Undo restores a complete snapshot rather
-than changing a historical value or reversing effects individually. There is
-no standalone number-removal API.
-
-`js/scoring.js` provides `isStreetRow`, `getCellScoreMultiplier`,
-`getScoreBreakdown`, and `calculateScore`.
-Score is the normal-cell sum (repdigits 11/22/33/44/55/66 doubled), plus
-Street bonuses minus confirmed bid spending, with a minimum of 0 and no roll
-divisor. Score helpers accept optional
-`pointsSpent` after the board. Shared board validation lives in `js/board-state.js`
-and is re-exported from `game.js`, so scoring and game actions share it without
-a circular dependency. `parseBidInput`, `validateBid`, and `confirmGameBid` keep
-bid parsing, affordability, and guarded spending independent of the DOM.
-Each complete A–D row of normal consecutive possible dice numbers receives
-its scoring contributions again as a Street bonus. The sequence skips impossible
-values, such as 56 → 61. A normal repdigit scores 2x; in a Street it scores 4x,
-while ordinary Street cells score 2x. The same pure multiplier determines points
-and one small corner indicator per applicable cell, using the existing Street
-marker style. There are no stacked indicators or additional bonuses.
-Frozen and thawed cells contribute 0 permanently and disqualify their Street row.
-Attack Ice retains normal base points, temporarily suppresses Streets, and leaves
-no damage when removed. The breakdown exposes `baseSum`, `streetBonus`, `streetRows`, and `score`.
-
-## Local snapshot format
-
-`js/storage.js` stores `{ version: 7, state: { board, undo, pointsSpent? } }` under
-`frosty-dice.game`. Undo is null or one `{ board, pointsSpent? }` snapshot. Values, Prime statuses, and
-Attack overlays are deep-copied; derived displays, input drafts, source metadata, and
-older history are omitted. Saved snapshot/current-board pairs must match one
-legal placement, Attack Ice action, or confirmed affordable bid under the shared
-engine; restoration copies the snapshot itself. Unfinished bids and dialog state
-are never stored.
-
-Valid version-6 saves preserve Prime/Attack Ice and Undo with zero spending.
-Valid version-5 saves preserve their existing Undo without Attack Ice.
-Attack Ice fields in legacy versions are rejected rather than guessed.
-Valid version-3/4 board-only saves restore unchanged with Undo unavailable.
-Legacy permanent damage is preserved. Unambiguous version-2 boolean records
-still migrate; version-1 numeric, malformed, ambiguous, mixed, and unknown
-formats fall back safely with a visible status and preserve the original save.
-
-Loading never rewrites data. Successful placement, Attack Ice actions, confirmed
-bids, and Undo save version 7;
-consumption writes `undo: null`, and confirmed reset removes the game key.
-Missing saves return `missing`; storage errors return `unavailable`. No
-unrelated keys are touched.
-
-## Tests and local serving
-
-There is no dependency installation, build step, or backend. To serve the
-independent test page locally:
+From the repository root:
 
 ```sh
-python3 -m http.server 8000 --bind 127.0.0.1
+python3 -m http.server 8000
 ```
 
-Open [the test page](http://127.0.0.1:8000/tests/) if you want to inspect results
-manually. Stop the server with Ctrl+C. Native module loading requires HTTP rather
-than opening files directly. This is a development convenience, not a deployment
-requirement.
+Open [http://localhost:8000](http://localhost:8000). Serve over HTTP rather than
+opening `index.html` directly so native ES modules load correctly. Stop the
+server with Ctrl+C.
 
-The pure modules cover existing placement behavior, cell-record validation,
-prime freezing, usability, number parsing, plain scoring, Streets, normal/frozen
-D7, and canonical storage. Obsolete turn/action test modules have been removed.
+To run the existing automated tests, open
+[http://localhost:8000/tests/](http://localhost:8000/tests/) while the server is
+running. The [test runner](./tests/test-runner.js) reports results on that page
+and covers rules, scoring, persistence, UI coordination with test doubles,
+Rules controls, and service-worker behavior.
 
-The core refactor's suite ran once in JavaScriptCore outside a browser:
-105/105 passed. Startup regression tests additionally exercise initialization,
-save fallbacks, frozen-record rendering, shared placement, and confirmed reset
-using a small document/storage test double, without a browser or layout engine.
+Before contributing, read [AGENTS.md](./AGENTS.md), the
+[game rules](./docs/game-rules.md), [product specification](./docs/product-spec.md),
+and [implementation plan](./docs/implementation-plan.md). Pure rules live in
+`js/game.js` and `js/board-state.js`, scoring in `js/scoring.js`, UI coordination
+in `js/app.js` and `js/rules.js`, and persistence in `js/storage.js`.
 
-After the compatibility repair, the full suite ran once in JavaScriptCore:
-**113/113 passed**, including eight startup/interaction regressions. Module
-imports were checked against their actual exports before running the tests.
-No browser automation was performed.
+Maintenance notes:
 
-The freeze/thaw revision's full suite ran once in JavaScriptCore:
-**131/131 passed**, including status migration, permanent damage, thawed D7,
-and minimal text-marker regressions. No browser, screenshot, or viewport testing
-was performed; no image assets were added.
+- The version-7 game save uses `frosty-dice.game`: board values, historical Prime
+  statuses, Attack Ice, confirmed spending, and one complete pre-action Undo.
+  Preserve those statuses; never infer them again from current neighbors.
+  Score, Streets, goal, and input drafts are not stored. The product spec
+  documents supported migrations and safe invalid-save handling.
+- The independent `frosty-dice.rules-language` preference survives game resets.
+- If `assets/language_select.png` changes, regenerate its two interior fill
+  overlays. The masks flood-fill enclosed transparent letter bodies, extending
+  one pixel under the original antialiased outlines while preserving holes and
+  cutouts. The current fill is `#66D9FF`; no runtime image processing is used.
 
-The targeted integration follow-up ran the full suite once in JavaScriptCore:
-**136/136 passed**, including both entry paths for the three-prime sequence,
-save/render/reload checks, ice-cube rendering with bounded fallback dimensions,
-and rejection of mixed save formats. These coordinator tests use document and
-storage doubles; no browser or visual testing was performed.
+## Deployment
 
-After replacing the old entry widgets with cell-first interaction, the full
-suite ran once in JavaScriptCore: **159/159 passed** (122 unchanged core tests
-and 37 coordinator tests). No browser automation, screenshots, or viewport
-tests were performed. The game, scoring, and storage modules are unchanged.
+GitHub Pages serves the repository root from **`main`** at
+[https://frostydice.com](https://frostydice.com), configured by [CNAME](./CNAME).
+The [PWA manifest](./manifest.webmanifest) and service worker target this root
+domain. PWA testing requires HTTPS, with `localhost` supported for development;
+plain HTTP on a LAN address does not provide service-worker support.
 
-The current follow-up adds one-step complete-state Undo and removes direct
-occupied-cell correction. Its coordinator and persistence tests use document
-and storage doubles; no browser or layout engine is used.
+For **every deployment that changes cached application files or assets**, bump
+`CACHE_NAME`'s version in [service-worker.js](./service-worker.js). Keep
+`PRECACHE_URLS` aligned with new/removed files and exact query-string versions
+used by HTML and module imports. Installation fetches the complete fresh
+application cache atomically; a failed install leaves the previous release usable.
 
-The full suite ran once in JavaScriptCore: **195/195 passed**, including 15 pure
-Undo, 50 coordinator, and 28 storage tests. Existing game-engine regressions
-remain in the suite. No browser automation, screenshots, or viewport tests were
-performed; no commit or push was made.
+Online launches check for worker updates. A new release waits until all existing
+Frosty Dice windows/tabs close, then activates and removes obsolete Frosty Dice
+caches. Reopen to use the update. This avoids a forced reload during play and
+leaves local game saves intact.
 
-- `tests/game.test.js`: board/state helpers and placement regressions.
-- `tests/frozen-prime.test.js`: prime/contact rules, freeze movement, permanent
-  damage, thawed usability, and immutable state.
-- `tests/number-input.test.js`: source-neutral input and chosen-pair options.
-- `tests/scoring.test.js`: sums, frozen exclusions, and Street bonuses.
-- `tests/goal.test.js`: goal detection with normal/frozen D7.
-- `tests/storage.test.js`: status restoration, legacy migration/fallback, and storage failures.
-- `tests/undo.test.js`: exact snapshots, freeze/thaw restoration, score/Street/goal
-  rollback, deep-copy isolation, consumption, and bounded-history validation.
-- `tests/attack-ice.test.js`: independent overlay effects, atomic movement, Prime
-  coexistence, placement support, base points, Streets, D7, and exact Undo.
-- `tests/challenge.test.js`: integer bid validation, available Score, spending,
-  complete Undo, serialization, migration, and malformed spending guards.
-- `tests/app-initialization.test.js`: cell-first selection/submission, error
-  correction, cancellation, occupied-cell guards, score/Street/goal feedback,
-  save restoration/reset, one-step Undo, and A1=23 → B1=31 → A2=23 integration.
-- `tests/fixtures.js` and `tests/assert.js`: dependency-free test helpers.
-- `tests/pwa.test.js`: isolated worker/Cache/Fetch and registration doubles for
-  offline navigation, required assets, update isolation, cleanup, and failures.
+## Credits
 
-Attack Ice adds 33 focused pure tests, 17 coordinator tests through the actual
-registered UI handlers, and eight persistence/migration tests. The full suite
-ran once in JavaScriptCore: **253/253 passed**, retaining all existing cases.
-No browser automation, screenshots, or viewport tests were performed.
-
-The V3 Secret Bid and scoring refinement suite ran once in JavaScriptCore:
-**316/316 passed**, including repdigit contributions, possible-number Streets,
-unchanged ice eligibility, Challenge spending, complete Undo, and persistence.
-Coordinator tests use document/storage doubles; no browser automation or
-screenshots were performed. The larger banknote bid and outlined Challenge
-button remain for manual iPhone evaluation.
-
-## GitHub Pages
-
-Assets and native JavaScript modules use relative paths, so the repository
-requires no server routing or build step. Production uses the custom root
-domain [frostydice.com](https://frostydice.com); CNAME is unchanged.
-
-## Bilingual Rules
-
-The illustrated DE/EN buttons below the Rules heading switch instantly between
-the unchanged English and German artwork. English is the default. The separate
-`frosty-dice.rules-language` localStorage key remembers `en` or `de`; game Reset,
-Undo, Challenge, and version-7 saves do not change it. Blocked storage still
-allows switching during the current visit.
-
-Two small light-blue PNG overlays follow the actual enclosed letter interiors in
-`language_select.png`, with the original outlines layered above. They were
-generated by flood-filling the transparent letter bodies and extending one pixel
-under the original anti-aliased edges. D's hole and the E/N cutouts stay clear.
-If the selector artwork changes, regenerate these masks for its new contours.
-There is no production image-processing dependency. Native transparent buttons
-provide touch/keyboard interaction, pressed state, and a keyboard focus ring.
-
-Both rules images retain their natural aspect ratios, including all handwritten
-content. Actual image dimensions reserve space, and switching does not navigate
-or reset scrolling. The selector is 40% wide, with 7rem/12rem bounds. All related
-assets and the independent `js/rules.js` controller are precached for offline use.
-
-Tap the yellow Additional Rules box at the bottom of either illustration to
-open a readable glass popup in the selected language. A small magnifier sits
-below its edge; the rest of the image is not clickable. The hit area uses
-individually measured source-pixel coordinates scaled to each image. All text
-is embedded in the cached controller, without network requests. Close using ×,
-the backdrop, or Escape; focus and page scroll return to the box. Game data,
-language preferences, and all mechanics remain unchanged.
-
-## Optional PWA and offline play
-
-The website remains immediately playable without installation, accounts, or a
-backend. Safari's Add to Home Screen and Chrome's Install/Add to Home Screen
-can additionally open Frosty Dice as a standalone app. The manifest uses `/`
-for its ID, start URL, and scope, with dark sky launch colors. Icons at 192,
-512, and Apple 180 pixels are resized from the unchanged opaque 1024px source;
-they use the complete artwork, without a maskable declaration or forced crop.
-
-After the first online visit **in each browser/installed-app context**, keep
-it online until the worker has installed its complete cache. All game modules,
-backgrounds, controls, Rules/contact illustrations, bid artwork, ice, and icons
-are precached, including lazily displayed artwork. Offline root/index navigation
-then opens the cached game and all existing actions work locally. Game state
-remains in `localStorage` version 7; the Cache API contains only static files.
-Browser-managed storage can be evicted, so offline use requires an intact cache.
-
-On iOS, Safari and an installed Home Screen app have separate website data:
-installation does not migrate a Safari game. The existing Safari save is kept;
-launch the installed app online once and test its own save/cache separately.
-See [WebKit's storage explanation](https://webkit.org/blog/14787/webkit-features-in-safari-17-2/).
-No state transfer or cloud save is added.
-
-`js/pwa.js` registers `/service-worker.js` after page load, with
-`updateViaCache: "none"`; unsupported/blocked registration is silent. The
-worker serves a coherent **cache-first, versioned application snapshot**,
-falling back to the network on cache misses. `/`, `/index.html`, and their
-query variants use cached `/index.html`. Unrelated/external requests pass through.
-Exact static URLs ignore `Vary` request-header differences during cache lookup,
-so conditional image requests can reuse the generic precache responses offline.
-
-For **every deployment that changes a cached file**, bump `CACHE_NAME`'s version
-in `service-worker.js` and update `PRECACHE_URLS` for changed URLs/new files.
-The worker precaches fresh responses (`cache: "reload"`) as one required batch;
-failed installation leaves the previous release available. Each online page
-load checks the worker script for updates, even when HTML is cached. A new
-worker waits for all existing Frosty Dice windows/tabs to close, then activates,
-deletes only older `frosty-dice-pwa-*` caches, and claims clients. Reopen to use
-the new snapshot. There is no forced mid-game reload or automatic state reset.
-This follows the [service-worker lifecycle](https://web.dev/articles/service-worker-lifecycle).
-
-The existing Python HTTP-server workflow remains valid on `localhost`.
-Real-device installation/offline tests should use HTTPS at frostydice.com;
-ordinary unencrypted LAN HTTP is not a service-worker test environment.
-In browser developer tools, confirm an activated worker and all 28 entries in
-`frosty-dice-pwa-v7` before testing airplane-mode launch. The title derivative
-and footer cowboy are included alongside all bilingual Rules assets. The
-installed app alone
-uses an 85%-of-stable-viewport meadow horizon; the normal browser keeps its
-approved 95% horizon. The artwork and the meadow controls' relative anchors are
-unchanged. Manual iPhone testing confirmed installation and offline gameplay;
-the illustrated header/footer composition needs a manual iPhone check.
-The full automated suite ran once in JavaScriptCore: **364/364 passed**,
-including 22 Rules tests, 16 PWA tests, and all 326 existing game tests. Static
-checks confirmed 28/28 runtime URLs in the precache and 30/30 HTTP responses/MIME
-types and unchanged supplied artwork. Popup regressions cover exact bilingual
-content, measured hit regions, close paths, focus/scroll restoration, and
-unchanged game saves and language preferences.
-No browser automation or screenshots were performed.
+Frosty Dice is a personal creative project. Thanks to everyone who rolled dice,
+playtested around the table, and shared ideas that helped shape the game.
