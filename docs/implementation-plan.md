@@ -474,6 +474,31 @@ unchanged artwork/light-blue fills, and unchanged gameplay/Challenge modules,
 prior CSS, and worker update strategy. No browser automation, screenshots,
 commit, or push was performed.
 
+## D7 finish flag — Empty-cell illustration
+
+Replace only empty D7's End text with the unchanged `assets/d7_flag.png`,
+centered in an 88% cell image box using contain sizing and no pointer events.
+Derive its presence from the existing board/entry render path: hide during
+inline editing or occupancy; restore after cancellation, rejected input, Undo,
+and confirmed Reset. Keep A1 and all occupied-cell rendering/logic unchanged.
+
+Precache the flag and update the CSS/app URLs and cache from v7 to v8, without
+changing worker lifecycle or game-state storage. Update focused rendering and
+interaction regressions and run the existing suite once. No browser automation,
+screenshots, commit, or push; manual flag-size evaluation remains on iPhone.
+
+**Status: Implemented for manual iPhone evaluation.** The full automated suite
+ran once in JavaScriptCore: **362/367 passed initially**. Five old tests assumed
+every board image was ice; their assertions now count ice images specifically,
+with a focused **5/5 recheck passed**. The other 362 cases passed unchanged,
+so all 367 cases are verified across the two runs. Three new D7 cases cover
+cancellation/rejection, occupied ice/multiplier states, and confirmed Reset;
+existing startup, legal placement, and Undo cases now verify the flag as well.
+Static checks verified all 29 runtime precache URLs and 31 HTTP responses/MIME
+types. Original artwork, core rules/scoring/storage, existing CSS, entry and
+Undo/Reset handlers, and the worker update strategy remain unchanged.
+No browser automation, screenshots, commit, or push was performed.
+
 ## Workflow
 
 Read the specifications, implement the current scope, keep rules deterministic,

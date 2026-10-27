@@ -121,7 +121,11 @@ remains undecided.
 ## 6. Cell-first game sheet
 
 The board is the primary input interface. Empty cells are touch-friendly buttons.
-Only empty A1 and D7 show small centered Start/End hints. An active inline input
+Empty A1 shows its small centered Start hint. Empty D7 shows the unchanged
+`assets/d7_flag.png` instead of End text, centered in an 88% width/height image
+box with `object-fit: contain` and no pointer interception. Its absolute
+positioning leaves cell dimensions unchanged. The flag is derived only from an
+empty, unedited D7; it adds no game state. An active inline input
 temporarily replaces the hint; cancellation or rejection restores it. The hints
 also return if Undo restores the empty cell; occupied
 cells show their number and applicable state markers. Other empty cells have no

@@ -173,6 +173,30 @@ function assertFrozenCell(cell) {
   assert(cell.getAttribute("aria-label").includes("frozen"));
 }
 
+function assertGoalFlag(cell) {
+  assertEqual(cell.dataset.coordinate, "D7");
+  assertEqual(cell.dataset.state, "empty");
+  assertEqual(cell.textContent, "");
+  const flag = cell.querySelector("img");
+  assert(flag !== null, "Empty D7 must show its flag");
+  assertEqual(flag.className, "board-cell__flag");
+  assertEqual(flag.src, "./assets/d7_flag.png");
+  assertEqual(flag.alt, "");
+  assertEqual(flag.width, 48);
+  assertEqual(flag.height, 48);
+  assertEqual(flag.getAttribute("aria-hidden"), "true");
+  assert(cell.getAttribute("aria-label").includes("goal, empty"));
+}
+
+function assertNoGoalFlag(cell) {
+  assert(cell.querySelectorAll("img").every((image) => image.className !== "board-cell__flag"));
+}
+
+function countBoardIceImages(document) {
+  return document.getElementById("board-rows").querySelectorAll("img")
+    .filter((image) => image.className === "board-cell__ice").length;
+}
+
 function getAppInput(document) {
   return document.getElementById("board-rows").querySelector("input[data-coordinate]");
 }
@@ -263,8 +287,10 @@ export function runAppInitializationTests() {
     for (const cell of document.getElementById("board-rows").querySelectorAll("button")) {
       assertEqual(cell.disabled, false);
       assertEqual(cell.getAttribute("aria-pressed"), "false");
-      assertEqual(cell.textContent, cell.dataset.coordinate === "A1" ? "Start" : cell.dataset.coordinate === "D7" ? "End" : "");
-      if (["A1", "D7"].includes(cell.dataset.coordinate)) {
+      assertEqual(cell.textContent, cell.dataset.coordinate === "A1" ? "Start" : "");
+      if (cell.dataset.coordinate === "D7") assertGoalFlag(cell);
+      else assertNoGoalFlag(cell);
+      if (cell.dataset.coordinate === "A1") {
         assertEqual(cell.querySelector("span").className, "board-cell__hint");
         assertEqual(cell.querySelector("span").getAttribute("aria-hidden"), "true");
       }
@@ -534,7 +560,7 @@ export function runAppInitializationTests() {
     function verifyRenderedState(currentDocument, entries, score) {
       assertAppBoardReady(currentDocument);
       assertEqual(currentDocument.getElementById("current-score").textContent, String(score));
-      assertEqual(currentDocument.getElementById("board-rows").querySelectorAll("img").length,
+      assertEqual(countBoardIceImages(currentDocument),
         entries.filter((entry) => entry[2] === "frozen").length);
       for (const [coordinate, value, status = "normal"] of entries) {
         const cell = currentDocument.getElementById("cell-" + coordinate);
@@ -763,7 +789,9 @@ export function runAppInitializationTests() {
   test("A legal non-frozen D7 placement displays goal status without stopping entry", () => {
     const { document } = startAppTest(serializeGame({ board: boardFixture(["C7", 46]) }));
     assert(document.getElementById("goal-status").hidden);
+    assertGoalFlag(document.getElementById("cell-D7"));
     submitAppNumber(document, "D7", 55);
+    assertNoGoalFlag(document.getElementById("cell-D7"));
     assertEqual(document.getElementById("goal-status").hidden, false);
     selectAppCell(document, "D6");
     assert(getAppInput(document) !== null);
@@ -872,7 +900,8 @@ export function runAppInitializationTests() {
     assertEqual(storage.getItem(STORAGE_KEY), null);
     assertEqual(document.getElementById("current-score").textContent, "0");
     assertEqual(getAppInput(document), null);
-    assertEqual(document.getElementById("board-rows").querySelectorAll("img").length, 0);
+    assertEqual(countBoardIceImages(document), 0);
+    assertGoalFlag(document.getElementById("cell-D7"));
     for (const cell of document.getElementById("board-rows").querySelectorAll("button")) assert(!cell.disabled);
   });
 
@@ -944,7 +973,7 @@ export function runAppInitializationTests() {
     assertEqual(reloaded.getElementById("cell-A2").dataset.state, "empty");
     assertEqual(reloaded.getElementById("cell-A2").textContent, "");
     assertEqual(reloaded.getElementById("cell-A2").querySelector("img"), null);
-    assertEqual(reloaded.getElementById("board-rows").querySelectorAll("img").length, 1);
+    assertEqual(countBoardIceImages(reloaded), 1);
     assertEqual(reloaded.getElementById("current-score").textContent, "23");
     assertEqual(reloaded.getElementById("undo-move").disabled, true);
     const again = appTestDocument();
@@ -1028,7 +1057,7 @@ export function runAppInitializationTests() {
     assertEqual(document.getElementById("goal-status").hidden, false);
     assertEqual(document.getElementById("current-score").textContent, "156");
     document.getElementById("undo-move").emit("click");
-    assertEqual(document.getElementById("cell-D7").textContent, "End");
+    assertGoalFlag(document.getElementById("cell-D7"));
     assertEqual(document.getElementById("goal-status").hidden, true);
     assertEqual(document.getElementById("current-score").textContent, "46");
     assertDeepEqual(loadGame(storage).state, { board: boardFixture(["C7", 46]), undo: null });
@@ -1156,7 +1185,7 @@ export function runAppInitializationTests() {
     assertDeepEqual(loadGame(storage).state, freezeGameCell(before, "B1"));
     assertEqual(document.getElementById("cell-A1").querySelector("img"), null);
     assertAttackCell(document.getElementById("cell-B1"));
-    assertEqual(document.getElementById("board-rows").querySelectorAll("img").length, 1);
+    assertEqual(countBoardIceImages(document), 1);
     assertEqual(document.getElementById("current-score").textContent, "40");
     const reloaded = appTestDocument();
     initializeApp(reloaded, storage);
@@ -1327,7 +1356,8 @@ export function runAppInitializationTests() {
     document.getElementById("confirm-new-game").emit("click");
     assertEqual(storage.getItem(STORAGE_KEY), null);
     assertEqual(document.getElementById("attack-ice-actions").hidden, true);
-    assertEqual(document.getElementById("board-rows").querySelectorAll("img").length, 0);
+    assertEqual(countBoardIceImages(document), 0);
+    assertGoalFlag(document.getElementById("cell-D7"));
     assertEqual(document.getElementById("current-score").textContent, "0");
     assertEqual(document.getElementById("undo-move").disabled, true);
   });
@@ -1566,15 +1596,19 @@ export function runAppInitializationTests() {
     test("Cancellation and rejection restore the empty " + coordinate + " hint", () => {
       const initial = coordinate === "A1" ? serializeGame({ board: boardFixture(["B1", 24]) }) : null;
       const { document, storage } = startAppTest(initial);
-      const hint = coordinate === "A1" ? "Start" : "End";
+      const assertHint = () => coordinate === "A1"
+        ? assertEqual(document.getElementById("cell-A1").textContent, "Start")
+        : assertGoalFlag(document.getElementById("cell-D7"));
+      assertHint();
       selectAppCell(document, coordinate);
       assertEqual(document.getElementById("cell-" + coordinate).textContent, "");
+      assertNoGoalFlag(document.getElementById("cell-" + coordinate));
       typeAppNumber(document, "3");
       document.emit("keydown", document.root, { key: "Escape" });
-      assertEqual(document.getElementById("cell-" + coordinate).textContent, hint);
+      assertHint();
       submitAppNumber(document, coordinate, 66);
       assertEqual(getAppInput(document), null);
-      assertEqual(document.getElementById("cell-" + coordinate).textContent, hint);
+      assertHint();
       assertEqual(storage.getItem(STORAGE_KEY), initial);
     });
   }
@@ -1650,6 +1684,57 @@ export function runAppInitializationTests() {
     oldInput.value = "24";
     oldInput.emit("input");
     assertDeepEqual(loadGame(storage).state, createGameState());
+  });
+
+  test("D7 flag returns after blur, outside tap, illegal placement, or malformed input without saving", () => {
+    const initial = serializeGame({ board: boardFixture(["C7", 46]), undo: null });
+    for (const action of ["blur", "outside tap", "illegal", "malformed"]) {
+      const { document, storage } = startAppTest(initial);
+      assertGoalFlag(document.getElementById("cell-D7"));
+      selectAppCell(document, "D7");
+      assertEqual(getAppInput(document).dataset.coordinate, "D7");
+      assertNoGoalFlag(getAppInput(document));
+      typeAppNumber(document, "5");
+      if (action === "blur") document.getElementById("game-board").focus();
+      else if (action === "outside tap") document.emit("pointerdown", document.root);
+      else typeAppNumber(document, action === "illegal" ? "24" : "70");
+      assertGoalFlag(document.getElementById("cell-D7"));
+      assertEqual(getAppInput(document), null);
+      assertEqual(document.getElementById("undo-move").disabled, true);
+      assertEqual(storage.getItem(STORAGE_KEY), initial);
+    }
+  });
+
+  test("Occupied D7 never shows the flag across normal, Prime Ice, Attack Ice, and Street states", () => {
+    const normal = boardFixture(["D7", 22]);
+    const attack = boardFixture(["D7", 22]);
+    attack[6][3].attackIce = true;
+    const street = boardFixture(["A7", 41], ["B7", 42], ["C7", 43], ["D7", 44]);
+    for (const [board, value, multiplier, ice] of [
+      [normal, "22", "2x", null],
+      [boardFixture(["D7", 53, "frozen"]), "53", null, "./assets/icecube.png"],
+      [boardFixture(["D7", 53, "thawed"]), "53", null, null],
+      [attack, "22", "2x", "./assets/icecube2.png"],
+      [street, "44", "4x", null],
+    ]) {
+      const { document } = startAppTest(serializeGame({ board, undo: null }));
+      const cell = document.getElementById("cell-D7");
+      assertNoGoalFlag(cell);
+      assertEqual(cell.querySelectorAll("span").at(-1).textContent, value);
+      assertAppMultiplier(document, "D7", multiplier);
+      assertEqual(cell.querySelector("img")?.src ?? null, ice);
+    }
+  });
+
+  test("Confirmed Reset restores the D7 flag from an occupied goal without adding flag state", () => {
+    const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["D7", 22]), undo: null }));
+    assertNoGoalFlag(document.getElementById("cell-D7"));
+    document.getElementById("new-game").emit("click");
+    assertNoGoalFlag(document.getElementById("cell-D7"));
+    document.getElementById("confirm-new-game").emit("click");
+    assertGoalFlag(document.getElementById("cell-D7"));
+    assertEqual(storage.getItem(STORAGE_KEY), null);
+    assertEqual(document.getElementById("goal-status").hidden, true);
   });
 
   return results;

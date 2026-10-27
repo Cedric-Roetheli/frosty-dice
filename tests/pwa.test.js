@@ -182,6 +182,7 @@ export async function runPwaTests(sources) {
     assert(worker.PRECACHE_URLS.includes("/assets/bid.png"));
     assert(worker.PRECACHE_URLS.includes("/assets/icecube.png"));
     assert(worker.PRECACHE_URLS.includes("/assets/icecube2.png"));
+    assert(worker.PRECACHE_URLS.includes("/assets/d7_flag.png"));
     for (const path of ["/assets/reset_button.png", "/assets/rules_button.png?v=d85019bc",
       "/assets/background_sky.png", "/assets/background_meadow.png", "/assets/icons/icon-192.png",
       "/assets/icons/icon-512.png", "/assets/icons/apple-touch-icon.png"]) {

@@ -149,11 +149,22 @@ export function initializeApp(document, storage) {
       labels.push(marker.toLowerCase());
       cell.classList.add("board-cell--" + marker.toLowerCase());
       if (value === null) {
-        const hint = document.createElement("span");
-        hint.className = "board-cell__hint";
-        hint.textContent = coordinate === "A1" ? "Start" : "End";
-        hint.setAttribute("aria-hidden", "true");
-        cell.append(hint);
+        if (coordinate === "D7") {
+          const flag = document.createElement("img");
+          flag.className = "board-cell__flag";
+          flag.src = "./assets/d7_flag.png";
+          flag.alt = "";
+          flag.width = 48;
+          flag.height = 48;
+          flag.setAttribute("aria-hidden", "true");
+          cell.append(flag);
+        } else {
+          const hint = document.createElement("span");
+          hint.className = "board-cell__hint";
+          hint.textContent = "Start";
+          hint.setAttribute("aria-hidden", "true");
+          cell.append(hint);
+        }
       }
     }
 
