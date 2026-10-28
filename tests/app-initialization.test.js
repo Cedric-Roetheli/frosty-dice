@@ -102,12 +102,15 @@ export function appTestDocument() {
     parent.append(node);
     return node;
   }
+  const messageArea = document.createElement("div");
+  messageArea.className = "board-message";
+  document.root.append(messageArea);
+  add("p", "app-status", messageArea).className = "app-status";
   const board = add("table", "game-board");
-  add("thead", "board-columns", board);
+  add("thead", "board-columns", board).className = "visually-hidden";
   add("tbody", "board-rows", board);
-  add("p", "entry-feedback");
   for (const [tag, id] of [
-    ["p", "app-status"], ["p", "storage-status"], ["strong", "current-score"],
+    ["p", "storage-status"], ["strong", "current-score"],
     ["p", "street-bonus"], ["p", "goal-status"], ["button", "new-game"],
   ]) add(tag, id);
   const actions = add("div", "attack-ice-actions");
@@ -297,12 +300,13 @@ export function runAppInitializationTests() {
       assert(cell.getAttribute("aria-label").includes(cell.dataset.coordinate));
     }
     const headers = document.getElementById("board-columns").querySelectorAll("th");
-    assertDeepEqual(headers.map((heading) => heading.textContent), ["P", "L", "A", "Y"]);
+    assertDeepEqual(headers.map((heading) => heading.textContent), ["A", "B", "C", "D"]);
+    assertEqual(document.getElementById("board-columns").className, "visually-hidden");
     assertEqual(document.getElementById("board-columns").children[0].children.length, 4);
     assertEqual(document.getElementById("board-rows").querySelectorAll("th").length, 0);
     for (const [index, column] of ["A", "B", "C", "D"].entries()) {
       assertEqual(headers[index].scope, "col");
-      assertEqual(headers[index].getAttribute("aria-label"), "Column " + column + ", displayed as " + ["P", "L", "A", "Y"][index]);
+      assertEqual(headers[index].getAttribute("aria-label"), "Column " + column);
       for (let row = 1; row <= 7; row += 1) {
         const cells = document.getElementById("board-rows").children[row - 1].children;
         assertEqual(cells.length, 4);
@@ -312,7 +316,7 @@ export function runAppInitializationTests() {
     assertNoMoveHints(document);
   });
 
-  test("Selecting under PLAY display labels still submits and stores A/B/C/D coordinates", () => {
+  test("Selecting columns without visible labels still submits and stores A/B/C/D coordinates", () => {
     const { document, storage } = startAppTest();
     const expectedValues = [16, 24, 36, 46];
     for (const [index, column] of ["A", "B", "C", "D"].entries()) {
@@ -330,6 +334,70 @@ export function runAppInitializationTests() {
     assertDeepEqual(Object.keys(JSON.parse(storage.getItem(STORAGE_KEY)).state), ["board", "undo"]);
   });
 
+  test("Contextual messages keep their above-board wrapper through errors, actions, and Undo", () => {
+    const { document } = startAppTest();
+    const status = document.getElementById("app-status");
+    const area = status.parentNode;
+    assertEqual(area.className, "board-message");
+    assert(document.root.children.indexOf(area) < document.root.children.indexOf(document.getElementById("game-board")));
+    assertEqual(status.textContent, "Tap an empty cell to enter a number.");
+    submitAppNumber(document, "D7", 24);
+    assertEqual(status.textContent, "Place your first number at A1.");
+    assertEqual(status.hidden, false);
+    assertEqual(document.getElementById("entry-feedback"), null);
+    assertEqual(status.parentNode, area);
+    document.runTimers();
+    assertEqual(status.textContent, "Place your first number at A1.");
+    submitAppNumber(document, "A1", 22);
+    assert(status.textContent.includes("Placed 22 at A1."));
+    selectAppCell(document, "A1");
+    assertEqual(status.hidden, true);
+    assertEqual(area.hidden, false);
+    document.getElementById("cancel-attack-ice").emit("click");
+    assertEqual(status.hidden, false);
+    document.getElementById("undo-move").emit("click");
+    assertEqual(status.textContent, "Last move undone.");
+    assertEqual(status.parentNode, area);
+    assertEqual(area.hidden, false);
+  });
+
+  test("Only A1 and D7 retain endpoint styling hooks while empty, entering, occupied, or iced", () => {
+    function check(document) {
+      for (const column of ["A", "B", "C", "D"]) {
+        for (let row = 1; row <= 7; row += 1) {
+          const coordinate = column + row;
+          const classes = document.getElementById("cell-" + coordinate).className.split(" ");
+          assertEqual(classes.includes("board-cell--start"), coordinate === "A1");
+          assertEqual(classes.includes("board-cell--goal"), coordinate === "D7");
+        }
+      }
+    }
+    const boards = [
+      createGameState().board,
+      boardFixture(["A1", 16], ["D7", 66]),
+      boardFixture(["A1", 16], ["D7", 31, "frozen"]),
+      boardFixture(["A1", 16], ["D7", 31, "thawed"]),
+    ];
+    for (const [row, column] of [[0, 0], [6, 3]]) {
+      const board = boardFixture(["A1", 22], ["D7", 66]);
+      board[row][column].attackIce = true;
+      boards.push(board);
+    }
+    for (const board of boards) {
+      const { document } = startAppTest(serializeGame({ board, undo: null }));
+      check(document);
+    }
+    const { document } = startAppTest();
+    for (const coordinate of ["A1", "D7"]) {
+      selectAppCell(document, coordinate);
+      assertEqual(getAppInput(document).dataset.coordinate, coordinate);
+      check(document);
+      document.emit("keydown", document.root, { key: "Escape" });
+      check(document);
+    }
+    assertGoalFlag(document.getElementById("cell-D7"));
+  });
+
   test("Selecting any empty cell opens numeric entry and focuses it without validating the move", () => {
     const { document, storage } = startAppTest();
     selectAppCell(document, "D7"); // Selection and a first digit reveal no placement legality.
@@ -341,11 +409,12 @@ export function runAppInitializationTests() {
     assertEqual(selected.getAttribute("aria-label"), "Number for D7");
     assertEqual(selected.getAttribute("inputmode"), "numeric");
     assertEqual(selected.getAttribute("enterkeyhint"), "done");
+    assertEqual(selected.getAttribute("aria-describedby"), "number-help app-status");
     assertEqual(document.activeElement, selected);
     assertDeepEqual(selected.lastFocusOptions, { preventScroll: true });
     typeAppNumber(document, "1");
     assertEqual(selected.value, "1");
-    assertEqual(document.getElementById("entry-feedback").hidden, true);
+    assertEqual(document.getElementById("app-status").textContent, "Tap an empty cell to enter a number.");
     assertEqual(storage.getItem(STORAGE_KEY), null);
     assertEqual(document.getElementById("undo-move").disabled, true);
     assertEqual(document.getElementById("board-rows").querySelectorAll("button").length, 27);
@@ -386,9 +455,9 @@ export function runAppInitializationTests() {
     assertEqual(document.getElementById("cell-B1").textContent, "");
     assertEqual(document.getElementById("current-score").textContent, "0");
     assertEqual(getAppInput(document), null);
-    assertEqual(document.getElementById("entry-feedback").textContent, "Place your first number at A1.");
-    assertEqual(document.getElementById("entry-feedback").hidden, false);
-    assertEqual(document.getElementById("entry-feedback").dataset.edge, "bottom");
+    assertEqual(document.getElementById("app-status").textContent, "Place your first number at A1.");
+    assertEqual(document.getElementById("app-status").hidden, false);
+    assertEqual(document.getElementById("entry-feedback"), null);
     assertEqual(document.activeElement, document.getElementById("game-board"));
     assertNoMoveHints(document);
   });
@@ -398,10 +467,10 @@ export function runAppInitializationTests() {
     const { document, storage } = startAppTest(serialized);
     submitAppNumber(document, "B1", 12);
     assertEqual(storage.getItem(STORAGE_KEY), serialized);
-    assertEqual(document.getElementById("entry-feedback").textContent, "Must be greater than 16 to the left.");
+    assertEqual(document.getElementById("app-status").textContent, "Must be greater than 16 to the left.");
     assertEqual(getAppInput(document), null);
     selectAppCell(document, "B1");
-    assertEqual(document.getElementById("entry-feedback").hidden, true);
+    assertEqual(document.getElementById("entry-feedback"), null);
     assertEqual(getAppInput(document).value, "");
     typeAppNumber(document, 24);
     assertDeepEqual(loadGame(storage).state.board[0][1], { value: 24, status: "normal" });
@@ -418,7 +487,7 @@ export function runAppInitializationTests() {
       const { document, storage } = startAppTest(serialized);
       submitAppNumber(document, target, attempted);
       assertEqual(storage.getItem(STORAGE_KEY), serialized);
-      assertEqual(document.getElementById("entry-feedback").textContent, message);
+      assertEqual(document.getElementById("app-status").textContent, message);
       assertEqual(getAppInput(document), null);
       assertEqual(document.getElementById("cell-" + target).dataset.state, "empty");
     });
@@ -429,7 +498,7 @@ export function runAppInitializationTests() {
     const { document, storage } = startAppTest(serialized);
     submitAppNumber(document, "B2", 12);
     assertEqual(storage.getItem(STORAGE_KEY), serialized);
-    assertEqual(document.getElementById("entry-feedback").textContent, "This number doesn't fit next to any usable neighboring number.");
+    assertEqual(document.getElementById("app-status").textContent, "This number doesn't fit next to any usable neighboring number.");
     submitAppNumber(document, "B2", 26); // Horizontal connection succeeds, vertical connection disagrees.
     assertDeepEqual(loadGame(storage).state.board[1][1], { value: 26, status: "normal" });
     assertEqual(document.getElementById("current-score").textContent, "82");
@@ -439,10 +508,10 @@ export function runAppInitializationTests() {
     const serialized = serializeGame({ board: boardFixture(["A1", 16]) });
     const { document, storage } = startAppTest(serialized);
     selectAppCell(document, "D7");
-    assertEqual(document.getElementById("entry-feedback").hidden, true);
+    assertEqual(document.getElementById("app-status").textContent, "Tap an empty cell to enter a number.");
     typeAppNumber(document, 16);
     assertEqual(storage.getItem(STORAGE_KEY), serialized);
-    assertEqual(document.getElementById("entry-feedback").textContent, "This number doesn't fit next to any usable neighboring number.");
+    assertEqual(document.getElementById("app-status").textContent, "This number doesn't fit next to any usable neighboring number.");
   });
 
   test("Invalid dice numbers never change the board or save", () => {
@@ -453,7 +522,7 @@ export function runAppInitializationTests() {
       assertEqual(document.getElementById("cell-A1").dataset.state, "empty");
       assertEqual(document.getElementById("cell-A1").textContent, "Start");
       assertEqual(getAppInput(document), null);
-      assertEqual(document.getElementById("entry-feedback").textContent, "Use two digits from 1–6.");
+      assertEqual(document.getElementById("app-status").textContent, "Use two digits from 1–6.");
       assertEqual(document.getElementById("current-score").textContent, "0");
       assertEqual(document.getElementById("undo-move").disabled, true);
     }
@@ -499,7 +568,7 @@ export function runAppInitializationTests() {
     assertEqual(document.getElementById("cell-B1").getAttribute("aria-pressed"), "false");
     assertEqual(getAppInput(document).id, "cell-A1");
     assertEqual(getAppInput(document).value, "");
-    assertEqual(document.getElementById("entry-feedback").hidden, true);
+    assertEqual(document.getElementById("app-status").textContent, "Tap an empty cell to enter a number.");
     assertEqual(storage.getItem(STORAGE_KEY), null);
   });
 
@@ -512,7 +581,7 @@ export function runAppInitializationTests() {
     assertEqual(document.activeElement, getAppInput(document));
     assertDeepEqual(document.activeElement.lastFocusOptions, { preventScroll: true });
     assertEqual((getAppInput(document)?.dataset.coordinate ?? ""), "A1");
-    assertEqual(document.getElementById("entry-feedback").hidden, true);
+    assertEqual(document.getElementById("app-status").textContent, "Tap an empty cell to enter a number.");
     assertEqual(storage.getItem(STORAGE_KEY), null);
   });
 
@@ -1016,7 +1085,7 @@ export function runAppInitializationTests() {
     document.emit("pointerdown", document.getElementById("undo-move"));
     document.getElementById("undo-move").emit("click");
     assertEqual(getAppInput(document), null);
-    assertEqual(document.getElementById("entry-feedback").hidden, true);
+    assertEqual(document.getElementById("app-status").textContent, "Last move undone.");
     assertDeepEqual(loadGame(storage).state, createGameState());
     for (const cell of document.getElementById("board-rows").querySelectorAll("button")) {
       assertEqual(cell.getAttribute("aria-pressed"), "false");
@@ -1318,7 +1387,7 @@ export function runAppInitializationTests() {
     const occupied = document.getElementById("cell-A1");
     document.emit("pointerdown", occupied);
     selectAppCell(document, "A1");
-    assertEqual(document.getElementById("entry-feedback").hidden, true);
+    assertEqual(document.getElementById("app-status").hidden, true);
     assertEqual(getAppInput(document), null);
     assertEqual(document.getElementById("attack-ice-actions").hidden, false);
     document.getElementById("new-game").emit("click");
@@ -1619,7 +1688,7 @@ export function runAppInitializationTests() {
     typeAppNumber(document, "3");
     typeAppNumber(document, "");
     assertEqual(getAppInput(document).value, "");
-    assertEqual(document.getElementById("entry-feedback").hidden, true);
+    assertEqual(document.getElementById("app-status").textContent, "Tap an empty cell to enter a number.");
     assertEqual(storage.getItem(STORAGE_KEY), null);
     assertEqual(document.getElementById("undo-move").disabled, true);
   });
@@ -1632,7 +1701,7 @@ export function runAppInitializationTests() {
     assert(input.emit("keydown", input, { key: "Enter" }).defaultPrevented);
     assertEqual(getAppInput(document), null);
     assertEqual(document.getElementById("cell-A1").textContent, "Start");
-    assertEqual(document.getElementById("entry-feedback").textContent, "Use two digits from 1–6.");
+    assertEqual(document.getElementById("app-status").textContent, "Use two digits from 1–6.");
     assertEqual(storage.getItem(STORAGE_KEY), null);
     assertEqual(document.getElementById("undo-move").disabled, true);
   });
@@ -1653,23 +1722,34 @@ export function runAppInitializationTests() {
     assertEqual(storage.getItem(STORAGE_KEY), saved);
   });
 
-  test("Error overlays time out, clear on selection, and cannot affect a later draft", () => {
+  test("Success and errors replace each other in one status without changing rejected board state or Undo", () => {
     const { document, storage } = startAppTest();
-    const feedback = document.getElementById("entry-feedback");
-    submitAppNumber(document, "D7", 16);
-    assertEqual(feedback.hidden, false);
-    assertEqual(feedback.dataset.edge, "top");
+    const status = document.getElementById("app-status");
+    const area = status.parentNode;
+    submitAppNumber(document, "A1", 15);
+    submitAppNumber(document, "B1", 24);
+    assertEqual(status.textContent, "Placed 24 at B1.");
+    const saved = storage.getItem(STORAGE_KEY);
+    const state = loadGame(storage).state;
+    submitAppNumber(document, "B2", 35);
+    assertEqual(status.textContent, "Must match 24 above.");
+    assertEqual(status.hidden, false);
+    assertEqual(status.className, "app-status");
+    assertEqual(status.parentNode, area);
+    assertEqual(document.getElementById("entry-feedback"), null);
+    assertEqual(document.getElementById("cell-B2").dataset.state, "empty");
+    assertEqual(getAppInput(document), null);
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+    assertDeepEqual(loadGame(storage).state, state);
+    assertEqual(document.getElementById("current-score").textContent, "39");
+    assertEqual(document.getElementById("undo-move").disabled, false);
+    submitAppNumber(document, "B2", 24);
+    assertEqual(status.textContent, "Placed 24 at B2.");
+    assertEqual(status.className, "app-status");
+    assertEqual(status.parentNode, area);
     document.runTimers();
-    assertEqual(feedback.hidden, true);
-    submitAppNumber(document, "B1", 16);
-    assertEqual(feedback.hidden, false);
-    assertEqual(feedback.dataset.edge, "bottom");
-    selectAppCell(document, "A1");
-    typeAppNumber(document, "1");
-    assertEqual(feedback.hidden, true);
-    document.runTimers();
-    assertEqual(getAppInput(document).value, "1");
-    assertEqual(storage.getItem(STORAGE_KEY), null);
+    assertEqual(status.textContent, "Placed 24 at B2.");
+    assertDeepEqual(loadGame(storage).state.board[1][1], { value: 24, status: "normal" });
   });
 
   test("Undo discards a one-digit inline draft while restoring its existing snapshot", () => {

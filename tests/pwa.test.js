@@ -144,6 +144,18 @@ export async function runPwaTests(sources) {
     assert(sources.html.includes('src="./js/pwa.js"'));
   });
 
+  await test("The live message area precedes the board and A–D column headings are visually hidden", () => {
+    const area = sources.html.match(/<div class="board-message">\s*(<p id="app-status"[^>]*>[\s\S]*?<\/p>)\s*<\/div>/);
+    assert(area, "Contextual status must stay inside its reserved wrapper");
+    assert(area[1].includes('role="status"'));
+    assert(area[1].includes('aria-atomic="true"'));
+    assert(sources.html.indexOf(area[0]) < sources.html.indexOf('<section class="board-sheet"'));
+    assertEqual((sources.html.match(/id="app-status"/g) ?? []).length, 1);
+    assert(!sources.html.includes('id="entry-feedback"'));
+    assert(sources.html.includes('<thead id="board-columns" class="visually-hidden"></thead>'));
+    assert(!sources.html.includes("displayed as P, L, A, Y"));
+  });
+
   await test("Rules keep their anchor and English heading with semantic accessible language buttons", () => {
     assert(sources.html.includes('href="#rules"'));
     assert(sources.html.includes('<h2 id="rules-heading">Rules</h2>'));
@@ -258,6 +270,16 @@ export async function runPwaTests(sources) {
       assert(worker.PRECACHE_URLS.includes(path), path);
       assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
     }
+    assertEqual(worker.networkCalls.length, 0);
+  });
+
+  await test("All three randomized meadows are precached and available offline", async () => {
+    const worker = workerHarness(sources.worker);
+    await worker.lifecycle("install");
+    worker.offline = true;
+    const meadows = ["/assets/background_meadow.png", "/assets/background_meadow_desert.png", "/assets/background_meadow_snow.png"];
+    assertDeepEqual(worker.PRECACHE_URLS.filter((path) => path.includes("background_meadow")), meadows);
+    for (const path of meadows) assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
     assertEqual(worker.networkCalls.length, 0);
   });
 

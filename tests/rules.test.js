@@ -4,7 +4,7 @@ import { STORAGE_KEY } from "../js/storage.js";
 import { appTestDocument, appTestStorage } from "./app-initialization.test.js";
 import { assert, assertDeepEqual, assertEqual } from "./assert.js";
 
-function rulesDocument() {
+export function rulesDocument() {
   const document = appTestDocument();
   for (const [tag, id] of [["h2", "rules-heading"], ["img", "rules-image"],
     ["img", "rules-fill-de"], ["img", "rules-fill-en"],

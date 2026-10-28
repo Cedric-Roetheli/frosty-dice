@@ -98,7 +98,7 @@ Only a completed two-digit entry calls the shared guarded placement operation. T
 suggested numbers, precomputed target lists, or legal-cell indicators.
 
 An illegal entry leaves the board and saved data unchanged. Restore the empty
-cell and show the concise reason in a temporary overlay; the player can tap
+cell and show the concise reason in the status area above the board; the player can tap
 the cell again to retry.
 Explain a sole usable neighboring relationship briefly; if several neighboring
 relationships all fail, use a general explanation rather than implying that
@@ -130,8 +130,9 @@ temporarily replaces the hint; cancellation or rejection restores it. The hints
 also return if Undo restores the empty cell; occupied
 cells show their number and applicable state markers. Other empty cells have no
 visible text. The hints neither intercept taps nor enter game state. The visible
-board heading and row-number gutter are removed. Four column headings display P/L/A/Y, mapped
-only in the UI to internal A/B/C/D. The grid has exactly four cells in each of
+board heading and row-number gutter are removed. Column headings A/B/C/D are
+visually hidden and retained for assistive technology; P/L/A/Y is no longer
+displayed. The grid has exactly four cells in each of
 seven rows, centered without a spare gutter. Accessible column/cell labels and
 number-entry coordinates retain A1–D7; saved games require no migration. Occupied
 normal, frozen, and thawed cells cannot open number input or receive placements.
@@ -143,7 +144,7 @@ and centered 22px number typography. Accessible labels retain the internal
 coordinate. Selection is not a statement that the move is legal.
 
 There is no separate entry bar, form, Place/Cancel control, or reserved space.
-Keep the board directly below the header, without changing its dimensions or
+Keep the board below the header and reserved message area, without changing its dimensions or
 the meadow/horizon. Automatically focus the inline input with `preventScroll`
 and `inputmode="numeric"`. Native keyboard accommodation remains the browser's
 responsibility; add no viewport detection or scripted scrolling.
@@ -156,11 +157,12 @@ Enter/Done may also attempt the current input. A successful placement saves,
 removes the input, dismisses keyboard focus, and recalculates score, Streets,
 and goal. Only success creates an Undo snapshot.
 
-Rejection restores the empty cell and shows the existing concise reason as a
-small, non-interactive overlay inside the board area, opposite the attempted
-cell's half. The overlay occupies no layout space, disappears after 4.5 seconds,
-and clears on the next selection or action. Keep an accessible live status and
-input instructions. No error modal or additional controls are needed.
+Rejection restores the empty cell and replaces the previous status text with
+the concise reason in the same above-board live region used for successful
+actions. Success and error feedback have identical white text, typography,
+opacity, alignment, and positioning. Feedback remains until the next status
+message; there is no placement-error overlay, box, icon, or timeout. Keep
+accessible input instructions associated with that shared status area.
 
 Blur, Escape, or an outside tap discards a draft without saving or changing Undo.
 Restore only the edited cell on blur so another cell's pending click or keyboard
@@ -169,6 +171,12 @@ tapping the active input keeps its draft. Starting number entry dismisses a pend
 New Game / Reset remains accessible and requires explicit confirmation.
 
 Keep the score compact, and show Street and goal feedback when applicable.
+The existing contextual status appears directly above the board as centered,
+small white text without a panel or background. Its wrapper reserves 2.5rem
+for two lines even while the text is hidden during cell actions, so message
+changes do not shift the board. Longer messages wrap; if more than two lines
+are needed, the text scrolls within the reserved height rather than covering
+the board. Invalid attempts leave the board, save, and Undo unchanged.
 Currently frozen cells retain `assets/icecube.png` beneath a readable value,
 with bounded dimensions and an accessible status label. Thawed cells have no
 Prime ice cube and retain their quiet Thawed marker and permanent zero-point
@@ -275,7 +283,11 @@ prefixed filter. Individual cells use 80% opacity for readable values and
 distinct empty/normal/start/goal states; selected cells use 94% with their existing
 border treatment. Opacity and blur controls are grouped in style.css.
 
-Column labels stay readable and aligned with their columns. Street highlighting
+Column labels remain visually hidden, with internal A–D coordinates unchanged.
+A1 and D7 share the same 2px black (`#000000`) border in empty, occupied, selected,
+and ice states. Reuse their existing border width so cell geometry, individual
+glass backgrounds, the D7 flag, and all other rendering remain unchanged.
+Street highlighting
 and feedback remain; the existing corner marker style shows each cell's 2x/4x
 without adding a column or changing cell height. Ice assets, their fit/clipping,
 and number stacking are unchanged. This is presentation only: placement, Prime
@@ -284,6 +296,14 @@ retain their existing behavior. Manual iPhone evaluation remains pending.
 
 The experimental background pass uses the supplied background_sky.png and
 background_meadow.png unchanged as non-interactive decorative CSS layers.
+On each fresh page load, a small synchronous head script chooses equally among
+`background_meadow.png`, `background_meadow_desert.png`, and
+`background_meadow_snow.png` before the stylesheet loads. All three are
+1440 × 3200 and use the same width/automatic-height sizing without distortion.
+Only the meadow image custom property changes; horizon, positioning, scaling,
+standalone adjustments, sky, controls, and the solid green continuation stay
+unchanged. The choice lasts for that document, never changes during game/UI
+actions, and is not persisted. All three illustrations are precached offline.
 The sky stays fixed; the meadow spans the full document height and scrolls with
 the page so its ground continues below the fold. The meadow's painted horizon is anchored independently of sky position
 and both scales; controls are grouped at the top of style.css. The composition

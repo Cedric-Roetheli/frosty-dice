@@ -12,8 +12,16 @@
     <link rel="icon" href="data:,">
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="./css/style.css?v=d7-flag-1">
-    <script type="module" src="./js/app.js?v=d7-flag-1"></script>
+    <script id="meadow-background">
+      (() => {
+        const meadows = ["background_meadow.png", "background_meadow_desert.png", "background_meadow_snow.png"];
+        const meadow = meadows[Math.floor(Math.random() * meadows.length)];
+        const image = new URL("./assets/" + meadow, document.baseURI).href;
+        document.documentElement.style.setProperty("--background-meadow-image", 'url("' + image + '")');
+      })();
+    </script>
+    <link rel="stylesheet" href="./css/style.css?v=unified-feedback-1">
+    <script type="module" src="./js/app.js?v=unified-feedback-1"></script>
     <script type="module" src="./js/pwa.js"></script>
     <script type="module" src="./js/rules.js?v=additional-rules-1"></script>
   </head>
@@ -28,19 +36,20 @@
         </div>
       </header>
 
+      <div class="board-message">
+        <p id="app-status" class="app-status" role="status" aria-atomic="true">Loading board…</p>
+      </div>
       <section class="board-sheet" aria-label="Game board">
         <table id="game-board" class="board" aria-label="Game board" tabindex="-1">
           <caption class="visually-hidden">
             Four columns, A through D, and seven rows, 1 through 7.
-            Columns A, B, C, D are displayed as P, L, A, Y.
             A1 is the start. D7 is the goal. Select an empty cell and type two digits to place a number.
             Select a normal or thawed occupied cell for Freeze or Unfreeze.
           </caption>
-          <thead id="board-columns"></thead>
+          <thead id="board-columns" class="visually-hidden"></thead>
           <tbody id="board-rows"></tbody>
         </table>
         <p id="number-help" class="visually-hidden">Two digits, each from 1–6. Placement is attempted after the second digit. Leave the cell or press Escape to cancel.</p>
-        <p id="entry-feedback" class="entry-feedback" role="status" aria-atomic="true" hidden></p>
         <div id="attack-ice-actions" class="attack-ice-actions" role="group" aria-labelledby="attack-ice-label" hidden>
           <p id="attack-ice-label">Attack Ice · <span id="attack-ice-cell"></span></p>
           <div class="attack-ice-actions__controls">
@@ -52,7 +61,6 @@
         <p id="goal-status" class="goal-status" role="status" hidden></p>
       </section>
 
-      <p id="app-status" class="app-status" role="status" aria-atomic="true">Loading board…</p>
       <p id="storage-status" class="storage-status" role="status" hidden></p>
       <section class="reset-panel" aria-labelledby="new-game-heading">
         <h2 id="new-game-heading" class="visually-hidden">New game</h2>

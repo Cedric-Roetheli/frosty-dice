@@ -13,22 +13,26 @@
   --background-min-height: 100vh;
   --background-horizon: calc(var(--background-viewport-height) * 0.95);
   --background-meadow-scale: 1;
+  --background-meadow-image: url("../assets/background_meadow.png");
   --background-sky-scale: 1;
   --background-sky-position: 50% 0px;
   /* Fill stretches both ice assets to the cell; use contain/cover to revert the fit. */
   --ice-image-fit: fill;
 
-  /* Both background canvases are 1440 × 3200; keep their aspect ratio. */
+  /* Sky and meadow canvases are 1440 × 3200; keep their aspect ratio. */
   --background-artwork-width: max(100vw, calc(var(--background-viewport-height) * 0.45));
 
   /* Landscape controls: positions refer to the painted ground below the horizon. */
   --meadow-painted-depth: calc(var(--background-artwork-width) * var(--background-meadow-scale) * 941 / 1440);
-  --rules-signpost-y: 3%; /* Top edge, as a fraction of painted ground depth. */
-  --rules-signpost-x: 80%; /* Horizontal center within the game/landscape column. */
+  --rules-signpost-y: 35%; /* Top edge, as a fraction of painted ground depth. */
+  --rules-signpost-x: 16%; /* Horizontal center within the game/landscape column. */
   --rules-signpost-size: clamp(4.4rem, 20vw, 5.6rem); /* 80% of the previous visible width. */
   --reset-snowman-y: 12%; /* Center on the meadow layer's top, above the signpost. */
   --reset-snowman-x: 52%;
   --reset-snowman-size: clamp(8.5rem, 42vw, 11rem);
+
+  /* Extra solid-green breathing room before Rules, independent of meadow anchors. */
+  --rules-extra-space: 180px;
 
   /* Board glass: the outer sheet is much lighter than the readable cells. */
   --board-glass-opacity: 0.12;
@@ -101,7 +105,7 @@ body::after {
   background-color: var(--background-ground-color);
   /* Painted ground begins at y=2259: 2259 / 1440 anchors that edge, not the PNG top. */
   /* The empty final layer lets the color use content-box without clipping the PNG. */
-  background-image: url("../assets/background_meadow.png"), none;
+  background-image: var(--background-meadow-image), none;
   background-origin: border-box;
   background-clip: border-box, content-box;
   background-size: var(--meadow-width) auto;
@@ -121,7 +125,7 @@ main {
   width: 96%;
   max-width: 36rem;
   /* The PNG has 941px of painted ground below its horizon on a 1440px canvas. */
-  margin: calc(var(--background-artwork-width) * var(--background-meadow-scale) * 941 / 1440 + 1.5rem) auto 2rem;
+  margin: calc(var(--background-artwork-width) * var(--background-meadow-scale) * 941 / 1440 + 1.5rem + var(--rules-extra-space)) auto 2rem;
   scroll-margin-top: 1.5rem;
 }
 
@@ -480,13 +484,11 @@ p { margin: 0; }
 }
 
 .board-cell--start {
-  border: 2px solid #30657d;
   color: #244f65;
   background-color: rgb(233 244 250 / var(--board-cell-opacity));
 }
 
 .board-cell--goal {
-  border: 2px solid #35705b;
   color: #285b48;
   background-color: rgb(234 245 239 / var(--board-cell-opacity));
 }
@@ -495,6 +497,12 @@ p { margin: 0; }
   border: 2px solid #275e75;
   background-color: rgb(233 244 250 / var(--board-selected-opacity));
   box-shadow: inset 0 0 0 1px #275e75;
+}
+
+/* Reuse the existing 2px endpoint borders, including during inline entry. */
+.board-cell--start,
+.board-cell--goal {
+  border: 2px solid #ffffff;
 }
 
 .board-cell__marker {
@@ -586,23 +594,6 @@ input:focus-visible {
   cursor: text;
 }
 
-.entry-feedback {
-  position: absolute;
-  z-index: 2;
-  inset-inline: 0.75rem;
-  top: 0.75rem;
-  padding: 0.5rem 0.625rem;
-  border: 1px solid rgb(125 61 35 / 45%);
-  border-radius: 0.5rem;
-  color: #66311b;
-  background-color: rgb(255 240 231 / 96%);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  pointer-events: none;
-}
-
-.entry-feedback[data-edge="bottom"] { top: auto; bottom: 0.75rem; }
-
 .action-button {
   width: 100%;
   min-height: 48px;
@@ -647,24 +638,23 @@ input:focus-visible {
   font-weight: 600;
 }
 
+.board-message {
+  /* Always reserve two lines, even when cell actions temporarily hide the text. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.5rem;
+  margin-bottom: 0.375rem;
+}
+
 .app-status {
-  margin-top: 0.625rem;
-  padding: 0.5rem 0.625rem;
-  border-left: 3px solid #275e75;
-  border-radius: 0 0.5rem 0.5rem 0;
-  color: #172b3a;
-  background-color: #e9f4fa;
-  font-size: 0.875rem;
-}
-
-.app-status[data-tone="success"] {
-  border-color: #35705b;
-  background-color: #eaf5ef;
-}
-
-.app-status[data-tone="warning"] {
-  border-color: #bf9e35;
-  background-color: #fff7dd;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  color: #fff;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  text-align: center;
 }
 
 .storage-status,

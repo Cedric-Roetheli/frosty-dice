@@ -18,9 +18,6 @@ import {
 import { getCellScoreMultiplier, getScoreBreakdown } from "./scoring.js?v=v3-multipliers-1";
 import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=v3-multipliers-1";
 
-// Display labels only: every state, action, and accessible cell still uses A–D.
-const columnDisplayLabels = Object.freeze({ A: "P", B: "L", C: "A", D: "Y" });
-
 // Shorten the core's explanations, without evaluating placement rules in the UI.
 function placementFeedback(reason) {
   if (reason === "The first number must be placed at A1.") return "Place your first number at A1.";
@@ -40,13 +37,10 @@ export function initializeApp(document, storage) {
   let selectedCell = null;
   let selectedActionCell = null;
   let resetConfirmOpen = false;
-  let feedbackTimer = null;
   let challengeConfirmed = false;
-  const timers = document.defaultView ?? globalThis;
 
   const board = document.getElementById("game-board");
   const boardRows = document.getElementById("board-rows");
-  const entryFeedback = document.getElementById("entry-feedback");
   const attackActions = document.getElementById("attack-ice-actions");
   const attackButton = document.getElementById("toggle-attack-ice");
   const undoButton = document.getElementById("undo-move");
@@ -76,20 +70,6 @@ export function initializeApp(document, storage) {
   function clearEntry() {
     selectedCell = null;
     selectedActionCell = null;
-    timers.clearTimeout?.(feedbackTimer);
-    feedbackTimer = null;
-    entryFeedback.textContent = "";
-    entryFeedback.hidden = true;
-  }
-
-  function showEntryError(message, coordinate) {
-    entryFeedback.textContent = message;
-    entryFeedback.dataset.edge = Number(coordinate[1]) <= 3 ? "bottom" : "top";
-    entryFeedback.hidden = false;
-    feedbackTimer = timers.setTimeout?.(() => {
-      entryFeedback.hidden = true;
-      feedbackTimer = null;
-    }, 4500);
   }
 
   function createInlineInput(coordinate) {
@@ -106,7 +86,7 @@ export function initializeApp(document, storage) {
     input.setAttribute("autocomplete", "off");
     input.setAttribute("enterkeyhint", "done");
     input.setAttribute("aria-label", "Number for " + coordinate);
-    input.setAttribute("aria-describedby", "number-help entry-feedback");
+    input.setAttribute("aria-describedby", "number-help app-status");
     // Do not use maxlength: a pasted 123 must be rejected, never truncated to 12.
     const onInput = (event) => {
       if (!event.isComposing && !/^[1-6]?$/.test(input.value)) attemptPlacement(input);
@@ -231,8 +211,8 @@ export function initializeApp(document, storage) {
     for (const column of columns) {
       const heading = document.createElement("th");
       heading.scope = "col";
-      heading.textContent = columnDisplayLabels[column];
-      heading.setAttribute("aria-label", "Column " + column + ", displayed as " + columnDisplayLabels[column]);
+      heading.textContent = column;
+      heading.setAttribute("aria-label", "Column " + column);
       headerRow.append(heading);
     }
 
@@ -330,7 +310,7 @@ export function initializeApp(document, storage) {
     const coordinate = selectedCell;
     function reject(message) {
       cancelEntry(false);
-      showEntryError(message, coordinate);
+      showAppStatus(message);
       board.focus({ preventScroll: true });
     }
     let value;

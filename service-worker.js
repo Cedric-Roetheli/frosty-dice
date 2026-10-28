@@ -1,13 +1,13 @@
 // Bump this version for EVERY deployment changing a cached file, and update URLs
 // below when adding/removing files or changing their query-string versions.
 const CACHE_PREFIX = "frosty-dice-pwa-";
-const CACHE_NAME = CACHE_PREFIX + "v8";
+const CACHE_NAME = CACHE_PREFIX + "v14";
 const APP_SHELL = "/index.html";
 const PRECACHE_URLS = [
   APP_SHELL,
   "/manifest.webmanifest",
-  "/css/style.css?v=d7-flag-1",
-  "/js/app.js?v=d7-flag-1",
+  "/css/style.css?v=unified-feedback-1",
+  "/js/app.js?v=unified-feedback-1",
   "/js/board-state.js?v=v3-multipliers-1",
   "/js/game.js?v=v3-multipliers-1",
   "/js/scoring.js?v=v3-multipliers-1",
@@ -19,6 +19,8 @@ const PRECACHE_URLS = [
   "/assets/icons/apple-touch-icon.png",
   "/assets/background_sky.png",
   "/assets/background_meadow.png",
+  "/assets/background_meadow_desert.png",
+  "/assets/background_meadow_snow.png",
   "/assets/reset_button.png",
   "/assets/rules_button.png?v=d85019bc",
   "/assets/Rules.png",
