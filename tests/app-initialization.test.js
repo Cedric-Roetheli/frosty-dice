@@ -19,6 +19,7 @@ class AppTestElement {
     this.disabled = false;
     this.open = false;
     this.text = "";
+    this.style = { setProperty(name, value) { this[name] = value; } };
   }
   get textContent() { return this.text + this.children.map((child) => child.textContent).join(""); }
   set textContent(value) { this.replaceChildren(); this.text = String(value); }
@@ -131,7 +132,15 @@ export function appTestDocument() {
   add("button", "open-challenge");
   const challenge = add("dialog", "challenge-dialog");
   const bidForm = add("form", "challenge-form", challenge);
-  add("input", "challenge-bid", bidForm);
+  const note = add("div", "challenge-banknote", bidForm);
+  const shake = add("div", "challenge-note-shake", note);
+  const rotor = add("div", "challenge-note-rotor", shake);
+  const bidFace = add("div", "challenge-bid-face", rotor);
+  add("img", "challenge-bid-art", bidFace).src = "./assets/bid.png";
+  add("input", "challenge-bid", bidFace).type = "number";
+  const cover = add("button", "reveal-bid", rotor);
+  cover.type = "button";
+  add("img", "challenge-cover-art", cover).src = "./assets/bid_front.png";
   add("p", "bid-limit", bidForm);
   add("p", "bid-feedback", bidForm);
   add("button", "confirm-bid", bidForm);
@@ -155,6 +164,72 @@ function startAppTest(serialized = null) {
   const storage = appTestStorage(serialized);
   initializeApp(document, storage);
   return { document, storage };
+}
+
+function finishNoteFlip(document) {
+  const rotor = document.getElementById("challenge-note-rotor");
+  rotor.emit("transitionend", rotor, { propertyName: "transform" });
+}
+
+function finishNoteShake(document) {
+  const shake = document.getElementById("challenge-note-shake");
+  shake.emit("animationend", shake, { animationName: "frosty-dollar-shake" });
+}
+
+function startNoteTest({ reducedMotion = false, language = "en", largeBalance = false } = {}) {
+  const document = appTestDocument();
+  const listeners = [];
+  const motion = { matches: reducedMotion, addEventListener(type, callback) {
+    assertEqual(type, "change");
+    listeners.push(callback);
+  } };
+  document.defaultView.matchMedia = (query) => {
+    assertEqual(query, "(prefers-reduced-motion: reduce)");
+    return motion;
+  };
+  const rulesImage = document.createElement("img");
+  rulesImage.id = "rules-image";
+  rulesImage.lang = language;
+  document.root.append(rulesImage);
+  const board = largeBalance
+    ? boardFixture(...Array.from({ length: 7 }, (_, row) => [21, 22, 33, 44].map((value, column) => ["ABCD"[column] + (row + 1), value])).flat())
+    : boardFixture(["A1", 23], ["B1", 24]);
+  const storage = appTestStorage(serializeGame({ board, undo: null }));
+  storage.setItem("frosty-dice.rules-language", language);
+  let writes = 0;
+  const save = storage.setItem;
+  storage.setItem = (key, value) => { writes += 1; save(key, value); };
+  initializeApp(document, storage);
+  document.getElementById("open-challenge").emit("click");
+  return {
+    document, storage,
+    get writes() { return writes; },
+    changeMotion(value) { motion.matches = value; listeners.forEach((callback) => callback({ matches: value })); },
+  };
+}
+
+function confirmNote(document, amount = 12) {
+  document.getElementById("challenge-bid").value = String(amount);
+  document.getElementById("challenge-form").emit("submit");
+}
+
+function assertCoveredNote(document) {
+  const input = document.getElementById("challenge-bid");
+  const face = document.getElementById("challenge-bid-face");
+  const cover = document.getElementById("reveal-bid");
+  assertEqual(document.getElementById("challenge-banknote").dataset.phase, "hidden");
+  assertEqual(face.hidden, true);
+  assertEqual(face.inert, true);
+  assertEqual(face.getAttribute("aria-hidden"), "true");
+  assertEqual(input.readOnly, true);
+  assertEqual(input.disabled, true);
+  assertEqual(input.tabIndex, -1);
+  assertEqual(cover.hidden, false);
+  assertEqual(cover.disabled, false);
+  assertEqual(cover.type, "button");
+  assertEqual(cover.querySelector("img").src, "./assets/bid_front.png");
+  assertEqual(cover.querySelector("input"), null);
+  assertEqual(document.getElementById("bid-limit").textContent, "");
 }
 
 function assertAppBoardReady(document) {
@@ -1495,13 +1570,15 @@ export function runAppInitializationTests() {
       assertEqual(storage.getItem(STORAGE_KEY), saved);
       assertEqual(document.getElementById("current-score").textContent, "46");
       assertEqual(document.getElementById("challenge-bid").readOnly, false);
+      assertEqual(document.getElementById("challenge-banknote").dataset.phase, "editing");
+      assertEqual(document.getElementById("reveal-bid").hidden, true);
       assertEqual(document.getElementById("challenge-bid").getAttribute("aria-invalid"), "true");
       assert(document.getElementById("bid-feedback").textContent.length > 0);
       assertEqual(document.getElementById("challenge-dialog").open, true);
     }
   });
 
-  test("Confirm spends exactly once, updates Score, locks the visible bid, and stays open", () => {
+  test("Confirm spends exactly once, updates Score, locks the bid, begins concealing it, and stays open", () => {
     const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A1", 23], ["B1", 24]), undo: null }));
     document.getElementById("open-challenge").emit("click");
     const input = document.getElementById("challenge-bid");
@@ -1510,6 +1587,8 @@ export function runAppInitializationTests() {
     assertEqual(document.getElementById("current-score").textContent, "35");
     assertEqual(input.value, "12");
     assertEqual(input.readOnly, true);
+    assertEqual(document.getElementById("challenge-banknote").dataset.phase, "flipping-to-hidden");
+    assertEqual(document.getElementById("bid-limit").textContent, "");
     assertEqual(document.getElementById("confirm-bid").disabled, true);
     assertEqual(document.getElementById("challenge-dialog").open, true);
     assertEqual(document.activeElement, document.getElementById("close-challenge"));
@@ -1565,6 +1644,11 @@ export function runAppInitializationTests() {
     document.getElementById("open-challenge").emit("click");
     document.getElementById("challenge-bid").value = "12";
     document.getElementById("challenge-form").emit("submit");
+    finishNoteFlip(document);
+    document.getElementById("reveal-bid").emit("click");
+    finishNoteShake(document);
+    finishNoteFlip(document);
+    assertEqual(document.getElementById("challenge-banknote").dataset.phase, "revealed");
     const saved = storage.getItem(STORAGE_KEY);
     document.getElementById("undo-move").emit("click");
     document.getElementById("new-game").emit("click");
@@ -1589,6 +1673,8 @@ export function runAppInitializationTests() {
     assertEqual(restored.document.getElementById("current-score").textContent, "34");
     assertEqual(restored.document.getElementById("challenge-dialog").open, false);
     assertEqual(restored.document.getElementById("challenge-bid").value, "");
+    assertEqual(restored.document.getElementById("challenge-banknote").dataset.phase, "editing");
+    assertEqual(restored.document.getElementById("reveal-bid").hidden, true);
     restored.document.getElementById("undo-move").emit("click");
     assertEqual(restored.document.getElementById("current-score").textContent, "46");
   });
@@ -1645,6 +1731,234 @@ export function runAppInitializationTests() {
     assertEqual(document.getElementById("challenge-bid").readOnly, true);
     assertEqual(document.getElementById("undo-move").disabled, false);
     assert(document.getElementById("storage-status").textContent.includes("saving is unavailable"));
+  });
+
+  test("Opening Frosty Dollar shows the editable bid face in its stable frame", () => {
+    const { document, writes } = startNoteTest();
+    const note = document.getElementById("challenge-banknote");
+    const input = document.getElementById("challenge-bid");
+    assertEqual(note.dataset.phase, "editing");
+    assertEqual(note.style["--bid-flip-duration"], "500ms");
+    assertEqual(note.style["--bid-reveal-duration"], "700ms");
+    assertEqual(note.style["--bid-shake-duration"], "1200ms");
+    assertEqual(document.getElementById("challenge-bid-face").querySelector("img").src, "./assets/bid.png");
+    assertEqual(document.getElementById("challenge-bid-face").hidden, false);
+    assertEqual(input.disabled, false);
+    assertEqual(input.readOnly, false);
+    assertEqual(input.value, "");
+    assertEqual(document.activeElement, input);
+    assertEqual(document.getElementById("reveal-bid").hidden, true);
+    assertEqual(writes, 0);
+  });
+
+  test("Confirmation conceals the amount and the hidden note never reveals on a timeout", () => {
+    const test = startNoteTest();
+    const { document, storage } = test;
+    confirmNote(document);
+    assertEqual(document.getElementById("challenge-banknote").dataset.phase, "flipping-to-hidden");
+    const cover = document.getElementById("reveal-bid");
+    cover.emit("click");
+    assertEqual(document.getElementById("challenge-banknote").dataset.phase, "flipping-to-hidden");
+    finishNoteFlip(document);
+    assertCoveredNote(document);
+    assertEqual(document.getElementById("bid-feedback").textContent, "Tap to reveal");
+    assertEqual(document.activeElement, cover);
+    const saved = storage.getItem(STORAGE_KEY);
+    document.runTimers();
+    assertCoveredNote(document);
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+    assertEqual(test.writes, 1);
+  });
+
+  test("Reveal shakes first, then flips once, without spending or replacing Undo", () => {
+    const test = startNoteTest();
+    const { document, storage } = test;
+    confirmNote(document);
+    finishNoteFlip(document);
+    const saved = storage.getItem(STORAGE_KEY);
+    const note = document.getElementById("challenge-banknote");
+    const rotor = document.getElementById("challenge-note-rotor");
+    const shake = document.getElementById("challenge-note-shake");
+    const cover = document.getElementById("reveal-bid");
+    cover.emit("click");
+    assertEqual(note.dataset.phase, "shaking");
+    assertEqual(document.getElementById("challenge-bid-face").hidden, true);
+    for (let tap = 0; tap < 3; tap += 1) cover.emit("click");
+    finishNoteFlip(document); // A different CSS event must not skip the shake.
+    shake.emit("animationend", shake, { animationName: "unrelated" });
+    assertEqual(note.dataset.phase, "shaking");
+    finishNoteShake(document);
+    assertEqual(note.dataset.phase, "flipping-to-revealed");
+    rotor.emit("transitionend", document.getElementById("challenge-bid"), { propertyName: "transform" });
+    rotor.emit("transitionend", rotor, { propertyName: "opacity" });
+    assertEqual(note.dataset.phase, "flipping-to-revealed");
+    finishNoteFlip(document);
+    assertEqual(note.dataset.phase, "revealed");
+    assertEqual(document.getElementById("challenge-bid-face").hidden, false);
+    assertEqual(document.getElementById("challenge-bid-face").inert, false);
+    assertEqual(document.getElementById("challenge-bid").disabled, false);
+    assertEqual(document.getElementById("challenge-bid").readOnly, true);
+    assertEqual(document.getElementById("challenge-bid").value, "12");
+    assertEqual(cover.hidden, true);
+    assertEqual(document.activeElement, document.getElementById("close-challenge"));
+    for (let tap = 0; tap < 3; tap += 1) {
+      cover.emit("click");
+      document.getElementById("challenge-form").emit("submit");
+    }
+    document.runTimers();
+    assertEqual(note.dataset.phase, "revealed");
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+    assertEqual(test.writes, 1);
+    assertEqual(document.getElementById("current-score").textContent, "35");
+  });
+
+  test("The covered note's native keyboard-originated click uses the same one-shot reveal", () => {
+    const { document } = startNoteTest();
+    confirmNote(document);
+    finishNoteFlip(document);
+    const cover = document.getElementById("reveal-bid");
+    assertEqual(cover.type, "button"); // Native buttons provide Enter/Space activation.
+    cover.focus();
+    cover.emit("click", cover, { detail: 0 });
+    cover.emit("click", cover, { detail: 0 });
+    assertEqual(document.getElementById("challenge-banknote").dataset.phase, "shaking");
+    finishNoteShake(document);
+    finishNoteFlip(document);
+    assertEqual(document.getElementById("challenge-banknote").dataset.phase, "revealed");
+  });
+
+  test("Amounts 0, 12, 100, and 1000 stay locked through concealment and reveal", () => {
+    for (const amount of [0, 12, 100, 1000]) {
+      const test = startNoteTest({ largeBalance: true });
+      const { document, storage } = test;
+      confirmNote(document, amount);
+      finishNoteFlip(document);
+      assertCoveredNote(document);
+      assertEqual(document.getElementById("challenge-bid").value, String(amount));
+      assert(!document.getElementById("bid-feedback").textContent.includes(String(amount)));
+      const saved = storage.getItem(STORAGE_KEY);
+      document.getElementById("challenge-bid").value = "9999"; // A stale input cannot alter the locked reveal.
+      document.getElementById("reveal-bid").emit("click");
+      finishNoteShake(document);
+      finishNoteFlip(document);
+      assertEqual(document.getElementById("challenge-bid").value, String(amount));
+      assertEqual(document.getElementById("current-score").textContent,
+        new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(1533 - amount));
+      assertEqual(storage.getItem(STORAGE_KEY), saved);
+      assertEqual(test.writes, 1);
+    }
+  });
+
+  test("Closing at every visual phase cancels animation work without refunding; reopening is fresh", () => {
+    for (const phase of ["editing", "flipping-to-hidden", "hidden", "shaking", "flipping-to-revealed", "revealed"]) {
+      const test = startNoteTest();
+      const { document, storage } = test;
+      const initial = storage.getItem(STORAGE_KEY);
+      document.getElementById("challenge-bid").value = "12";
+      if (phase !== "editing") confirmNote(document);
+      if (["hidden", "shaking", "flipping-to-revealed", "revealed"].includes(phase)) finishNoteFlip(document);
+      if (["shaking", "flipping-to-revealed", "revealed"].includes(phase)) document.getElementById("reveal-bid").emit("click");
+      if (["flipping-to-revealed", "revealed"].includes(phase)) finishNoteShake(document);
+      if (phase === "revealed") finishNoteFlip(document);
+      assertEqual(document.getElementById("challenge-banknote").dataset.phase, phase);
+      const saved = storage.getItem(STORAGE_KEY);
+      document.getElementById("close-challenge").emit("click");
+      assertEqual(document.getElementById("current-score").textContent, phase === "editing" ? "47" : "35");
+      assertEqual(storage.getItem(STORAGE_KEY), phase === "editing" ? initial : saved);
+      document.getElementById("open-challenge").emit("click");
+      document.runTimers();
+      assertEqual(document.getElementById("challenge-banknote").dataset.phase, "editing");
+      assertEqual(document.getElementById("challenge-bid").value, "");
+      assertEqual(document.getElementById("challenge-bid").disabled, false);
+      assertEqual(document.getElementById("challenge-bid").readOnly, false);
+      assertEqual(document.getElementById("confirm-bid").disabled, false);
+      assertEqual(document.getElementById("reveal-bid").hidden, true);
+      assertEqual(document.activeElement, document.getElementById("challenge-bid"));
+    }
+  });
+
+  test("Late callbacks from a closed note cannot finish a new bid's animation", () => {
+    const { document, storage } = startNoteTest();
+    const callbacks = [];
+    const schedule = document.defaultView.setTimeout;
+    document.defaultView.setTimeout = (callback, delay) => { callbacks.push(callback); return schedule(callback, delay); };
+    confirmNote(document);
+    const oldCallback = callbacks[0];
+    document.getElementById("close-challenge").emit("click");
+    document.getElementById("open-challenge").emit("click");
+    confirmNote(document, 7);
+    oldCallback();
+    assertEqual(document.getElementById("challenge-banknote").dataset.phase, "flipping-to-hidden");
+    finishNoteFlip(document);
+    assertCoveredNote(document);
+    assertEqual(loadGame(storage).state.pointsSpent, 19);
+    assertEqual(document.getElementById("challenge-bid").value, "7");
+  });
+
+  test("Missing CSS completion events still finish each requested phase without auto-reveal", () => {
+    const { document, storage } = startNoteTest();
+    const delays = [];
+    const schedule = document.defaultView.setTimeout;
+    document.defaultView.setTimeout = (callback, delay) => { delays.push(delay); return schedule(callback, delay); };
+    confirmNote(document);
+    assertEqual(delays.at(-1), 600); // Confirm: unchanged 500ms plus the fallback buffer.
+    document.runTimers();
+    assertCoveredNote(document);
+    const saved = storage.getItem(STORAGE_KEY);
+    document.runTimers();
+    assertCoveredNote(document);
+    document.getElementById("reveal-bid").emit("click");
+    assertEqual(delays.at(-1), 1300); // 400ms anticipation + 800ms buildup + buffer.
+    document.runTimers();
+    assertEqual(document.getElementById("challenge-banknote").dataset.phase, "flipping-to-revealed");
+    assertEqual(delays.at(-1), 800); // Reveal: 700ms plus the fallback buffer.
+    document.runTimers();
+    assertEqual(document.getElementById("challenge-banknote").dataset.phase, "revealed");
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+  });
+
+  test("Reduced motion conceals immediately and still needs explicit reveal without a shake", () => {
+    const test = startNoteTest({ reducedMotion: true });
+    const { document, storage } = test;
+    confirmNote(document);
+    assertCoveredNote(document);
+    const saved = storage.getItem(STORAGE_KEY);
+    document.runTimers();
+    assertCoveredNote(document);
+    document.getElementById("reveal-bid").emit("click");
+    assertEqual(document.getElementById("challenge-banknote").dataset.phase, "revealed");
+    assertEqual(document.getElementById("challenge-bid").value, "12");
+    assertEqual(document.getElementById("challenge-bid").readOnly, true);
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+    assertEqual(test.writes, 1);
+  });
+
+  test("Enabling reduced motion mid-animation never reveals an unrequested hidden bid", () => {
+    const test = startNoteTest();
+    const { document } = test;
+    confirmNote(document);
+    test.changeMotion(true);
+    assertCoveredNote(document);
+    document.runTimers();
+    assertCoveredNote(document);
+    test.changeMotion(false);
+    document.getElementById("reveal-bid").emit("click");
+    assertEqual(document.getElementById("challenge-banknote").dataset.phase, "shaking");
+    test.changeMotion(true);
+    assertEqual(document.getElementById("challenge-banknote").dataset.phase, "revealed");
+    document.runTimers();
+    assertEqual(document.getElementById("challenge-banknote").dataset.phase, "revealed");
+  });
+
+  test("Reveal instructions use the existing Rules language without changing its preference", () => {
+    for (const [language, label] of [["en", "Tap to reveal"], ["de", "Zum Aufdecken tippen"]]) {
+      const { document, storage } = startNoteTest({ language, reducedMotion: true });
+      confirmNote(document);
+      assertCoveredNote(document);
+      assertEqual(document.getElementById("reveal-bid").getAttribute("aria-label"), label);
+      assertEqual(document.getElementById("bid-feedback").textContent, label);
+      assertEqual(storage.getItem("frosty-dice.rules-language"), language);
+    }
   });
 
 

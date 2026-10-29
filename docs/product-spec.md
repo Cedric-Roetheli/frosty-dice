@@ -239,14 +239,14 @@ A compact Challenge button sits beside Undo in the existing header. It opens a
 native modal dialog over a dimmed, visible game without changing page layout.
 Show MAKE YOUR BID, the unchanged transparent `assets/bid.png`, a large dark
 numeric input centred in the illustrated circle, CONFIRM, and secondary CLOSE.
-Keep the banknote dominant with no surrounding card. The component can accept a
-future animation near the heading without adding a placeholder now.
+Keep the banknote dominant with no surrounding card. Its two-sided flip preserves
+the original number placement and dialog layout.
 
 Validate whole, nonnegative, affordable bids on confirmation, including 0; blank,
 fractional, negative, or unaffordable entries show a concise reserved-space live
 message without changing state or Undo. Confirmation spends once, saves, updates
 the normal Score, locks the visible input, disables repeated confirmation, and
-keeps the dialog open for reveal. Move focus off the input to dismiss the keyboard.
+keeps the dialog open with the bid concealed. Move focus off the input to dismiss the keyboard.
 Close/Escape before confirmation cancel; afterwards they close without refund.
 Backdrop clicks do nothing. Restore focus to Challenge on close. Reopening starts
 a new blank bid using the then-current Score. Native dialog semantics isolate
@@ -274,6 +274,30 @@ The bid input keeps its exact centre and transparent dark appearance, with a
 larger font scaled to the banknote and enough width for four digits. The header
 Challenge button has a white outline and a restrained rounded rectangle shape,
 retaining its position, 48px touch height, and transparent fill.
+
+The Frosty Dollar uses unchanged 2048 × 2048 illustrations: `assets/bid.png`
+for entry and revealed bids, and `assets/bid_front.png` for the covered face.
+Align their painted artwork within the existing square frame without cropping
+or distorting either source. CSS perspective, preserved 3D transforms, and
+backface visibility rotate the note 0° → 180° on confirmation (500ms). It stays
+covered indefinitely. The cover is a native reveal button supporting touch,
+mouse, Enter, and Space, with “Tap to reveal” / “Zum Aufdecken tippen” according
+to the current Rules language. A tap starts 400ms of very subtle anticipation,
+followed by 800ms of increasingly noticeable, irregular horizontal trembling
+(maximum 4px), with the amount fully covered. Trembling then stops and the note
+continues in the same direction to 360° over 700ms, revealing the locked bid.
+The reveal sequence totals approximately 1900ms; confirmation remains 500ms.
+
+Hide the bid face completely while covered, disable and exclude its input from
+focus/assistive access, and show no amount on the cover or in status/limit text.
+Only the bid face contains the number. Disable repeated reveal activation;
+revealing and animation callbacks never spend, save, or create Undo. The existing
+confirmation guard and pure game operation remain the only point-spending path.
+Closing at any phase cancels pending animation work without refunds; reopening
+resets to an empty editable 0° face. Visual phases are temporary and never saved.
+Reduced motion skips shake/rotation, switches faces immediately, and still
+requires an explicit reveal. Both illustrations and the independent visual
+controller are precached; service-worker activation and save version 7 stay unchanged.
 
 ## 9. Technical constraints
 

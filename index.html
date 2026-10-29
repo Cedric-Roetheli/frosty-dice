@@ -20,8 +20,8 @@
         document.documentElement.style.setProperty("--background-meadow-image", 'url("' + image + '")');
       })();
     </script>
-    <link rel="stylesheet" href="./css/style.css?v=unified-feedback-1">
-    <script type="module" src="./js/app.js?v=unified-feedback-1"></script>
+    <link rel="stylesheet" href="./css/style.css?v=frosty-dollar-1">
+    <script type="module" src="./js/app.js?v=frosty-dollar-1"></script>
     <script type="module" src="./js/pwa.js"></script>
     <script type="module" src="./js/rules.js?v=additional-rules-1"></script>
   </head>
@@ -115,10 +115,19 @@
     <dialog id="challenge-dialog" class="challenge-dialog" aria-labelledby="challenge-heading" aria-describedby="bid-limit">
       <form id="challenge-form" class="challenge-content" novalidate>
         <h2 id="challenge-heading">MAKE YOUR BID</h2>
-        <div class="challenge-banknote">
-          <img src="./assets/bid.png" alt="" width="2048" height="2048" decoding="async">
-          <label class="visually-hidden" for="challenge-bid">Secret point bid</label>
-          <input id="challenge-bid" class="challenge-bid" type="number" min="0" step="1" inputmode="numeric" autocomplete="off" aria-describedby="bid-limit bid-feedback">
+        <div id="challenge-banknote" class="challenge-banknote" data-phase="editing">
+          <div id="challenge-note-shake" class="challenge-note__shake">
+            <div id="challenge-note-rotor" class="challenge-note__rotor">
+              <div id="challenge-bid-face" class="challenge-note__face challenge-note__bid">
+                <img src="./assets/bid.png" alt="" width="2048" height="2048" decoding="async">
+                <label class="visually-hidden" for="challenge-bid">Secret point bid</label>
+                <input id="challenge-bid" class="challenge-bid" type="number" min="0" step="1" inputmode="numeric" autocomplete="off" aria-describedby="bid-limit bid-feedback">
+              </div>
+              <button id="reveal-bid" class="challenge-note__face challenge-note__cover" type="button" aria-label="Tap to reveal" aria-hidden="true" disabled hidden>
+                <img src="./assets/bid_front.png" alt="" width="2048" height="2048" decoding="async">
+              </button>
+            </div>
+          </div>
         </div>
         <p id="bid-limit" class="bid-limit"></p>
         <p id="bid-feedback" class="bid-feedback" role="status" aria-atomic="true"></p>

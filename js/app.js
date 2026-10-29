@@ -17,6 +17,7 @@ import {
 } from "./game.js?v=v3-multipliers-1";
 import { getCellScoreMultiplier, getScoreBreakdown } from "./scoring.js?v=v3-multipliers-1";
 import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=v3-multipliers-1";
+import { createChallengeNote } from "./challenge-note.js?v=frosty-dollar-1";
 
 // Shorten the core's explanations, without evaluating placement rules in the UI.
 function placementFeedback(reason) {
@@ -55,6 +56,7 @@ export function initializeApp(document, storage) {
   const confirmBidButton = document.getElementById("confirm-bid");
   const closeChallengeButton = document.getElementById("close-challenge");
   const bidFeedback = document.getElementById("bid-feedback");
+  const challengeNote = createChallengeNote(document);
   const scoreFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 
   function showStorageStatus(message) {
@@ -422,6 +424,7 @@ export function initializeApp(document, storage) {
   function closeChallenge() {
     if (!challengeDialog.open) return;
     challengeDialog.close();
+    challengeNote.reset();
     challengeButton.focus({ preventScroll: true });
   }
 
@@ -431,6 +434,7 @@ export function initializeApp(document, storage) {
     resetConfirmOpen = false;
     render();
     challengeConfirmed = false;
+    challengeNote.reset();
     bidInput.value = "";
     bidInput.readOnly = false;
     bidInput.removeAttribute("aria-invalid");
@@ -466,10 +470,12 @@ export function initializeApp(document, storage) {
     confirmBidButton.disabled = true;
     confirmBidButton.textContent = "CONFIRMED";
     bidFeedback.textContent = "Bid spent. Reveal when ready.";
+    document.getElementById("bid-limit").textContent = "";
     showStorageStatus(saveGame(game, storage) ? "" : "Local saving is unavailable. Changes may not survive a reload.");
     render();
     // Move focus off the input to dismiss the keyboard while keeping the reveal open.
     closeChallengeButton.focus({ preventScroll: true });
+    challengeNote.conceal(bid);
   });
 
   bidInput.addEventListener("input", () => {
@@ -482,6 +488,9 @@ export function initializeApp(document, storage) {
   challengeDialog.addEventListener("cancel", (event) => {
     event.preventDefault();
     closeChallenge();
+  });
+  challengeDialog.addEventListener("close", () => {
+    if (!challengeDialog.open) challengeNote.reset();
   });
 
   clearEntry();

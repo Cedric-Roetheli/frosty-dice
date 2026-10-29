@@ -1,13 +1,14 @@
 // Bump this version for EVERY deployment changing a cached file, and update URLs
 // below when adding/removing files or changing their query-string versions.
 const CACHE_PREFIX = "frosty-dice-pwa-";
-const CACHE_NAME = CACHE_PREFIX + "v14";
+const CACHE_NAME = CACHE_PREFIX + "v16";
 const APP_SHELL = "/index.html";
 const PRECACHE_URLS = [
   APP_SHELL,
   "/manifest.webmanifest",
-  "/css/style.css?v=unified-feedback-1",
-  "/js/app.js?v=unified-feedback-1",
+  "/css/style.css?v=frosty-dollar-1",
+  "/js/app.js?v=frosty-dollar-1",
+  "/js/challenge-note.js?v=frosty-dollar-1",
   "/js/board-state.js?v=v3-multipliers-1",
   "/js/game.js?v=v3-multipliers-1",
   "/js/scoring.js?v=v3-multipliers-1",
@@ -32,6 +33,7 @@ const PRECACHE_URLS = [
   "/assets/frosty_dice_title_cropped.png",
   "/assets/surfing_cowboy.png",
   "/assets/bid.png",
+  "/assets/bid_front.png",
   "/assets/icecube.png",
   "/assets/icecube2.png",
   "/assets/d7_flag.png",

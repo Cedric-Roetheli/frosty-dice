@@ -781,9 +781,91 @@ noscript p {
   width: min(100%, 55svh);
   margin-block: -0.5rem;
   container-type: inline-size;
+  aspect-ratio: 1;
+  perspective: 1000px;
 }
 
 .challenge-banknote img { display: block; width: 100%; height: auto; }
+
+.challenge-note__shake,
+.challenge-note__rotor,
+.challenge-note__face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.challenge-note__shake { transform-style: preserve-3d; }
+
+.challenge-note__rotor {
+  transform-style: preserve-3d;
+  transform: rotateY(var(--bid-turn, 0deg));
+  transition: transform var(--bid-flip-duration) ease-in-out;
+}
+
+.challenge-banknote[data-phase="editing"] .challenge-note__rotor { transition: none; }
+.challenge-banknote[data-phase="flipping-to-revealed"] .challenge-note__rotor {
+  transition-duration: var(--bid-reveal-duration);
+}
+.challenge-banknote[data-phase="flipping-to-hidden"],
+.challenge-banknote[data-phase="hidden"],
+.challenge-banknote[data-phase="shaking"] { --bid-turn: 180deg; }
+.challenge-banknote[data-phase="flipping-to-revealed"],
+.challenge-banknote[data-phase="revealed"] { --bid-turn: 360deg; }
+
+.challenge-note__face,
+.challenge-note__face img,
+.challenge-bid {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.challenge-note__bid { transform: rotateY(0deg); }
+.challenge-note__cover {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
+  transform: rotateY(180deg);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.challenge-note__face img { height: 100%; object-fit: contain; pointer-events: none; }
+.challenge-note__cover img {
+  /* Align painted centers: both 2048px canvases have equal 1977px artwork widths. */
+  transform: translate(0.244%, -7.642%);
+}
+.challenge-note__cover:focus-visible { outline-color: #fff; outline-offset: -4px; }
+
+.challenge-banknote[data-phase="shaking"] .challenge-note__shake {
+  animation: frosty-dollar-shake var(--bid-shake-duration) ease-in-out;
+}
+
+@keyframes frosty-dollar-shake {
+  0%, 100% { transform: translateX(0); }
+  /* First 400ms: restrained anticipation; next 800ms: irregular buildup. */
+  8% { transform: translateX(-0.3px); }
+  17% { transform: translateX(0.5px); }
+  24% { transform: translateX(-0.4px); }
+  33.333333% { transform: translateX(0.75px); }
+  41% { transform: translateX(-1.1px); }
+  49% { transform: translateX(1.6px); }
+  56% { transform: translateX(-1.3px); }
+  63% { transform: translateX(2.4px); }
+  71% { transform: translateX(-2.1px); }
+  78% { transform: translateX(3.2px); }
+  84% { transform: translateX(-3.6px); }
+  90% { transform: translateX(4px); }
+  95% { transform: translateX(-2.5px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .challenge-note__rotor { transform: none; transition: none; }
+  .challenge-note__cover { transform: none; }
+  .challenge-banknote[data-phase="shaking"] .challenge-note__shake { animation: none; }
+}
 
 .challenge-bid {
   position: absolute;
@@ -815,7 +897,8 @@ noscript p {
 .challenge-bid::-webkit-outer-spin-button { margin: 0; -webkit-appearance: none; }
 
 .challenge-bid:read-only { cursor: default; }
-.bid-limit { font-size: 0.8125rem; }
+.challenge-bid:disabled { opacity: 1; }
+.bid-limit { min-height: 1.5em; font-size: 0.8125rem; }
 .bid-feedback { min-height: 2.5rem; padding-top: 0.25rem; font-size: 0.875rem; }
 .challenge-confirm { width: min(100%, 14rem); }
 .challenge-confirm:disabled { opacity: 0.65; cursor: default; }

@@ -202,6 +202,23 @@ export async function runPwaTests(sources) {
     }
   });
 
+  await test("Both Frosty Dollar faces and its controller are available offline with the current shell", async () => {
+    const worker = workerHarness(sources.worker);
+    await worker.lifecycle("install");
+    worker.offline = true;
+    for (const path of ["/assets/bid.png", "/assets/bid_front.png", "/js/challenge-note.js?v=frosty-dollar-1"]) {
+      assert(worker.PRECACHE_URLS.includes(path), path);
+      assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
+    }
+    assertEqual(worker.networkCalls.length, 0);
+    assert(sources.html.includes('src="./assets/bid.png"'));
+    assert(sources.html.includes('src="./assets/bid_front.png"'));
+    assert(!sources.html.includes("bid_back.png"));
+    assert(sources.html.includes('id="reveal-bid" class="challenge-note__face challenge-note__cover" type="button"'));
+    const cover = sources.html.match(/<button id="reveal-bid"[\s\S]*?<\/button>/)?.[0];
+    assert(cover && !cover.includes("<input"), "Only the bid face may contain the amount");
+  });
+
   await test("A failed new installation leaves the previous cache intact and never claims clients", async () => {
     const worker = workerHarness(sources.worker);
     const original = new Map([[absolute("/index.html"), response("previous release")]]);
