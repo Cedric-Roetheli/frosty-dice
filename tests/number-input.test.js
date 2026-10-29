@@ -22,9 +22,11 @@ export function runNumberInputTests() {
     for (let die = 1; die <= 6; die += 1) {
       const value = die * 11;
       assertDeepEqual(generateDiceNumbers(die, die), [value]);
-      const state = placeGameNumber(createGameState(), "A1", value);
+      const initial = value === 66 ? placeGameNumber(createGameState(), "A1", 65) : createGameState();
+      const coordinate = value === 66 ? "B1" : "A1";
+      const state = placeGameNumber(initial, coordinate, value);
       assertDeepEqual(Object.keys(state), ["board", "undo"]);
-      assertDeepEqual(getCell(state.board, "A1"), { value, status: "normal" });
+      assertDeepEqual(getCell(state.board, coordinate), { value, status: "normal" });
     }
   });
 
@@ -67,7 +69,7 @@ export function runNumberInputTests() {
   });
 
   test("An unusable selected pair simply exposes no targets", () => {
-    const board = placedBoard(["A1", 66]);
+    const board = placedBoard(["A1", 65], ["B1", 66]);
     assertDeepEqual(getDiceOptions(board, 1, 2), [{ value: 12, targets: [] }, { value: 21, targets: [] }]);
   });
 

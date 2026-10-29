@@ -1,5 +1,5 @@
 import { initializeApp } from "../js/app.js";
-import { confirmGameBid, createGameState, freezeGameCell, placeGameNumber } from "../js/game.js";
+import { confirmGameBid, createGameState, cloneBoard, placeGameNumber } from "../js/game.js";
 import { initializeRules, RULES_LANGUAGE_KEY } from "../js/rules.js";
 import { serializeGame, STORAGE_KEY } from "../js/storage.js";
 import { appTestStorage } from "./app-initialization.test.js";
@@ -90,7 +90,9 @@ export async function runMeadowTests(sources) {
     game = placeGameNumber(game, "A1", 23);
     game = placeGameNumber(game, "B1", 31);
     game = placeGameNumber(game, "A2", 23);
-    game = freezeGameCell(game, "A1");
+    const historicalBoard = cloneBoard(game.board);
+    historicalBoard[0][0].attackIce = true;
+    game = { board: historicalBoard, undo: { board: game.board } }; // A compatible old save.
     game = confirmGameBid(game, 5);
     const before = JSON.stringify(game);
     const serialized = serializeGame(game);

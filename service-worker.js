@@ -1,18 +1,19 @@
 // Bump this version for EVERY deployment changing a cached file, and update URLs
 // below when adding/removing files or changing their query-string versions.
+// Also version changed modules and their importers for browsers without a worker.
 const CACHE_PREFIX = "frosty-dice-pwa-";
-const CACHE_NAME = CACHE_PREFIX + "v16";
+const CACHE_NAME = CACHE_PREFIX + "v18";
 const APP_SHELL = "/index.html";
 const PRECACHE_URLS = [
   APP_SHELL,
   "/manifest.webmanifest",
   "/css/style.css?v=frosty-dollar-1",
-  "/js/app.js?v=frosty-dollar-1",
+  "/js/app.js?v=protective-rules-1",
   "/js/challenge-note.js?v=frosty-dollar-1",
   "/js/board-state.js?v=v3-multipliers-1",
-  "/js/game.js?v=v3-multipliers-1",
+  "/js/game.js?v=protective-rules-1",
   "/js/scoring.js?v=v3-multipliers-1",
-  "/js/storage.js?v=v3-multipliers-1",
+  "/js/storage.js?v=protective-rules-1",
   "/js/pwa.js",
   "/js/rules.js?v=additional-rules-1",
   "/assets/icons/icon-192.png",

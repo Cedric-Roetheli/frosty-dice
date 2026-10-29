@@ -38,24 +38,33 @@ export function runUndoTests() {
     assertEqual(restored.undo, null);
   });
 
-  test("Undo of a normal 66 restores the empty board and removes its doubled 132 points", () => {
-    const after = placeGameNumber(createGameState(), "A1", 66);
+  test("Undo of a legacy A1=66 restores the empty board and removes its doubled 132 points", () => {
+    const after = { board: boardFixture(["A1", 66]), undo: { board: boardFixture() } };
     assertEqual(calculateScore(after.board), 132);
     const restored = undoLastMove(after);
     assertDeepEqual(restored, createGameState());
     assertEqual(calculateScore(restored.board), 0);
   });
 
+  test("Undo of a legal B1=66 removes its doubled points and restores the valid 65 start", () => {
+    const before = placeGameNumber(createGameState(), "A1", 65);
+    const after = placeGameNumber(before, "B1", 66);
+    assertEqual(calculateScore(after.board), 197);
+    const restored = undoLastMove(after);
+    assertDeepEqual(restored, { board: before.board, undo: null });
+    assertEqual(calculateScore(restored.board), 65);
+  });
+
   test("Undo restores a boundary Street and its repdigit score after Attack Ice", () => {
-    const before = moves(["A1", 55], ["B1", 56], ["C1", 61]);
+    const before = { board: boardFixture(["A2", 55], ["B2", 56], ["C2", 61]), undo: null };
     assertEqual(calculateScore(before.board), 227);
-    const complete = placeGameNumber(before, "D1", 62);
+    const complete = placeGameNumber(before, "D2", 62);
     assertEqual(calculateScore(complete.board), 578);
-    assertDeepEqual(getScoreBreakdown(complete.board).streetRows, [1]);
+    assertDeepEqual(getScoreBreakdown(complete.board).streetRows, [2]);
     const restored = undoLastMove(complete);
     assertDeepEqual(restored.board, before.board);
     assertEqual(calculateScore(restored.board), 227);
-    const iced = freezeGameCell(complete, "A1");
+    const iced = freezeGameCell(complete, "A2");
     assertEqual(calculateScore(iced.board), 289);
     assertDeepEqual(getScoreBreakdown(iced.board).streetRows, []);
     assertDeepEqual(undoLastMove(iced).board, complete.board);

@@ -110,7 +110,8 @@ export async function runPwaTests(sources) {
   }
   if (!sources) {
     try {
-      const paths = { worker: "../service-worker.js", registration: "../js/pwa.js", manifest: "../manifest.webmanifest", html: "../index.html" };
+      const paths = { worker: "../service-worker.js", registration: "../js/pwa.js", manifest: "../manifest.webmanifest", html: "../index.html",
+        app: "../js/app.js", storage: "../js/storage.js" };
       sources = Object.fromEntries(await Promise.all(Object.entries(paths).map(async ([name, url]) => {
         const result = await fetch(url, { cache: "no-store" });
         if (!result.ok) throw new Error("Cannot load " + url);
@@ -142,6 +143,23 @@ export async function runPwaTests(sources) {
     assert(sources.html.includes('name="apple-mobile-web-app-capable" content="yes"'));
     assert(sources.html.includes('name="apple-mobile-web-app-status-bar-style" content="black"'));
     assert(sources.html.includes('src="./js/pwa.js"'));
+  });
+
+  await test("Protective rules use fresh matching module URLs in Safari and the offline cache", () => {
+    const worker = workerHarness(sources.worker);
+    const version = "protective-rules-1";
+    assert(sources.html.includes('src="./js/app.js?v=' + version + '"'));
+    for (const name of ["app", "game", "storage"]) {
+      const path = "/js/" + name + ".js?v=" + version;
+      assertDeepEqual(worker.PRECACHE_URLS.filter((url) => url.startsWith("/js/" + name + ".js?")), [path]);
+    }
+    assert(sources.app.includes('from "./game.js?v=' + version + '"'));
+    assert(sources.app.includes('from "./storage.js?v=' + version + '"'));
+    assert(sources.storage.includes('from "./game.js?v=' + version + '"'));
+    for (const source of [sources.app, sources.storage]) {
+      assert(!source.includes("game.js?v=v3-multipliers-1"));
+      assert(!source.includes("storage.js?v=v3-multipliers-1"));
+    }
   });
 
   await test("The live message area precedes the board and A–D column headings are visually hidden", () => {

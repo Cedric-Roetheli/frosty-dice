@@ -70,6 +70,11 @@ Validate both boards, reject recursive history or a snapshot that does not
 precede the current state by one legal placement, Attack Ice action, or affordable
 confirmed bid, and retain canonical cell
 statuses without legacy boolean flags.
+Saved A1=66 values and first-row Attack Ice remain valid, including their exact
+historical Undo snapshots. Validation of those snapshots permits the formerly
+legal action; all new placements and Freeze actions use the current protective
+rules. No save-format change or automatic removal is required. Existing
+first-row Attack Ice can still be unfrozen, moved to rows 2–7, or restored by Undo.
 
 Valid version-6 games migrate with their Prime/Attack Ice and Undo intact and no
 spending. Valid version-5 games migrate with their existing Undo intact and no Attack Ice.
@@ -96,6 +101,9 @@ Every empty cell can be selected, including cells that cannot support the next
 move. Selection and typing reveal no information about placement legality.
 Only a completed two-digit entry calls the shared guarded placement operation. There are no
 suggested numbers, precomputed target lists, or legal-cell indicators.
+Reject 66 in A1 with “66 cannot be placed in Start” in the shared above-board
+status area, preserving the empty cell, board, score, saved data, and Undo.
+The initial-placement requirement remains A1; other starting numbers stay valid.
 
 An illegal entry leaves the board and saved data unchanged. Restore the empty
 cell and show the concise reason in the status area above the board; the player can tap
@@ -137,7 +145,9 @@ seven rows, centered without a spare gutter. Accessible column/cell labels and
 number-entry coordinates retain A1–D7; saved games require no migration. Occupied
 normal, frozen, and thawed cells cannot open number input or receive placements.
 Normal and thawed cells instead expose a temporary Attack Ice action below the
-board: Freeze if eligible, Unfreeze if currently Attack-Iced. Prime-frozen cells
+board: Freeze if eligible, Unfreeze if currently Attack-Iced. First-row cells
+A1–D1 never offer a new Freeze; an older overlay there still offers Unfreeze.
+Core validation enforces the same row protection. Prime-frozen cells
 are disabled and offer no Freeze. Selecting an empty cell replaces its button
 with a native text input in the same cell, using its existing glass appearance
 and centered 22px number typography. Accessible labels retain the internal

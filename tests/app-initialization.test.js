@@ -425,7 +425,8 @@ export function runAppInitializationTests() {
     assertEqual(status.textContent, "Place your first number at A1.");
     submitAppNumber(document, "A1", 22);
     assert(status.textContent.includes("Placed 22 at A1."));
-    selectAppCell(document, "A1");
+    submitAppNumber(document, "A2", 22);
+    selectAppCell(document, "A2");
     assertEqual(status.hidden, true);
     assertEqual(area.hidden, false);
     document.getElementById("cancel-attack-ice").emit("click");
@@ -537,6 +538,42 @@ export function runAppInitializationTests() {
     assertNoMoveHints(document);
   });
 
+  test("66 at Start is rejected above the board without changing score, saved state, or existing Undo", () => {
+    const empty = createGameState().board;
+    const zeroBid = serializeGame({ board: empty, undo: { board: empty, pointsSpent: 0 }, pointsSpent: 0 });
+    for (const initial of [null, zeroBid]) {
+      const { document, storage } = startAppTest(initial);
+      const before = loadGame(storage).state;
+      submitAppNumber(document, "A1", 66);
+      assertEqual(document.getElementById("app-status").textContent, "66 cannot be placed in Start");
+      assertEqual(document.getElementById("app-status").parentNode.className, "board-message");
+      assertEqual(document.getElementById("app-status").hidden, false);
+      assertEqual(document.getElementById("entry-feedback"), null);
+      assertEqual(document.getElementById("cell-A1").textContent, "Start");
+      assertEqual(document.getElementById("cell-A1").dataset.state, "empty");
+      assertEqual(getAppInput(document), null);
+      assertEqual(document.getElementById("current-score").textContent, "0");
+      assertEqual(document.getElementById("undo-move").disabled, initial === null);
+      assertEqual(storage.getItem(STORAGE_KEY), initial);
+      assertDeepEqual(loadGame(storage).state, before);
+    }
+  });
+
+  test("11, 23, and 65 remain legal Start inputs, and 66 still places normally in B1", () => {
+    for (const value of [11, 23, 65]) {
+      const { document, storage } = startAppTest();
+      submitAppNumber(document, "A1", value);
+      assertDeepEqual(loadGame(storage).state.board[0][0], { value, status: "normal" });
+      assertEqual(document.getElementById("current-score").textContent, String(value === 11 ? 22 : value));
+      if (value === 65) {
+        submitAppNumber(document, "B1", 66);
+        assertDeepEqual(loadGame(storage).state.board[0][1], { value: 66, status: "normal" });
+        assertEqual(document.getElementById("current-score").textContent, "197");
+        assertAppMultiplier(document, "B1", "2x");
+      }
+    }
+  });
+
   test("A rejected horizontal value can be retried by tapping the restored empty cell", () => {
     const serialized = serializeGame({ board: boardFixture(["A1", 16]) });
     const { document, storage } = startAppTest(serialized);
@@ -612,8 +649,8 @@ export function runAppInitializationTests() {
       occupied.disabled = false; // Also guard a stale or modified button.
       selectAppCell(document, "B1");
       assertEqual(getAppInput(document), null);
-      assertEqual(document.getElementById("attack-ice-actions").hidden, status === "frozen");
-      if (status !== "frozen") assertEqual(document.getElementById("toggle-attack-ice").textContent, "Freeze");
+      assertEqual(document.getElementById("attack-ice-actions").hidden, true);
+      assert(!document.getElementById("cell-B1").getAttribute("aria-label").includes("Freeze available"));
       assertEqual(document.getElementById("cell-actions"), null);
       assertEqual(document.getElementById("edit-cell"), null);
       assertEqual(storage.getItem(STORAGE_KEY), serialized);
@@ -804,12 +841,11 @@ export function runAppInitializationTests() {
 
   test("Normal repdigits use the existing corner marker while ordinary cells have none", () => {
     for (const [value, expectedMarker, expectedScore] of [[22, "2x", "44"], [66, "2x", "132"], [35, null, "35"]]) {
-      const { document, storage } = startAppTest();
-      submitAppNumber(document, "A1", value);
-      assertAppMultiplier(document, "A1", expectedMarker);
+      const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A2", value]), undo: null }));
+      assertAppMultiplier(document, "A2", expectedMarker);
       assertEqual(document.getElementById("current-score").textContent, expectedScore);
-      assertEqual(document.getElementById("cell-A1").querySelectorAll("span").at(-1).textContent, String(value));
-      assertDeepEqual(loadGame(storage).state.board[0][0], { value, status: "normal" });
+      assertEqual(document.getElementById("cell-A2").querySelectorAll("span").at(-1).textContent, String(value));
+      assertDeepEqual(loadGame(storage).state.board[1][0], { value, status: "normal" });
     }
   });
 
@@ -864,37 +900,37 @@ export function runAppInitializationTests() {
   });
 
   test("Attack Ice reduces a Street repdigit to 2x and removes Street multipliers from its whole row", () => {
-    const { document, storage } = startAppTest();
-    for (const [coordinate, value] of [["A1", 21], ["B1", 22], ["C1", 23], ["D1", 24]]) {
+    const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A2", 21]), undo: null }));
+    for (const [coordinate, value] of [["B2", 22], ["C2", 23], ["D2", 24]]) {
       submitAppNumber(document, coordinate, value);
     }
-    applyAppAttackAction(document, "B1");
-    assertAttackCell(document.getElementById("cell-B1"));
-    assertAppMultiplier(document, "B1", "2x");
-    for (const coordinate of ["A1", "C1", "D1"]) assertAppMultiplier(document, coordinate, null);
+    applyAppAttackAction(document, "B2");
+    assertAttackCell(document.getElementById("cell-B2"));
+    assertAppMultiplier(document, "B2", "2x");
+    for (const coordinate of ["A2", "C2", "D2"]) assertAppMultiplier(document, coordinate, null);
     assertEqual(document.getElementById("current-score").textContent, "112");
     const reloaded = startAppTest(storage.getItem(STORAGE_KEY));
-    assertAppMultiplier(reloaded.document, "B1", "2x");
+    assertAppMultiplier(reloaded.document, "B2", "2x");
     assertEqual(reloaded.document.getElementById("current-score").textContent, "112");
-    applyAppAttackAction(reloaded.document, "B1");
-    assertAppMultiplier(reloaded.document, "B1", "4x");
+    applyAppAttackAction(reloaded.document, "B2");
+    assertAppMultiplier(reloaded.document, "B2", "4x");
     assertEqual(reloaded.document.getElementById("current-score").textContent, "224");
     reloaded.document.getElementById("undo-move").emit("click");
-    assertAppMultiplier(reloaded.document, "B1", "2x");
+    assertAppMultiplier(reloaded.document, "B2", "2x");
     assertEqual(reloaded.document.getElementById("current-score").textContent, "112");
   });
 
   test("A boundary Street with repdigit 55 renders, saves, and restores through Attack Ice and Undo", () => {
-    const { document, storage } = startAppTest();
-    for (const [coordinate, value, score] of [["A1", 55, "110"], ["B1", 56, "166"], ["C1", 61, "227"], ["D1", 62, "578"]]) {
+    const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A2", 55]), undo: null }));
+    for (const [coordinate, value, score] of [["B2", 56, "166"], ["C2", 61, "227"], ["D2", 62, "578"]]) {
       submitAppNumber(document, coordinate, value);
       assertEqual(document.getElementById("current-score").textContent, score);
     }
     assertEqual(document.getElementById("street-bonus").textContent, "Street bonus +289 · 1 Street");
-    assert(document.getElementById("board-rows").children[0].className.includes("street"));
+    assert(document.getElementById("board-rows").children[1].className.includes("street"));
     const reloaded = startAppTest(storage.getItem(STORAGE_KEY));
     assertEqual(reloaded.document.getElementById("current-score").textContent, "578");
-    applyAppAttackAction(reloaded.document, "A1");
+    applyAppAttackAction(reloaded.document, "A2");
     assertEqual(reloaded.document.getElementById("current-score").textContent, "289");
     assertEqual(reloaded.document.getElementById("street-bonus").hidden, true);
     reloaded.document.getElementById("undo-move").emit("click");
@@ -906,8 +942,7 @@ export function runAppInitializationTests() {
   });
 
   test("The Challenge UI can spend all 132 points from a normal 66 and Undo restores them", () => {
-    const { document, storage } = startAppTest();
-    submitAppNumber(document, "A1", 66);
+    const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A2", 66]), undo: null }));
     assertEqual(document.getElementById("current-score").textContent, "132");
     document.getElementById("open-challenge").emit("click");
     assertEqual(document.getElementById("bid-limit").textContent, "Available Score: 132");
@@ -927,7 +962,7 @@ export function runAppInitializationTests() {
     assertEqual(reloaded.document.getElementById("current-score").textContent, "0");
     reloaded.document.getElementById("undo-move").emit("click");
     assertEqual(reloaded.document.getElementById("current-score").textContent, "132");
-    assertEqual(reloaded.document.getElementById("cell-A1").querySelectorAll("span").at(-1).textContent, "66");
+    assertEqual(reloaded.document.getElementById("cell-A2").querySelectorAll("span").at(-1).textContent, "66");
   });
 
   test("A legal non-frozen D7 placement displays goal status without stopping entry", () => {
@@ -1269,27 +1304,77 @@ export function runAppInitializationTests() {
   });
 
   test("Occupied normal cells offer a transient Freeze action without number input or Edit", () => {
-    const { document, storage } = startAppTest();
-    submitAppNumber(document, "A1", 16);
+    const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A2", 16]), undo: null }));
     const before = storage.getItem(STORAGE_KEY);
-    selectAppCell(document, "A1");
+    selectAppCell(document, "A2");
     assertEqual(getAppInput(document), null);
     assertEqual(document.getElementById("attack-ice-actions").hidden, false);
-    assertEqual(document.getElementById("attack-ice-cell").textContent, "A1");
+    assertEqual(document.getElementById("attack-ice-cell").textContent, "A2");
     assertEqual(document.getElementById("toggle-attack-ice").textContent, "Freeze");
-    assertEqual(document.getElementById("toggle-attack-ice").getAttribute("aria-label"), "Freeze Attack Ice at A1");
+    assertEqual(document.getElementById("toggle-attack-ice").getAttribute("aria-label"), "Freeze Attack Ice at A2");
     assertEqual(document.getElementById("edit-cell"), null);
     assertEqual(storage.getItem(STORAGE_KEY), before);
     assertNoMoveHints(document);
   });
 
+  test("A1–D1 never advertise or offer Attack Freeze and forced action taps leave state unchanged", () => {
+    const initial = serializeGame({ board: boardFixture(["A1", 16], ["B1", 24], ["C1", 36], ["D1", 46]), undo: null });
+    const { document, storage } = startAppTest(initial);
+    for (const coordinate of ["A1", "B1", "C1", "D1"]) {
+      const cell = document.getElementById("cell-" + coordinate);
+      assert(!cell.getAttribute("aria-label").includes("Freeze available"));
+      assertEqual(cell.getAttribute("aria-controls"), null);
+      selectAppCell(document, coordinate);
+      assertEqual(getAppInput(document), null);
+      assertEqual(document.getElementById("attack-ice-actions").hidden, true);
+      document.getElementById("toggle-attack-ice").emit("click");
+      assertEqual(storage.getItem(STORAGE_KEY), initial);
+      assertEqual(countBoardIceImages(document), 0);
+    }
+  });
+
+  test("Eligible occupied cells in every lower row keep their Freeze action", () => {
+    for (let row = 2; row <= 7; row += 1) {
+      for (const column of ["A", "B", "C", "D"]) {
+        const coordinate = column + row;
+        const { document, storage } = startAppTest(serializeGame({ board: boardFixture([coordinate, 24]), undo: null }));
+        selectAppCell(document, coordinate);
+        assertEqual(document.getElementById("attack-ice-actions").hidden, false);
+        assertEqual(document.getElementById("toggle-attack-ice").textContent, "Freeze");
+        document.getElementById("toggle-attack-ice").emit("click");
+        assertAttackCell(document.getElementById("cell-" + coordinate));
+        assertEqual(loadGame(storage).state.board.flat().filter((cell) => cell?.attackIce).length, 1);
+      }
+    }
+  });
+
+  test("Old first-row Attack Ice still offers Unfreeze and Undo restores it exactly", () => {
+    for (const coordinate of ["A1", "B1", "C1", "D1"]) {
+      const board = boardFixture([coordinate, 24]);
+      board[0]["ABCD".indexOf(coordinate[0])].attackIce = true;
+      const initial = serializeGame({ board, undo: null });
+      const { document, storage } = startAppTest(initial);
+      assertEqual(storage.getItem(STORAGE_KEY), initial);
+      selectAppCell(document, coordinate);
+      assertEqual(document.getElementById("attack-ice-actions").hidden, false);
+      assertEqual(document.getElementById("toggle-attack-ice").textContent, "Unfreeze");
+      document.getElementById("toggle-attack-ice").emit("click");
+      assertEqual(document.getElementById("cell-" + coordinate).dataset.attackIce, "false");
+      selectAppCell(document, coordinate);
+      assertEqual(document.getElementById("attack-ice-actions").hidden, true);
+      document.getElementById("undo-move").emit("click");
+      assertDeepEqual(loadGame(storage).state.board, board);
+      assertAttackCell(document.getElementById("cell-" + coordinate));
+      assertEqual(document.getElementById("current-score").textContent, "24");
+    }
+  });
+
   test("Freeze saves, shows the Attack asset, retains points, closes actions, and captures Undo", () => {
-    const { document, storage } = startAppTest();
-    submitAppNumber(document, "A1", 16);
+    const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A2", 16]), undo: null }));
     const before = loadGame(storage).state;
-    applyAppAttackAction(document, "A1");
-    assertDeepEqual(loadGame(storage).state, freezeGameCell(before, "A1"));
-    assertAttackCell(document.getElementById("cell-A1"));
+    applyAppAttackAction(document, "A2");
+    assertDeepEqual(loadGame(storage).state, freezeGameCell(before, "A2"));
+    assertAttackCell(document.getElementById("cell-A2"));
     assertEqual(document.getElementById("current-score").textContent, "16");
     assertEqual(document.getElementById("attack-ice-actions").hidden, true);
     assertEqual(getAppInput(document), null);
@@ -1297,47 +1382,45 @@ export function runAppInitializationTests() {
     assertEqual(document.activeElement, document.getElementById("game-board"));
     document.getElementById("undo-move").emit("click");
     assertDeepEqual(loadGame(storage).state, { board: before.board, undo: null });
-    assertEqual(document.getElementById("cell-A1").querySelector("img"), null);
+    assertEqual(document.getElementById("cell-A2").querySelector("img"), null);
   });
 
   test("Attack-Iced cells offer Unfreeze and Undo after reload restores the exact overlay", () => {
-    const { document, storage } = startAppTest();
-    submitAppNumber(document, "A1", 16);
-    applyAppAttackAction(document, "A1");
+    const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A2", 16]), undo: null }));
+    applyAppAttackAction(document, "A2");
     const iced = loadGame(storage).state;
-    selectAppCell(document, "A1");
+    selectAppCell(document, "A2");
     assertEqual(document.getElementById("toggle-attack-ice").textContent, "Unfreeze");
-    assertEqual(document.getElementById("toggle-attack-ice").getAttribute("aria-label"), "Unfreeze Attack Ice at A1");
+    assertEqual(document.getElementById("toggle-attack-ice").getAttribute("aria-label"), "Unfreeze Attack Ice at A2");
     document.getElementById("toggle-attack-ice").emit("click");
-    assertDeepEqual(loadGame(storage).state, unfreezeGameCell(iced, "A1"));
-    assertEqual(document.getElementById("cell-A1").querySelector("img"), null);
+    assertDeepEqual(loadGame(storage).state, unfreezeGameCell(iced, "A2"));
+    assertEqual(document.getElementById("cell-A2").querySelector("img"), null);
     const reloaded = appTestDocument();
     initializeApp(reloaded, storage);
     assertEqual(reloaded.getElementById("current-score").textContent, "16");
     reloaded.getElementById("undo-move").emit("click");
     assertDeepEqual(loadGame(storage).state, { board: iced.board, undo: null });
-    assertAttackCell(reloaded.getElementById("cell-A1"));
+    assertAttackCell(reloaded.getElementById("cell-A2"));
   });
 
   test("Freeze on another occupied cell moves Attack Ice in one action and reload/Undo restores its location", () => {
-    const { document, storage } = startAppTest();
-    submitAppNumber(document, "A1", 16);
-    submitAppNumber(document, "B1", 24);
-    applyAppAttackAction(document, "A1");
+    const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A2", 16]), undo: null }));
+    submitAppNumber(document, "B2", 24);
+    applyAppAttackAction(document, "A2");
     const before = loadGame(storage).state;
-    applyAppAttackAction(document, "B1");
-    assertDeepEqual(loadGame(storage).state, freezeGameCell(before, "B1"));
-    assertEqual(document.getElementById("cell-A1").querySelector("img"), null);
-    assertAttackCell(document.getElementById("cell-B1"));
+    applyAppAttackAction(document, "B2");
+    assertDeepEqual(loadGame(storage).state, freezeGameCell(before, "B2"));
+    assertEqual(document.getElementById("cell-A2").querySelector("img"), null);
+    assertAttackCell(document.getElementById("cell-B2"));
     assertEqual(countBoardIceImages(document), 1);
     assertEqual(document.getElementById("current-score").textContent, "40");
     const reloaded = appTestDocument();
     initializeApp(reloaded, storage);
-    assertAttackCell(reloaded.getElementById("cell-B1"));
+    assertAttackCell(reloaded.getElementById("cell-B2"));
     reloaded.getElementById("undo-move").emit("click");
     assertDeepEqual(loadGame(storage).state, { board: before.board, undo: null });
-    assertAttackCell(reloaded.getElementById("cell-A1"));
-    assertEqual(reloaded.getElementById("cell-B1").querySelector("img"), null);
+    assertAttackCell(reloaded.getElementById("cell-A2"));
+    assertEqual(reloaded.getElementById("cell-B2").querySelector("img"), null);
   });
 
   test("Prime-frozen cells remain disabled and never offer Freeze, including a stale forced click", () => {
@@ -1357,60 +1440,60 @@ export function runAppInitializationTests() {
   });
 
   test("The actual 23/31/23 app path preserves Prime history under Attack Ice and blocks/restores thawed support", () => {
-    const { document, storage } = startAppTest();
-    for (const [coordinate, value] of [["A1", 23], ["B1", 31], ["A2", 23]]) {
+    const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A2", 23]), undo: null }));
+    for (const [coordinate, value] of [["B2", 31], ["A3", 23]]) {
       submitAppNumber(document, coordinate, value);
     }
     const underlying = loadGame(storage).state;
-    applyAppAttackAction(document, "B1");
-    assertDeepEqual(loadGame(storage).state, freezeGameCell(underlying, "B1"));
-    assertAttackCell(document.getElementById("cell-B1"), "thawed");
-    assert(document.getElementById("cell-B1").textContent.includes("Thawed"));
-    assert(!document.getElementById("cell-B1").getAttribute("aria-label").includes("usable placement neighbor"));
-    assertFrozenCell(document.getElementById("cell-A2"));
+    applyAppAttackAction(document, "B2");
+    assertDeepEqual(loadGame(storage).state, freezeGameCell(underlying, "B2"));
+    assertAttackCell(document.getElementById("cell-B2"), "thawed");
+    assert(document.getElementById("cell-B2").textContent.includes("Thawed"));
+    assert(!document.getElementById("cell-B2").getAttribute("aria-label").includes("usable placement neighbor"));
+    assertFrozenCell(document.getElementById("cell-A3"));
     assertEqual(document.getElementById("current-score").textContent, "23");
     const saved = storage.getItem(STORAGE_KEY);
-    submitAppNumber(document, "C1", 46);
+    submitAppNumber(document, "C2", 46);
     assertEqual(storage.getItem(STORAGE_KEY), saved);
-    assertEqual(document.getElementById("cell-C1").dataset.state, "empty");
+    assertEqual(document.getElementById("cell-C2").dataset.state, "empty");
     const reloaded = appTestDocument();
     initializeApp(reloaded, storage);
-    assertAttackCell(reloaded.getElementById("cell-B1"), "thawed");
-    assertFrozenCell(reloaded.getElementById("cell-A2"));
-    applyAppAttackAction(reloaded, "B1");
+    assertAttackCell(reloaded.getElementById("cell-B2"), "thawed");
+    assertFrozenCell(reloaded.getElementById("cell-A3"));
+    applyAppAttackAction(reloaded, "B2");
     assertDeepEqual(loadGame(storage).state.board, underlying.board);
     assertEqual(reloaded.getElementById("current-score").textContent, "23");
-    submitAppNumber(reloaded, "C1", 46);
+    submitAppNumber(reloaded, "C2", 46);
     assertEqual(reloaded.getElementById("current-score").textContent, "69");
-    assertEqual(loadGame(storage).state.board[0][1].status, "thawed");
-    assertFrozenCell(reloaded.getElementById("cell-A2"));
+    assertEqual(loadGame(storage).state.board[1][1].status, "thawed");
+    assertFrozenCell(reloaded.getElementById("cell-A3"));
   });
 
   test("Attack-blocked placement still succeeds through a separate usable OR neighbor in the app", () => {
-    const { document, storage } = startAppTest();
-    for (const [coordinate, value] of [["A1", 16], ["B1", 24], ["A2", 16]]) submitAppNumber(document, coordinate, value);
-    applyAppAttackAction(document, "B1");
-    submitAppNumber(document, "B2", 26);
-    assertDeepEqual(loadGame(storage).state.board[1][1], { value: 26, status: "normal" });
-    assertAttackCell(document.getElementById("cell-B1"));
+    const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A2", 16]), undo: null }));
+    for (const [coordinate, value] of [["B2", 24], ["A3", 16]]) submitAppNumber(document, coordinate, value);
+    applyAppAttackAction(document, "B2");
+    submitAppNumber(document, "B3", 26);
+    assertDeepEqual(loadGame(storage).state.board[2][1], { value: 26, status: "normal" });
+    assertAttackCell(document.getElementById("cell-B2"));
     assertEqual(document.getElementById("current-score").textContent, "82");
     assertNoMoveHints(document);
   });
 
   test("Freeze/Unfreeze visibly suppresses/restores a Street and Undo restores the prior row", () => {
-    const { document } = startAppTest();
-    for (const [coordinate, value] of [["A1", 11], ["B1", 12], ["C1", 13], ["D1", 14]]) submitAppNumber(document, coordinate, value);
-    applyAppAttackAction(document, "B1");
+    const { document } = startAppTest(serializeGame({ board: boardFixture(["A2", 11]), undo: null }));
+    for (const [coordinate, value] of [["B2", 12], ["C2", 13], ["D2", 14]]) submitAppNumber(document, coordinate, value);
+    applyAppAttackAction(document, "B2");
     assertEqual(document.getElementById("current-score").textContent, "61");
     assertEqual(document.getElementById("street-bonus").hidden, true);
-    assert(!document.getElementById("board-rows").children[0].className.includes("street"));
-    applyAppAttackAction(document, "B1");
+    assert(!document.getElementById("board-rows").children[1].className.includes("street"));
+    applyAppAttackAction(document, "B2");
     assertEqual(document.getElementById("current-score").textContent, "122");
     assertEqual(document.getElementById("street-bonus").hidden, false);
-    assert(document.getElementById("board-rows").children[0].className.includes("street"));
+    assert(document.getElementById("board-rows").children[1].className.includes("street"));
     document.getElementById("undo-move").emit("click");
     assertEqual(document.getElementById("current-score").textContent, "61");
-    assertAttackCell(document.getElementById("cell-B1"));
+    assertAttackCell(document.getElementById("cell-B2"));
   });
 
   for (const status of ["normal", "thawed"]) {
@@ -1432,42 +1515,42 @@ export function runAppInitializationTests() {
   test("Context Cancel, outside tap, Escape, and switching to an empty cell do not save or change Undo", () => {
     const { document, storage } = startAppTest();
     submitAppNumber(document, "A1", 16);
+    submitAppNumber(document, "A2", 16);
     const saved = storage.getItem(STORAGE_KEY);
     for (const action of ["Cancel", "outside", "Escape", "empty cell"]) {
-      selectAppCell(document, "A1");
+      selectAppCell(document, "A2");
       assertEqual(document.getElementById("attack-ice-actions").hidden, false);
       if (action === "Cancel") document.getElementById("cancel-attack-ice").emit("click");
       else if (action === "outside") document.emit("pointerdown", document.root);
       else if (action === "Escape") document.emit("keydown", document.root, { key: "Escape" });
       else {
-        document.emit("pointerdown", document.getElementById("cell-B1"));
-        selectAppCell(document, "B1");
+        document.emit("pointerdown", document.getElementById("cell-B2"));
+        selectAppCell(document, "B2");
         assert(getAppInput(document) !== null);
         assertEqual(getAppInput(document).value, "");
       }
       assertEqual(document.getElementById("attack-ice-actions").hidden, true);
-      assertEqual(document.getElementById("cell-A1").getAttribute("aria-pressed"), "false");
+      assertEqual(document.getElementById("cell-A2").getAttribute("aria-pressed"), "false");
       assertEqual(storage.getItem(STORAGE_KEY), saved);
       assertEqual(document.getElementById("undo-move").disabled, false);
     }
   });
 
   test("Opening occupied actions discards a draft and safely dismisses reset confirmation", () => {
-    const { document, storage } = startAppTest();
-    submitAppNumber(document, "A1", 16);
-    submitAppNumber(document, "B1", 12);
-    selectAppCell(document, "B1");
+    const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A2", 16]), undo: null }));
+    submitAppNumber(document, "B2", 12);
+    selectAppCell(document, "B2");
     typeAppNumber(document, "1");
     const saved = storage.getItem(STORAGE_KEY);
-    const occupied = document.getElementById("cell-A1");
+    const occupied = document.getElementById("cell-A2");
     document.emit("pointerdown", occupied);
-    selectAppCell(document, "A1");
+    selectAppCell(document, "A2");
     assertEqual(document.getElementById("app-status").hidden, true);
     assertEqual(getAppInput(document), null);
     assertEqual(document.getElementById("attack-ice-actions").hidden, false);
     document.getElementById("new-game").emit("click");
     assertEqual(document.getElementById("attack-ice-actions").hidden, true);
-    selectAppCell(document, "A1");
+    selectAppCell(document, "A2");
     document.getElementById("confirm-new-game").emit("click");
     assertEqual(storage.getItem(STORAGE_KEY), saved);
     assertEqual(document.getElementById("reset-confirmation").hidden, true);
@@ -1475,13 +1558,12 @@ export function runAppInitializationTests() {
   });
 
   test("Repeated action taps do not toggle twice; Undo clears context and remains one-step", () => {
-    const { document, storage } = startAppTest();
-    submitAppNumber(document, "A1", 16);
-    applyAppAttackAction(document, "A1");
+    const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A2", 16]), undo: null }));
+    applyAppAttackAction(document, "A2");
     const saved = storage.getItem(STORAGE_KEY);
     document.getElementById("toggle-attack-ice").emit("click");
     assertEqual(storage.getItem(STORAGE_KEY), saved);
-    selectAppCell(document, "A1");
+    selectAppCell(document, "A2");
     document.emit("pointerdown", document.getElementById("undo-move"));
     document.getElementById("undo-move").emit("click");
     assertEqual(document.getElementById("attack-ice-actions").hidden, true);
@@ -1492,10 +1574,10 @@ export function runAppInitializationTests() {
   });
 
   test("Confirmed Reset clears Attack Ice, Prime history, Undo, and its contextual panel", () => {
-    const { document, storage } = startAppTest();
-    for (const [coordinate, value] of [["A1", 23], ["B1", 31], ["A2", 23]]) submitAppNumber(document, coordinate, value);
-    applyAppAttackAction(document, "B1");
-    selectAppCell(document, "B1");
+    const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A2", 23]), undo: null }));
+    for (const [coordinate, value] of [["B2", 31], ["A3", 23]]) submitAppNumber(document, coordinate, value);
+    applyAppAttackAction(document, "B2");
+    selectAppCell(document, "B2");
     document.getElementById("new-game").emit("click");
     document.getElementById("confirm-new-game").emit("click");
     assertEqual(storage.getItem(STORAGE_KEY), null);
@@ -1508,10 +1590,10 @@ export function runAppInitializationTests() {
 
   test("An Attack save failure keeps the action visible, keeps Undo, and reports storage failure", () => {
     const document = appTestDocument();
-    const initial = serializeGame({ board: boardFixture(["A1", 16]), undo: null });
+    const initial = serializeGame({ board: boardFixture(["A2", 16]), undo: null });
     initializeApp(document, { getItem() { return initial; }, setItem() { throw new Error("Quota exceeded"); } });
-    applyAppAttackAction(document, "A1");
-    assertAttackCell(document.getElementById("cell-A1"));
+    applyAppAttackAction(document, "A2");
+    assertAttackCell(document.getElementById("cell-A2"));
     assertEqual(document.getElementById("current-score").textContent, "16");
     assertEqual(document.getElementById("undo-move").disabled, false);
     assert(document.getElementById("storage-status").textContent.includes("saving is unavailable"));
@@ -1524,10 +1606,12 @@ export function runAppInitializationTests() {
     assertFrozenCell(document.getElementById("cell-B1"));
     assertEqual(storage.getItem(STORAGE_KEY), saved);
     assertEqual(document.getElementById("undo-move").disabled, false);
-    applyAppAttackAction(document, "A1");
+    submitAppNumber(document, "A2", 23);
+    submitAppNumber(document, "C1", 41);
+    applyAppAttackAction(document, "A2");
     assertEqual(JSON.parse(storage.getItem(STORAGE_KEY)).version, SAVE_VERSION);
-    assertAttackCell(document.getElementById("cell-A1"));
-    assertFrozenCell(document.getElementById("cell-B1"));
+    assertAttackCell(document.getElementById("cell-A2"), "thawed");
+    assertFrozenCell(document.getElementById("cell-C1"));
   });
 
   test("Attack Ice remains manual without Edit, roll, player, or permission controls", () => {
@@ -1639,7 +1723,8 @@ export function runAppInitializationTests() {
   test("Undo is unavailable through the modal and restores the pre-bid score after closing", () => {
     const { document, storage } = startAppTest();
     for (const [coordinate, value] of [["A1", 23], ["B1", 31], ["A2", 23]]) submitAppNumber(document, coordinate, value);
-    applyAppAttackAction(document, "B1");
+    submitAppNumber(document, "C1", 41);
+    applyAppAttackAction(document, "A2");
     const boardBefore = loadGame(storage).state.board;
     document.getElementById("open-challenge").emit("click");
     document.getElementById("challenge-bid").value = "12";

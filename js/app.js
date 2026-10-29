@@ -14,13 +14,14 @@ import {
   placeGameNumber,
   undoLastMove,
   unfreezeGameCell,
-} from "./game.js?v=v3-multipliers-1";
+} from "./game.js?v=protective-rules-1";
 import { getCellScoreMultiplier, getScoreBreakdown } from "./scoring.js?v=v3-multipliers-1";
-import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=v3-multipliers-1";
+import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=protective-rules-1";
 import { createChallengeNote } from "./challenge-note.js?v=frosty-dollar-1";
 
 // Shorten the core's explanations, without evaluating placement rules in the UI.
 function placementFeedback(reason) {
+  if (reason === "66 cannot be placed in Start") return reason;
   if (reason === "The first number must be placed at A1.") return "Place your first number at A1.";
   if (reason.includes("cannot be overwritten")) return "This cell is already occupied.";
   const requirement = /^[A-D][1-7] must be (.+)\.$/.exec(reason)?.[1];
@@ -111,6 +112,7 @@ export function initializeApp(document, storage) {
     const record = getCell(game.board, coordinate);
     if (record === null && selectedCell === coordinate) return createInlineInput(coordinate);
     const value = record?.value ?? null;
+    const canFreeze = record !== null && canApplyAttackIce(game.board, coordinate);
     const selected = selectedCell === coordinate || selectedActionCell === coordinate;
     const cell = document.createElement("button");
     cell.type = "button";
@@ -122,7 +124,7 @@ export function initializeApp(document, storage) {
     cell.className = "board-cell";
     cell.disabled = record?.status === "frozen";
     cell.setAttribute("aria-pressed", String(selected));
-    if (record !== null && !cell.disabled) cell.setAttribute("aria-controls", "attack-ice-actions");
+    if (record !== null && (record.attackIce || canFreeze)) cell.setAttribute("aria-controls", "attack-ice-actions");
     if (record !== null) cell.classList.add("board-cell--occupied");
 
     const marker = coordinate === "A1" ? "Start" : coordinate === "D7" ? "Goal" : "";
@@ -178,7 +180,7 @@ export function initializeApp(document, storage) {
       ice.height = 48;
       ice.setAttribute("aria-hidden", "true");
       cell.append(ice);
-    } else if (record !== null) {
+    } else if (canFreeze) {
       labels.push("Freeze available");
     }
 
@@ -290,7 +292,9 @@ export function initializeApp(document, storage) {
         render();
         attackButton.focus({ preventScroll: true });
       } else {
-        showAppStatus("Prime-frozen cells cannot receive Attack Ice.", "warning");
+        showAppStatus(record.status === "frozen"
+          ? "Prime-frozen cells cannot receive Attack Ice."
+          : "This cell is protected from Attack Ice.", "warning");
         render();
       }
       return;

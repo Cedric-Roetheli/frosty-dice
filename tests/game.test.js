@@ -113,15 +113,37 @@ export function runGameTests() {
     assertEqual(getCellValue(placeNumber(board, "A1", 16), "A1"), 16);
   });
 
-  test("Every valid number can be the first number at A1", () => {
+  test("Every valid number except 66 can be the first number at A1, including 11, 23, and 65", () => {
     for (let tens = 1; tens <= 6; tens += 1) {
       for (let units = 1; units <= 6; units += 1) {
         const value = tens * 10 + units;
+        if (value === 66) continue;
         const board = createEmptyBoard();
         assertDeepEqual(getLegalTargetCells(board, value), ["A1"]);
         assertEqual(getCellValue(placeNumber(board, "A1", value), "A1"), value);
       }
     }
+  });
+
+  test("66 is valid dice input but cannot be placed at Start, even through a lower neighbor", () => {
+    const empty = createEmptyBoard();
+    assert(isValidNumber(66));
+    assertDeepEqual(validatePlacement(empty, "A1", 66), { legal: false, reason: "66 cannot be placed in Start" });
+    assertDeepEqual(getLegalTargetCells(empty, 66), []);
+    assertThrows(() => placeNumber(empty, "A1", 66), "66 cannot be placed in Start");
+    assertThrows(() => placeGameNumber(createGameState(), "A1", 66), "66 cannot be placed in Start");
+    assert(empty.every((row) => row.every((cell) => cell === null)));
+    const board = createEmptyBoard();
+    board[1][0] = { value: 66, status: "normal" };
+    assert(!canPlaceNumber(board, "A1", 66));
+    assert(!getLegalTargetCells(board, 66).includes("A1"));
+  });
+
+  test("66 remains legal in other cells through ordinary horizontal and vertical connections", () => {
+    const board = boardWith(["A1", 65]);
+    const horizontal = placeNumber(board, "B1", 66);
+    assertEqual(getCellValue(horizontal, "B1"), 66);
+    assertEqual(getCellValue(placeNumber(horizontal, "B2", 66), "B2"), 66);
   });
 
   test("A1=16 allows B1=24 horizontally", () => {

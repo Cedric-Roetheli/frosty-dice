@@ -67,7 +67,7 @@ export function runChallengeTests() {
   });
 
   test("Doubled 66 points are fully available for bidding, persistence, and bid Undo", () => {
-    const before = placeGameNumber(createGameState(), "A1", 66);
+    const before = { board: boardFixture(["B1", 66]), undo: null };
     assertEqual(score(before), 132);
     assertThrows(() => confirmGameBid(before, 133), "Not enough points");
     const paid = confirmGameBid(before, 132);
@@ -77,23 +77,23 @@ export function runChallengeTests() {
     assertDeepEqual(restored, paid);
     assertEqual(score(restored), 0);
     assertEqual(score(undoLastMove(restored)), 132);
-    assertDeepEqual(getCell(restored.board, "A1"), { value: 66, status: "normal" });
+    assertDeepEqual(getCell(restored.board, "B1"), { value: 66, status: "normal" });
   });
 
   test("Boundary Street and spending restore from canonical state without storing scoring bonuses", () => {
-    let state = createGameState();
-    for (const [coordinate, value] of [["A1", 55], ["B1", 56], ["C1", 61], ["D1", 62]]) {
+    let state = { board: boardFixture(["A2", 55]), undo: null };
+    for (const [coordinate, value] of [["B2", 56], ["C2", 61], ["D2", 62]]) {
       state = placeGameNumber(state, coordinate, value);
     }
     const paid = confirmGameBid(state, 100);
     assertEqual(score(paid), 478);
-    const iced = freezeGameCell(paid, "A1");
+    const iced = freezeGameCell(paid, "A2");
     const restored = deserializeGame(serializeGame(iced));
     assertDeepEqual(restored, iced);
     assertEqual(score(restored), 189);
     assertDeepEqual(getScoreBreakdown(restored.board, restored.pointsSpent).streetRows, []);
     assertEqual(score(undoLastMove(restored)), 478);
-    assertDeepEqual(getScoreBreakdown(undoLastMove(restored).board, restored.pointsSpent).streetRows, [1]);
+    assertDeepEqual(getScoreBreakdown(undoLastMove(restored).board, restored.pointsSpent).streetRows, [2]);
     assertDeepEqual(Object.keys(JSON.parse(serializeGame(restored)).state), ["board", "undo", "pointsSpent"]);
   });
 
@@ -121,15 +121,15 @@ export function runChallengeTests() {
   });
 
   test("Manual Attack Ice and its Undo preserve confirmed spending and underlying Prime state", () => {
-    let state = createGameState();
-    for (const [coordinate, value] of [["A1", 23], ["B1", 31], ["A2", 23]]) state = placeGameNumber(state, coordinate, value);
+    let state = { board: boardFixture(["A2", 23]), undo: null };
+    for (const [coordinate, value] of [["B2", 31], ["A3", 23]]) state = placeGameNumber(state, coordinate, value);
     const paid = confirmGameBid(state, 12);
-    const frozen = freezeGameCell(paid, "B1");
+    const frozen = freezeGameCell(paid, "B2");
     assertEqual(score(frozen), 11);
-    assertEqual(getCell(frozen.board, "B1").status, "thawed");
-    assertEqual(getCell(frozen.board, "A2").status, "frozen");
+    assertEqual(getCell(frozen.board, "B2").status, "thawed");
+    assertEqual(getCell(frozen.board, "A3").status, "frozen");
     assertDeepEqual(undoLastMove(frozen), { board: paid.board, undo: null, pointsSpent: 12 });
-    const thawed = unfreezeGameCell(frozen, "B1");
+    const thawed = unfreezeGameCell(frozen, "B2");
     assertEqual(score(thawed), 11);
     assertDeepEqual(undoLastMove(thawed), { board: frozen.board, undo: null, pointsSpent: 12 });
   });
@@ -160,7 +160,9 @@ export function runChallengeTests() {
   });
 
   test("Version 6 migrates valid Prime/Attack boards and Undo without rewriting the old save", () => {
-    const state = freezeGameCell(placeGameNumber(placeGameNumber(createGameState(), "A1", 23), "B1", 31), "A1");
+    const previous = placeGameNumber(placeGameNumber(createGameState(), "A1", 23), "B1", 31);
+    const state = { board: boardFixture(["A1", 23], ["B1", 31, "frozen"]), undo: { board: previous.board } };
+    state.board[0][0].attackIce = true; // Historical first-row overlay.
     const serialized = JSON.stringify({ version: 6, state });
     const storage = { getItem(key) { assertEqual(key, STORAGE_KEY); return serialized; } };
     assertDeepEqual(loadGame(storage), { state, status: "restored" });

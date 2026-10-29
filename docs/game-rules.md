@@ -36,6 +36,9 @@ and scoring rules. Repeated-digit numbers have no separate special action.
 ## 3. First placement
 
 On a completely empty board, the first number must be placed at A1.
+**66 cannot be placed in A1 (Start).** Other valid dice numbers, including
+11, 23, and 65, remain allowed there under the ordinary placement rules.
+66 remains valid in other cells whenever their usual placement conditions hold.
 
 Once any cell is occupied, use the adjacency rules below, including for an
 empty A1. Frozen and thawed cells still count as occupied when checking whether
@@ -149,9 +152,14 @@ track opponents, turns, permissions, or synchronization. There is no debt,
 negative score, bid cooldown, or bid limit other than the available Score.
 
 Attack Ice may cover a normal or Prime-thawed occupied cell, but never a
-currently Prime-frozen cell or an empty cell. The number and underlying Prime
-status remain unchanged. An Attack-Iced cell is occupied and cannot be
-overwritten, cannot support placement, cannot complete a Street, and does not
+currently Prime-frozen cell or an empty cell. **New Attack Ice cannot be placed
+in the first row: A1, B1, C1, and D1 are protected.** This applies only to the manual Attack Freeze
+action, including moving an overlay to a new target. Prime Ice can still occur
+in the first row normally. Unfreeze remains unchanged, including removal of
+first-row Attack Ice retained in an older saved game.
+
+The number and underlying Prime status remain unchanged. An Attack-Iced cell
+is occupied and cannot be overwritten, cannot support placement, cannot complete a Street, and does not
 currently reach the D7 goal. Its base points are unchanged: a normal cell still
 scores its normal contribution, including repdigit doubling; a thawed cell
 still scores 0.

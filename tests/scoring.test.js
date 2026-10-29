@@ -112,9 +112,9 @@ export function runScoringTests() {
 
   for (const value of [11, 22, 33, 44, 55, 66]) {
     test("Normal repdigit " + value + " contributes " + value * 2 + " without changing the cell record", () => {
-      const board = freezeBoardSnapshot(placedBoard(["A1", value]));
+      const board = freezeBoardSnapshot(value === 66 ? boardFixture(["A2", value]) : placedBoard(["A1", value]));
       assertEqual(calculateScore(board), value * 2);
-      assertDeepEqual(board[0][0], { value, status: "normal" });
+      assertDeepEqual(board[value === 66 ? 1 : 0][0], { value, status: "normal" });
     });
   }
 
@@ -182,8 +182,8 @@ export function runScoringTests() {
 
   test("Normal 22 and 66 have a 2x multiplier and contribute 44 and 132", () => {
     for (const [value, points] of [[22, 44], [66, 132]]) {
-      const board = placedBoard(["A1", value]);
-      assertEqual(getCellScoreMultiplier(board[0][0]), 2);
+      const board = value === 66 ? boardFixture(["A2", value]) : placedBoard(["A1", value]);
+      assertEqual(getCellScoreMultiplier(board[value === 66 ? 1 : 0][0]), 2);
       assertEqual(calculateScore(board), points);
     }
   });

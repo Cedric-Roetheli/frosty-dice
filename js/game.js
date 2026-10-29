@@ -54,7 +54,13 @@ export function isCellUsable(board, coordinate) {
 
 export function canApplyAttackIce(board, coordinate) {
   const cell = getCell(board, coordinate);
-  return cell !== null && cell.status !== "frozen" && !cell.attackIce;
+  return attackIceRestriction(cell, coordinate) === null && !cell.attackIce;
+}
+
+function attackIceRestriction(cell, coordinate, allowFirstRow = false) {
+  if (!allowFirstRow && coordinate[1] === "1") return "Attack Ice is not allowed in the first row.";
+  if (cell === null || cell.status === "frozen") return "Attack Ice requires a normal or thawed occupied cell.";
+  return null;
 }
 
 export function hasReachedGoal(board) {
@@ -75,6 +81,10 @@ function usableValue(cell) {
 }
 
 export function validatePlacement(board, coordinate, value) {
+  return placementValidation(board, coordinate, value);
+}
+
+function placementValidation(board, coordinate, value, allowStart66 = false) {
   if (!isValidBoard(board)) {
     return { legal: false, reason: "The board must have seven rows of four empty cells or valid cell records." };
   }
@@ -88,6 +98,9 @@ export function validatePlacement(board, coordinate, value) {
   const column = BOARD_COLUMNS.indexOf(coordinate[0]);
   if (board[row][column] !== null) {
     return { legal: false, reason: `${coordinate} already contains ${board[row][column].value} and cannot be overwritten.` };
+  }
+  if (!allowStart66 && coordinate === "A1" && value === 66) {
+    return { legal: false, reason: "66 cannot be placed in Start" };
   }
   if (board.every((entries) => entries.every((cell) => cell === null))) {
     return coordinate === "A1"
@@ -152,10 +165,13 @@ export function cloneBoard(board) {
 }
 
 export function applyAttackIce(board, coordinate) {
+  return applyBoardAttackIce(board, coordinate);
+}
+
+function applyBoardAttackIce(board, coordinate, allowFirstRow = false) {
   const cell = getCell(board, coordinate);
-  if (cell === null || cell.status === "frozen") {
-    throw new Error("Attack Ice requires a normal or thawed occupied cell.");
-  }
+  const reason = attackIceRestriction(cell, coordinate, allowFirstRow);
+  if (reason !== null) throw new Error(reason);
   if (cell.attackIce) return board;
   const nextBoard = cloneBoard(board);
   for (const row of nextBoard) {
@@ -173,7 +189,11 @@ export function removeAttackIce(board, coordinate) {
 }
 
 export function placeNumber(board, coordinate, value) {
-  const validation = validatePlacement(board, coordinate, value);
+  return placeBoardNumber(board, coordinate, value);
+}
+
+function placeBoardNumber(board, coordinate, value, allowStart66 = false) {
+  const validation = placementValidation(board, coordinate, value, allowStart66);
   if (!validation.legal) throw new Error(validation.reason);
 
   const row = Number(coordinate[1]) - 1;
@@ -241,12 +261,13 @@ export function isValidUndoSnapshot(snapshot, board, pointsSpent = 0) {
       }
     }
   }
-  // Check one forward action for saved-data integrity; restoration never reverses effects.
+  // Historical saves may predate row-one protection and the A1=66 restriction.
+  // Replay those former exceptions here; current public actions enforce both restrictions.
   try {
     let expected;
-    if (move !== null) expected = placeNumber(snapshot.board, move.coordinate, move.value);
+    if (move !== null) expected = placeBoardNumber(snapshot.board, move.coordinate, move.value, true);
     else if (previousAttack === currentAttack) return false;
-    else if (currentAttack !== null) expected = applyAttackIce(snapshot.board, currentAttack);
+    else if (currentAttack !== null) expected = applyBoardAttackIce(snapshot.board, currentAttack, true);
     else expected = removeAttackIce(snapshot.board, previousAttack);
     return JSON.stringify(expected) === JSON.stringify(cloneBoard(board));
   } catch {
