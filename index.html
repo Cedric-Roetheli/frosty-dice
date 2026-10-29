@@ -14,7 +14,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png">
     <script id="meadow-background">
       (() => {
-        const meadows = ["background_meadow.png", "background_meadow_desert.png", "background_meadow_snow.png"];
+        const meadows = ["background_meadow.png", "background_meadow_desert.png", "background_meadow_snow.png", "background_meadow_sea.png"];
         const meadow = meadows[Math.floor(Math.random() * meadows.length)];
         const image = new URL("./assets/" + meadow, document.baseURI).href;
         document.documentElement.style.setProperty("--background-meadow-image", 'url("' + image + '")');

@@ -308,11 +308,11 @@ export async function runPwaTests(sources) {
     assertEqual(worker.networkCalls.length, 0);
   });
 
-  await test("All three randomized meadows are precached and available offline", async () => {
+  await test("All four randomized meadows are precached and available offline", async () => {
     const worker = workerHarness(sources.worker);
     await worker.lifecycle("install");
     worker.offline = true;
-    const meadows = ["/assets/background_meadow.png", "/assets/background_meadow_desert.png", "/assets/background_meadow_snow.png"];
+    const meadows = ["/assets/background_meadow.png", "/assets/background_meadow_desert.png", "/assets/background_meadow_snow.png", "/assets/background_meadow_sea.png"];
     assertDeepEqual(worker.PRECACHE_URLS.filter((path) => path.includes("background_meadow")), meadows);
     for (const path of meadows) assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
     assertEqual(worker.networkCalls.length, 0);

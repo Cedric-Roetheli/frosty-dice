@@ -331,13 +331,14 @@ retain their existing behavior. Manual iPhone evaluation remains pending.
 The experimental background pass uses the supplied background_sky.png and
 background_meadow.png unchanged as non-interactive decorative CSS layers.
 On each fresh page load, a small synchronous head script chooses equally among
-`background_meadow.png`, `background_meadow_desert.png`, and
-`background_meadow_snow.png` before the stylesheet loads. All three are
+`background_meadow.png`, `background_meadow_desert.png`,
+`background_meadow_snow.png`, and `background_meadow_sea.png` before the stylesheet
+loads, with a 25% chance for each. All four are
 1440 × 3200 and use the same width/automatic-height sizing without distortion.
 Only the meadow image custom property changes; horizon, positioning, scaling,
 standalone adjustments, sky, controls, and the solid green continuation stay
 unchanged. The choice lasts for that document, never changes during game/UI
-actions, and is not persisted. All three illustrations are precached offline.
+actions, and is not persisted. All four illustrations are precached offline.
 The sky stays fixed; the meadow spans the full document height and scrolls with
 the page so its ground continues below the fold. The meadow's painted horizon is anchored independently of sky position
 and both scales; controls are grouped at the top of style.css. The composition

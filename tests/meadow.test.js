@@ -6,7 +6,7 @@ import { appTestStorage } from "./app-initialization.test.js";
 import { rulesDocument } from "./rules.test.js";
 import { assert, assertDeepEqual, assertEqual } from "./assert.js";
 
-const MEADOWS = ["background_meadow.png", "background_meadow_desert.png", "background_meadow_snow.png"];
+const MEADOWS = ["background_meadow.png", "background_meadow_desert.png", "background_meadow_snow.png", "background_meadow_sea.png"];
 
 function meadowScript(html) {
   const match = html.match(/<script id="meadow-background">([\s\S]*?)<\/script>/);
@@ -66,9 +66,9 @@ export async function runMeadowTests(sources) {
     assert(position < sources.html.indexOf("<body>"));
   });
 
-  test("Exactly the three intended images occupy equal one-third random intervals", () => {
+  test("Exactly the four intended images occupy equal one-quarter random intervals", () => {
     for (let index = 0; index < MEADOWS.length; index += 1) {
-      for (const sample of [index / 3, (index + 0.5) / 3, (index + 1) / 3 - Number.EPSILON]) {
+      for (const sample of [index / MEADOWS.length, (index + 0.5) / MEADOWS.length, (index + 1) / MEADOWS.length - Number.EPSILON]) {
         const selection = selectMeadow(sources.html, sample);
         assertEqual(selection.randomCalls, 1);
         assertDeepEqual(selection.writes,
@@ -79,7 +79,7 @@ export async function runMeadowTests(sources) {
 
   test("Meadow URLs resolve from the document on both the root domain and project subpaths", () => {
     for (const baseURI of ["https://frostydice.com/", "http://localhost:8000/index.html", "https://example.org/frosty-dice/index.html"]) {
-      const selection = selectMeadow(sources.html, 0.5, rulesDocument(), baseURI);
+      const selection = selectMeadow(sources.html, 1.5 / MEADOWS.length, rulesDocument(), baseURI);
       const directory = baseURI.slice(0, baseURI.lastIndexOf("/") + 1);
       assertEqual(selection.writes[0][1], 'url("' + directory + 'assets/background_meadow_desert.png")');
     }
@@ -116,7 +116,7 @@ export async function runMeadowTests(sources) {
   });
 
   test("Placement, Undo, Reset, Challenge, language, and Additional Rules keep the chosen meadow", () => {
-    for (const sample of [0, 0.5, 0.9]) {
+    for (const sample of MEADOWS.map((_, index) => (index + 0.5) / MEADOWS.length)) {
       const selection = selectMeadow(sources.html, sample);
       const document = selection.document;
       const storage = appTestStorage();

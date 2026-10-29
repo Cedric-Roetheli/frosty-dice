@@ -2,7 +2,7 @@
 // below when adding/removing files or changing their query-string versions.
 // Also version changed modules and their importers for browsers without a worker.
 const CACHE_PREFIX = "frosty-dice-pwa-";
-const CACHE_NAME = CACHE_PREFIX + "v18";
+const CACHE_NAME = CACHE_PREFIX + "v19";
 const APP_SHELL = "/index.html";
 const PRECACHE_URLS = [
   APP_SHELL,
@@ -23,6 +23,7 @@ const PRECACHE_URLS = [
   "/assets/background_meadow.png",
   "/assets/background_meadow_desert.png",
   "/assets/background_meadow_snow.png",
+  "/assets/background_meadow_sea.png",
   "/assets/reset_button.png",
   "/assets/rules_button.png?v=d85019bc",
   "/assets/Rules.png",
