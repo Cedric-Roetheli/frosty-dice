@@ -111,7 +111,7 @@ export async function runPwaTests(sources) {
   if (!sources) {
     try {
       const paths = { worker: "../service-worker.js", registration: "../js/pwa.js", manifest: "../manifest.webmanifest", html: "../index.html",
-        app: "../js/app.js", storage: "../js/storage.js" };
+        app: "../js/app.js", storage: "../js/storage.js", css: "../css/style.css", receipt: "../js/receipt.js" };
       sources = Object.fromEntries(await Promise.all(Object.entries(paths).map(async ([name, url]) => {
         const result = await fetch(url, { cache: "no-store" });
         if (!result.ok) throw new Error("Cannot load " + url);
@@ -145,21 +145,43 @@ export async function runPwaTests(sources) {
     assert(sources.html.includes('src="./js/pwa.js"'));
   });
 
-  await test("Protective rules use fresh matching module URLs in Safari and the offline cache", () => {
+  await test("Receipt release uses fresh matching module URLs in Safari and the offline cache", () => {
     const worker = workerHarness(sources.worker);
-    const version = "protective-rules-1";
-    assert(sources.html.includes('src="./js/app.js?v=' + version + '"'));
-    for (const name of ["app", "game", "storage"]) {
+    assert(sources.html.includes('src="./js/app.js?v=receipt-3"'));
+    for (const [name, version] of [["app", "receipt-3"], ["game", "receipt-2"], ["storage", "receipt-2"], ["receipt", "receipt-3"]]) {
       const path = "/js/" + name + ".js?v=" + version;
       assertDeepEqual(worker.PRECACHE_URLS.filter((url) => url.startsWith("/js/" + name + ".js?")), [path]);
     }
-    assert(sources.app.includes('from "./game.js?v=' + version + '"'));
-    assert(sources.app.includes('from "./storage.js?v=' + version + '"'));
-    assert(sources.storage.includes('from "./game.js?v=' + version + '"'));
+    assert(sources.app.includes('from "./game.js?v=receipt-2"'));
+    assert(sources.app.includes('from "./storage.js?v=receipt-2"'));
+    assert(sources.app.includes('from "./receipt.js?v=receipt-3"'));
+    assert(sources.storage.includes('from "./game.js?v=receipt-2"'));
     for (const source of [sources.app, sources.storage]) {
       assert(!source.includes("game.js?v=v3-multipliers-1"));
       assert(!source.includes("storage.js?v=v3-multipliers-1"));
     }
+  });
+
+  await test("Prime Ice, Attack Ice, and receipt assets are precached and available offline", async () => {
+    const worker = workerHarness(sources.worker);
+    await worker.lifecycle("install");
+    worker.offline = true;
+    for (const path of ["/assets/icecube.png", "/assets/icecube2.png", "/assets/receipt.png", "/js/receipt.js?v=receipt-3", "/css/style.css?v=receipt-3"]) {
+      assert(worker.PRECACHE_URLS.includes(path), path);
+      assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
+    }
+    assertEqual(worker.networkCalls.length, 0);
+    assert(sources.html.includes('src="./assets/receipt.png"'));
+  });
+
+  await test("All four hand-drawn sale stickers are available offline", async () => {
+    const worker = workerHarness(sources.worker);
+    await worker.lifecycle("install");
+    worker.offline = true;
+    const stickers = ["sale_orange.png", "sale_yellow.png", "sale_green.png", "sale_pink.png"].map((name) => "/assets/" + name);
+    assertDeepEqual(worker.PRECACHE_URLS.filter((path) => path.startsWith("/assets/sale_")), stickers);
+    for (const path of stickers) assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
+    assertEqual(worker.networkCalls.length, 0);
   });
 
   await test("The live message area precedes the board and A–D column headings are visually hidden", () => {

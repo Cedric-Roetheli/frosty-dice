@@ -23,7 +23,7 @@ export function runStorageTests() {
 
   test("Version 7 saves contain only current gameplay and one nullable Undo snapshot", () => {
     const state = createGameState();
-    assertEqual(SAVE_VERSION, 7);
+    assertEqual(SAVE_VERSION, 8);
     assertDeepEqual(JSON.parse(serializeGame(state)), { version: SAVE_VERSION, state });
     assertDeepEqual(deserializeGame(serializeGame(state)), state);
   });
@@ -169,7 +169,7 @@ export function runStorageTests() {
 
   test("Legacy A1=66 games retain their exact Undo and spending without changing save version", () => {
     const state = { board: boardFixture(["A1", 66]), undo: { board: boardFixture() } };
-    for (const version of [5, 6, SAVE_VERSION]) {
+    for (const version of [5, 6, 7, SAVE_VERSION]) {
       const serialized = JSON.stringify({ version, state });
       const storage = memoryGameStorage();
       storage.setItem(STORAGE_KEY, serialized);
@@ -193,7 +193,7 @@ export function runStorageTests() {
       const snapshot = boardFixture([coordinate, 24], ["A2", 24]);
       board[0]["ABCD".indexOf(coordinate[0])].attackIce = true;
       const state = { board, undo: { board: snapshot } };
-      for (const version of [6, SAVE_VERSION]) {
+      for (const version of [6, 7, SAVE_VERSION]) {
         const serialized = JSON.stringify({ version, state });
         const storage = memoryGameStorage();
         storage.setItem(STORAGE_KEY, serialized);

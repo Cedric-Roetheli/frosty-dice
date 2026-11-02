@@ -1,7 +1,7 @@
-import { BOARD_COLUMNS, BOARD_ROW_COUNT, cloneGameState, createGameState, isPrimeNumber, isValidBoard, isValidGameState } from "./game.js?v=protective-rules-1";
+import { BOARD_COLUMNS, BOARD_ROW_COUNT, cloneGameState, createGameState, isPrimeNumber, isValidBoard, isValidGameState } from "./game.js?v=receipt-2";
 
 export const STORAGE_KEY = "frosty-dice.game";
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 function isStorageRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -97,7 +97,12 @@ export function deserializeGame(serialized) {
     }
     const payload = JSON.parse(serialized);
     if (!isStorageRecord(payload)) return null;
+    // No earlier schema stored individual bids; reject mixed development data.
+    if (payload.version !== SAVE_VERSION && (!isStorageRecord(payload.state)
+        || Object.prototype.hasOwnProperty.call(payload.state, "challengeHistory")
+        || (isStorageRecord(payload.state.undo) && Object.prototype.hasOwnProperty.call(payload.state.undo, "challengeHistory")))) return null;
     const state = payload.version === SAVE_VERSION ? payload.state
+      : payload.version === 7 ? payload.state
       : payload.version === 6 ? migrateVersion6State(payload.state)
       : payload.version === 5 ? migrateVersion5State(payload.state)
       : payload.version === 4 ? migrateBoardOnlyState(payload.state)

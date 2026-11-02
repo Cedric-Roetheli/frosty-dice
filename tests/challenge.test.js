@@ -58,18 +58,18 @@ export function runChallengeTests() {
 
   test("Later bids use the reduced score rather than the original board total", () => {
     const after = confirmGameBid(gameWith47Points(), 12);
-    assertThrows(() => confirmGameBid(after, 36), "Not enough points");
+    assertThrows(() => confirmGameBid(after, 36), "Not enough Frosty Dollars");
     const empty = confirmGameBid(after, 35);
     assertEqual(empty.pointsSpent, 47);
     assertEqual(score(empty), 0);
-    assertThrows(() => confirmGameBid(empty, 1), "Not enough points");
+    assertThrows(() => confirmGameBid(empty, 1), "Not enough Frosty Dollars");
     assertEqual(score(confirmGameBid(empty, 0)), 0);
   });
 
   test("Doubled 66 points are fully available for bidding, persistence, and bid Undo", () => {
     const before = { board: boardFixture(["B1", 66]), undo: null };
     assertEqual(score(before), 132);
-    assertThrows(() => confirmGameBid(before, 133), "Not enough points");
+    assertThrows(() => confirmGameBid(before, 133), "Not enough Frosty Dollars");
     const paid = confirmGameBid(before, 132);
     assertEqual(score(paid), 0);
     assertEqual(paid.pointsSpent, 132);
@@ -94,14 +94,14 @@ export function runChallengeTests() {
     assertDeepEqual(getScoreBreakdown(restored.board, restored.pointsSpent).streetRows, []);
     assertEqual(score(undoLastMove(restored)), 478);
     assertDeepEqual(getScoreBreakdown(undoLastMove(restored).board, restored.pointsSpent).streetRows, [2]);
-    assertDeepEqual(Object.keys(JSON.parse(serializeGame(restored)).state), ["board", "undo", "pointsSpent"]);
+    assertDeepEqual(Object.keys(JSON.parse(serializeGame(restored)).state), ["board", "undo", "pointsSpent", "challengeHistory"]);
   });
 
   test("Bid Undo restores complete pre-bid state and consumes the single snapshot", () => {
     const before = confirmGameBid(gameWith47Points(), 12);
     const after = confirmGameBid(before, 20);
     const restored = undoLastMove(after);
-    assertDeepEqual(restored, { board: before.board, undo: null, pointsSpent: 12 });
+    assertDeepEqual(restored, { board: before.board, undo: null, pointsSpent: 12, challengeHistory: before.challengeHistory });
     assertEqual(score(restored), 35);
     assert(!canUndo(restored));
     assertEqual(undoLastMove(restored), restored);
@@ -113,7 +113,7 @@ export function runChallengeTests() {
     const placed = placeGameNumber(before, "C1", 46);
     assertEqual(placed.pointsSpent, 12);
     assertEqual(score(placed), 81);
-    assertDeepEqual(undoLastMove(placed), { board: before.board, undo: null, pointsSpent: 12 });
+    assertDeepEqual(undoLastMove(placed), { board: before.board, undo: null, pointsSpent: 12, challengeHistory: before.challengeHistory });
     assertEqual(score(undoLastMove(placed)), 35);
     const original = JSON.stringify(before);
     assertThrows(() => placeGameNumber(before, "D7", 46));
@@ -128,10 +128,10 @@ export function runChallengeTests() {
     assertEqual(score(frozen), 11);
     assertEqual(getCell(frozen.board, "B2").status, "thawed");
     assertEqual(getCell(frozen.board, "A3").status, "frozen");
-    assertDeepEqual(undoLastMove(frozen), { board: paid.board, undo: null, pointsSpent: 12 });
+    assertDeepEqual(undoLastMove(frozen), { board: paid.board, undo: null, pointsSpent: 12, challengeHistory: paid.challengeHistory });
     const thawed = unfreezeGameCell(frozen, "B2");
     assertEqual(score(thawed), 11);
-    assertDeepEqual(undoLastMove(thawed), { board: frozen.board, undo: null, pointsSpent: 12 });
+    assertDeepEqual(undoLastMove(thawed), { board: frozen.board, undo: null, pointsSpent: 12, challengeHistory: frozen.challengeHistory });
   });
 
   test("Score spending preserves board-derived Street bonus details", () => {
@@ -149,9 +149,9 @@ export function runChallengeTests() {
     assertDeepEqual(restored, after);
     assertEqual(score(restored), 15);
     assertEqual(score(undoLastMove(restored)), 35);
-    assertEqual(JSON.parse(serialized).version, 7);
-    assertDeepEqual(Object.keys(restored), ["board", "undo", "pointsSpent"]);
-    assertDeepEqual(Object.keys(restored.undo), ["board", "pointsSpent"]);
+    assertEqual(JSON.parse(serialized).version, SAVE_VERSION);
+    assertDeepEqual(Object.keys(restored), ["board", "undo", "pointsSpent", "challengeHistory"]);
+    assertDeepEqual(Object.keys(restored.undo), ["board", "pointsSpent", "challengeHistory"]);
     assert(restored.board[0][0] !== restored.undo.board[0][0]);
     const consumed = deserializeGame(serializeGame(undoLastMove(restored)));
     assertEqual(consumed.undo, null);

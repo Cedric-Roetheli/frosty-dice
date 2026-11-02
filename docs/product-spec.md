@@ -38,6 +38,7 @@ The app should:
 - Save and restore the local board and permanent damage status.
 - Offer one-step Undo of the last successful placement or Attack Ice action, restoring its complete prior board.
 - Offer a secret point-bid Challenge dialog; persist confirmed spending and include it in one-step Undo.
+- Keep the main-screen balance private behind a $ button opening the Frosty Fresh Goods receipt, with persistent confirmed-bid records.
 - Allow a confirmed new-game reset.
 - Remain mobile-first, accessible, static, and GitHub Pages compatible.
 - Offer optional home-screen installation and offline play after complete local precaching, while keeping the normal website immediately usable.
@@ -48,7 +49,7 @@ save, or replacement special action for repeated-digit numbers.
 
 ## 4. Local game state
 
-Canonical state is `{ board, undo, pointsSpent? }`. Missing `pointsSpent` means
+Canonical state is `{ board, undo, pointsSpent?, challengeHistory? }`. Missing `pointsSpent` means
 zero; confirmed bids store a nonnegative integer. Each board has seven rows of four cells;
 occupied cells retain a value and a normal/frozen/thawed status. At most one
 cell in each board is currently frozen. Thawed cells are usable but permanently
@@ -58,24 +59,44 @@ temporary overlay. Absence means no Attack Ice. At most one cell has that flag;
 it cannot coexist with `status: "frozen"` on the same cell. Removing the flag
 never changes the underlying value or Prime status.
 
-`undo` is either `null` or `{ board, pointsSpent? }`, a deep-cloned pre-action
-board and spending including Attack Ice and every Prime status. Confirmed bids
+`challengeHistory`, when present, contains chronological `{ id, amount }`
+entries. The sequential positive integer ID also supplies the display number.
+Every confirmed bid, including zero, appends one expense entry.
+Missing history means an empty list. `pointsSpent` remains the authoritative
+aggregate deduction; history records it without spending again. History totals
+may be lower because older saves did not itemize bids. No historical entries
+are fabricated and no derived balance is stored.
+
+`undo` is either `null` or `{ board, pointsSpent?, challengeHistory? }`, a deep-cloned pre-action
+board, spending, and itemized history including Attack Ice and every Prime status. Confirmed bids
 include explicit pre-bid spending, even when zero.
 The snapshot never contains an older Undo. Score, Streets, legal targets, and
 goal are derived and not persisted. Selection, number drafts, unfinished bids,
 the revealed bid, and the open/confirmed dialog state remain temporary UI data.
 
-Version 7 saves the board, spending, and this one nullable snapshot together.
+Version 8 saves the board, spending, history, and this one nullable snapshot together.
 Validate both boards, reject recursive history or a snapshot that does not
 precede the current state by one legal placement, Attack Ice action, or affordable
 confirmed bid, and retain canonical cell
-statuses without legacy boolean flags.
+statuses without legacy boolean flags. Validate transaction IDs, amounts,
+aggregate spending, and the exact history transition as part of Undo
+validation. A bid's Undo removes exactly its new entry; all other actions keep
+the list unchanged. Reject duplicate IDs and itemized spending above the aggregate.
 Saved A1=66 values and first-row Attack Ice remain valid, including their exact
 historical Undo snapshots. Validation of those snapshots permits the formerly
 legal action; all new placements and Freeze actions use the current protective
-rules. No save-format change or automatic removal is required. Existing
+rules. No automatic removal is required. Existing
 first-row Attack Ice can still be unfrozen, moved to rows 2–7, or restored by Undo.
 
+Valid version-7 games retain their board, aggregate spending, balance, and exact
+Undo, with no itemized entries. Old bid Undo still restores the former spending.
+The receipt labels unitemized deductions as earlier spending. The first new bid
+starts at #01 and does not lose or repeat earlier deductions. Older schemas
+containing unexpected history are rejected as mixed development saves.
+Previous version-8 saves may contain obsolete outcome fields. Ignore those
+fields when checking current/Undo history, and discard them during canonical
+cloning and the next normal save. Preserve all IDs, amounts, deductions, and
+the exact Undo relationship; keep schema version 8 with no extra migration.
 Valid version-6 games migrate with their Prime/Attack Ice and Undo intact and no
 spending. Valid version-5 games migrate with their existing Undo intact and no Attack Ice.
 Valid version-3 and version-4 board-only games migrate with Undo unavailable.
@@ -90,7 +111,7 @@ also rejected safely; no status is guessed or silently discarded. Spending
 fields in versions before 7 are rejected as mixed development saves.
 
 Loading never rewrites or deletes a save. The next successful placement or
-Attack Ice action, confirmed bid, or Undo saves version 7. Consuming Undo saves `undo: null`; confirmed reset clears
+Attack Ice action, confirmed bid, or Undo saves version 8. Consuming Undo saves `undo: null`; confirmed reset clears
 the saved game entirely. Missing saves and storage-access/quota errors must
 not crash the application. Data stays on the local device.
 
@@ -180,7 +201,7 @@ focus target stays intact. Selecting another empty cell starts a fresh draft;
 tapping the active input keeps its draft. Starting number entry dismisses a pending reset confirmation.
 New Game / Reset remains accessible and requires explicit confirmation.
 
-Keep the score compact, and show Street and goal feedback when applicable.
+Keep the balance hidden behind the compact $ receipt button, and show Street and goal feedback when applicable.
 The existing contextual status appears directly above the board as centered,
 small white text without a panel or background. Its wrapper reserves 2.5rem
 for two lines even while the text is hidden during cell actions, so message
@@ -201,7 +222,7 @@ automation, screenshot tests, and viewport tests are excluded from this task.
 
 ## 7. Undo correction
 
-Show one subtle circular ↶ button immediately left of Score. Keep it in the
+Show one subtle circular ↶ button immediately left of the $ receipt button. Keep it in the
 same position when disabled, with a subdued appearance and a mobile touch
 target of at least 48px. Use an accessible label/title, “Undo last move,” and
 no permanent descriptive text or external icon library.
@@ -209,7 +230,7 @@ no permanent descriptive text or external icon library.
 Only successful placement, state-changing Freeze/Unfreeze/Move, or confirmed bid publishes a
 new pre-action snapshot. Failed
 attempts and canceled entry preserve the existing snapshot. Undo immediately
-restores the complete board and pre-action spending, saves it, recalculates score/Street/goal displays,
+restores the complete board, pre-action spending, and transaction history, saves it, recalculates score/Street/goal displays,
 and consumes the snapshot. Clear selection, input, and validation feedback before
 rendering the restored state. Close any cell actions as well. Prime and Attack
 Ice visuals follow the restored complete board.
@@ -255,15 +276,15 @@ the original number placement and dialog layout.
 Validate whole, nonnegative, affordable bids on confirmation, including 0; blank,
 fractional, negative, or unaffordable entries show a concise reserved-space live
 message without changing state or Undo. Confirmation spends once, saves, updates
-the normal Score, locks the visible input, disables repeated confirmation, and
+the receipt balance, records one expense, locks the visible input, disables repeated confirmation, and
 keeps the dialog open with the bid concealed. Move focus off the input to dismiss the keyboard.
 Close/Escape before confirmation cancel; afterwards they close without refund.
 Backdrop clicks do nothing. Restore focus to Challenge on close. Reopening starts
 a new blank bid using the then-current Score. Native dialog semantics isolate
 keyboard focus and prevent using underlying Undo until the dialog closes.
 
-Unfinished/revealed bids and open dialogs do not survive reload; only spending
-and the exact pre-action Undo do. There is no second resource, debt, automated
+Unfinished/revealed bids and open dialogs do not survive reload; spending,
+confirmed-bid history, and the exact pre-action Undo do. There is no second resource, debt, automated
 winner, automatic Freeze, or bid cooldown/limit.
 
 V3 scoring doubles the base contribution of normal 11/22/33/44/55/66, without
@@ -278,7 +299,7 @@ size, corner position, and styling: show one 2x or 4x per applicable cell, never
 two markers. Ordinary non-Street cells and zero-scoring cells have none. An
 Attack-Iced normal repdigit retains 2x while its row loses all Street multipliers.
 Score stays derived and supplies the existing Challenge maximum. Existing
-spending, Undo, and version-7 persistence behavior remain unchanged.
+scoring deductions and one-step Undo semantics remain unchanged; version 8 also records bid history.
 
 The bid input keeps its exact centre and transparent dark appearance, with a
 larger font scaled to the banknote and enough width for four digits. The header
@@ -307,7 +328,66 @@ Closing at any phase cancels pending animation work without refunds; reopening
 resets to an empty editable 0° face. Visual phases are temporary and never saved.
 Reduced motion skips shake/rotation, switches faces immediately, and still
 requires an explicit reveal. Both illustrations and the independent visual
-controller are precached; service-worker activation and save version 7 stay unchanged.
+controller are precached; service-worker activation and existing bid mechanics stay unchanged.
+
+## 8.1 Frosty Fresh Goods receipt
+
+The visible currency name is Frosty Dollars, using whole-dollar formatting such
+as $25 and $1,420. Keep board numbers unchanged. Replace only the header's
+permanent Points value with a white 48px $ button labelled “Open Frosty Fresh
+Goods receipt,” beside the unchanged title, Challenge, and Undo controls.
+
+Open a native modal with a dark backdrop, a small close control, Escape/native
+cancellation, and backdrop dismissal. Restore focus to the $ button. Native
+modal semantics isolate focus and board interaction; coordinator guards also
+reject background game actions while the receipt is open. Opening and closing
+never save, spend, or create Undo. The receipt starts closed after every launch,
+including at the local goal, and reaching D7 does not open it automatically.
+
+Use the unchanged 1440 × 3200 `assets/receipt.png`, displayed at its natural
+aspect ratio. Its actual blank centre spans approximately x=302–1181 and
+y=1216–2032. Place BOARD VALUE, the transaction list, and BALANCE (SALDO) in that
+bounded region. Do not repeat text baked into the illustration. Use local
+American Typewriter with Courier New/Courier/monospace fallbacks, without downloads.
+
+BOARD VALUE uses `getScoreBreakdown`'s base sum plus Street bonus, including all
+repdigit, combined 4x, and ice effects. BALANCE (SALDO) is the same breakdown's clamped
+score after `pointsSpent`, exactly matching the Challenge maximum. Derive both
+on every render/open. Existing aggregate spending may exceed itemized history;
+show that remainder as earlier spending, never as invented Challenge records.
+
+Show chronological expenses as “1x Challenge #01” and “-$50” with flexible CSS
+dotted leaders. Transactions follow BOARD VALUE directly, with no separate
+CHALLENGE HISTORY heading, outcome symbols, outcome fields, or winner inference.
+The independent devices cannot reliably associate results with these expenses.
+Add no manual outcome selector, opponent tracking, or synchronization.
+
+Only the history list scrolls inside the fixed blank region, keeping BOARD
+VALUE and the balance outside that list and away from printed footer/barcode artwork.
+Keep transaction rows regular-weight American Typewriter, approximately 14–15px
+on typical phones and smaller on narrow screens. BOARD VALUE uses approximately
+15–16px. Keep BALANCE (SALDO) on the left and its larger black amount on the
+right of one horizontal row. Use regular-weight type, with a responsive
+13–18px label and 20–28px amount so narrow phones remain readable. The final
+row alone can use the blank paper farther right; retain the existing image,
+other rows, and scrollable transactions. Add no panels or background fills. The $
+button retains its 48px target and transparent background, with a 1px white
+circular outline. Existing title, Undo, Challenge, and header positions stay intact.
+
+Behind the amount, use the unchanged hand-drawn `sale_orange.png` for balances
+$0–99, `sale_yellow.png` for $100–499, `sale_green.png` for $500–999, and
+`sale_pink.png` for $1000 and above. Select from the same authoritative balance
+on every receipt render; never use BOARD VALUE or persist a sticker choice.
+All four 1024px-square PNGs are precached and retain their natural aspect ratios.
+Rotate only the oversized illustration by -8deg in its own clipped layer.
+Keep the horizontal amount outside that clip, above the sticker, and readable.
+Allow right-side spikes beyond the paper while bounding the decoration away
+from the label, transactions, thank-you message, and barcode.
+
+Use a restrained 450ms downward entrance on the receipt alone; reduced motion
+shows it immediately. Keep existing Challenge flips unchanged. Reset clears
+history and spending, restarts numbering at #01, and preserves Rules language.
+Precache the artwork and receipt controller in the existing versioned shell.
 
 ## 9. Technical constraints
 
@@ -344,7 +424,7 @@ the page so its ground continues below the fold. The meadow's painted horizon is
 and both scales; controls are grouped at the top of style.css. The composition
 stays behind the game sheet even when entry or reset makes the page longer.
 The second targeted iteration moves the horizon from 72% to 95% of the stable
-viewport height. The header has no opaque backing: title, Score label/value,
+viewport height. The header has no opaque backing: title, the $ receipt control,
 and Undo are white over the sky. Undo retains its 48px target, transparent fill,
 and a subdued disabled appearance. UI outside the focused board polish remains.
 
@@ -360,7 +440,11 @@ Active Prime Ice and Attack Ice share 100% width/height and `object-fit: fill`,
 intentionally stretching the artwork to the cell proportions instead of scaling
 and cropping it. `--ice-image-fit` controls this experimental fit centrally.
 Both images remain clipped inside existing cell bounds, behind numbers and
-markers. Cells, grid dimensions, interactions, and Prime-thawed treatment do not
+markers. A non-replaced `.board-cell__ice-layer` spans each cell with absolute
+`inset: 0` and z-index 0, establishing a box for its 100%-sized block image
+without relying on a replaced image's positioning inside a flex button. Numbers,
+status labels, and multipliers use z-index 1 above it. Both original PNGs and
+their cell-filling appearance remain unchanged. Cells, grid dimensions, interactions, and Prime-thawed treatment do not
 change. General visual redesign and PNG optimization remain deferred.
 
 A bilingual rules illustration appears in a plain section after the game
@@ -392,7 +476,7 @@ Generate these assets during development, with no runtime image processing.
 English is the default. The independent `frosty-dice.rules-language` preference
 stores only `en` or `de`; invalid or inaccessible preferences fall back to
 English, and blocked writes do not prevent switching during the visit. Reset,
-Undo, Challenge, game saves, and save version 7 remain independent. Switch
+Undo, Challenge, game saves, and save version 8 remain independent. Switch
 in place without navigation, scrolling scripts, or fixed-height clipping.
 The existing full-page meadow layer and green fallback cover the image and
 spacing without repeating plants, moving the horizon, or altering game UI or
@@ -493,7 +577,7 @@ normal-browser styling.
 Installation through the browser is optional. Add no install gate, prompt,
 button, accounts, backend, push, analytics, cloud saves, or new gameplay.
 Registration is independent of game initialization and fails silently. Existing
-game code, UI, localStorage version 7, Undo, and reset remain unchanged.
+game code, UI, localStorage, Undo, and reset remain independent of PWA installation.
 
 Cache the complete static application, including all lazy Rules/contact/bid/ice
 artwork. Each installed/browser context needs an online visit long enough for

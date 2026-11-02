@@ -231,18 +231,53 @@ function spendingFields(record) {
   return Object.prototype.hasOwnProperty.call(record, "pointsSpent") ? { pointsSpent: record.pointsSpent } : {};
 }
 
+// History records the existing deduction; pointsSpent remains authoritative.
+// Missing history means no itemized bids, including spending from older saves.
+function hasValidChallengeHistory(record) {
+  if (!Object.prototype.hasOwnProperty.call(record, "challengeHistory")) return true;
+  if (!Array.isArray(record.challengeHistory)) return false;
+  let total = 0;
+  for (const [index, entry] of record.challengeHistory.entries()) {
+    // Previous version-8 receipts recorded an outcome; accept and discard it.
+    if (!isGameRecord(entry)
+        || !Object.keys(entry).every((key) => ["id", "amount", "outcome"].includes(key))
+        || entry.id !== index + 1 || !Number.isSafeInteger(entry.amount) || entry.amount < 0) return false;
+    total += entry.amount;
+    if (!Number.isSafeInteger(total) || total > (record.pointsSpent ?? 0)) return false;
+  }
+  return true;
+}
+
+function historyFields(record) {
+  return Object.prototype.hasOwnProperty.call(record, "challengeHistory")
+    ? { challengeHistory: historyEntries(record) } : {};
+}
+
+function historyEntries(record) {
+  return (record.challengeHistory ?? []).map(({ id, amount }) => ({ id, amount }));
+}
+
 // A snapshot contains only gameplay data, never an older Undo or derived displays.
-export function isValidUndoSnapshot(snapshot, board, pointsSpent = 0) {
-  if (!isGameRecord(snapshot) || !Object.keys(snapshot).every((key) => ["board", "pointsSpent"].includes(key))
+export function isValidUndoSnapshot(snapshot, board, pointsSpent = 0, challengeHistory) {
+  const currentHistory = challengeHistory === undefined ? {} : { challengeHistory };
+  if (!isGameRecord(snapshot) || !Object.keys(snapshot).every((key) => ["board", "pointsSpent", "challengeHistory"].includes(key))
       || !hasValidSpending(snapshot) || !Number.isSafeInteger(pointsSpent) || pointsSpent < 0
+      || !hasValidChallengeHistory(snapshot) || !hasValidChallengeHistory({ pointsSpent, ...currentHistory })
       || !isValidBoard(snapshot.board) || !isValidBoard(board)) return false;
   const previousSpending = snapshot.pointsSpent ?? 0;
   // An explicit spending snapshot also identifies an intentional zero-point bid.
   if (Object.prototype.hasOwnProperty.call(snapshot, "pointsSpent")
       && JSON.stringify(cloneBoard(snapshot.board)) === JSON.stringify(cloneBoard(board))) {
-    return validateBid(pointsSpent - previousSpending, calculateScore(snapshot.board, previousSpending)).valid;
+    const bid = pointsSpent - previousSpending;
+    if (!validateBid(bid, calculateScore(snapshot.board, previousSpending)).valid) return false;
+    // Old snapshots contain aggregate spending only; never fabricate their bids.
+    if (challengeHistory === undefined && snapshot.challengeHistory === undefined) return true;
+    const previousHistory = historyEntries(snapshot);
+    const expected = [...previousHistory, { id: previousHistory.length + 1, amount: bid }];
+    return JSON.stringify(historyEntries(currentHistory)) === JSON.stringify(expected);
   }
-  if (previousSpending !== pointsSpent) return false;
+  if (previousSpending !== pointsSpent
+      || JSON.stringify(historyEntries(snapshot)) !== JSON.stringify(historyEntries(currentHistory))) return false;
   let move = null;
   let previousAttack = null;
   let currentAttack = null;
@@ -276,26 +311,27 @@ export function isValidUndoSnapshot(snapshot, board, pointsSpent = 0) {
 }
 
 export function isValidGameState(state) {
-  return isGameRecord(state) && hasValidSpending(state) && isValidBoard(state.board)
-    && (state.undo == null || isValidUndoSnapshot(state.undo, state.board, state.pointsSpent ?? 0));
+  return isGameRecord(state) && hasValidSpending(state) && hasValidChallengeHistory(state) && isValidBoard(state.board)
+    && (state.undo == null || isValidUndoSnapshot(state.undo, state.board, state.pointsSpent ?? 0, state.challengeHistory));
 }
 
 export function cloneGameState(state) {
   if (!isValidGameState(state)) throw new TypeError("Use a valid game board and Undo snapshot.");
   return {
     board: cloneBoard(state.board),
-    undo: state.undo == null ? null : { board: cloneBoard(state.undo.board), ...spendingFields(state.undo) },
+    undo: state.undo == null ? null : { board: cloneBoard(state.undo.board), ...spendingFields(state.undo), ...historyFields(state.undo) },
     ...spendingFields(state),
+    ...historyFields(state),
   };
 }
 
 function applyGameAction(state, operation, ...args) {
   if (!isValidGameState(state)) throw new TypeError("Use a valid game board and Undo snapshot.");
-  const snapshot = { board: cloneBoard(state.board), ...spendingFields(state) };
+  const snapshot = { board: cloneBoard(state.board), ...spendingFields(state), ...historyFields(state) };
   const board = operation(state.board, ...args);
   if (board === state.board) return state;
   // A failed action throws before a new state can replace the existing snapshot.
-  return { board, undo: snapshot, ...spendingFields(state) };
+  return { board, undo: snapshot, ...spendingFields(state), ...historyFields(state) };
 }
 
 export function parseBidInput(input) {
@@ -310,7 +346,7 @@ export function parseBidInput(input) {
 export function validateBid(bid, availableScore) {
   if (!Number.isSafeInteger(bid) || bid < 0) return { valid: false, reason: "Enter a whole number, 0 or more." };
   if (!Number.isSafeInteger(availableScore) || availableScore < 0 || bid > availableScore) {
-    return { valid: false, reason: "Not enough points." };
+    return { valid: false, reason: "Not enough Frosty Dollars." };
   }
   return { valid: true, reason: null };
 }
@@ -320,11 +356,13 @@ export function confirmGameBid(state, bid) {
   const pointsSpent = state.pointsSpent ?? 0;
   const validation = validateBid(bid, calculateScore(state.board, pointsSpent));
   if (!validation.valid) throw new RangeError(validation.reason);
-  if (!Number.isSafeInteger(pointsSpent + bid)) throw new RangeError("Not enough points.");
+  if (!Number.isSafeInteger(pointsSpent + bid)) throw new RangeError("Not enough Frosty Dollars.");
+  const history = historyEntries(state);
   return {
     board: cloneBoard(state.board),
-    undo: { board: cloneBoard(state.board), pointsSpent },
+    undo: { board: cloneBoard(state.board), pointsSpent, ...historyFields(state) },
     pointsSpent: pointsSpent + bid,
+    challengeHistory: [...history, { id: history.length + 1, amount: bid }],
   };
 }
 
@@ -347,7 +385,7 @@ export function canUndo(state) {
 export function undoLastMove(state) {
   if (!isValidGameState(state)) throw new TypeError("Use a valid game board and Undo snapshot.");
   if (state.undo == null) return state;
-  return { board: cloneBoard(state.undo.board), undo: null, ...spendingFields(state.undo) };
+  return { board: cloneBoard(state.undo.board), undo: null, ...spendingFields(state.undo), ...historyFields(state.undo) };
 }
 
 // Optional input helpers for a chosen physical pair; no turn or origin is stored.

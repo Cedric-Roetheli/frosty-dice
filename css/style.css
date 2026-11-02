@@ -394,21 +394,22 @@ p { margin: 0; }
 
 .challenge-button:focus-visible { outline-color: #fff; }
 
-.game-stats p {
-  display: flex;
-  flex-direction: column;
+.receipt-button {
+  flex: none;
+  width: 48px;
+  min-height: 48px;
+  padding: 0;
+  border: 1px solid #fff;
+  border-radius: 50%;
   color: #fff;
-  font-size: 0.75rem;
-  line-height: 1.25;
+  background: transparent;
+  font: inherit;
+  font-size: 1.5rem;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
-.game-stats strong {
-  color: #fff;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-.current-score strong { font-size: 1.25rem; }
+.receipt-button:focus-visible { outline-color: #fff; }
 
 .board-sheet {
   position: relative;
@@ -441,6 +442,7 @@ p { margin: 0; }
 
 .street-marker {
   position: absolute;
+  z-index: 1;
   top: 3px;
   right: 3px;
   color: #705513;
@@ -535,9 +537,15 @@ p { margin: 0; }
   line-height: 1.2;
 }
 
-.board-cell__ice {
+.board-cell__ice-layer {
   position: absolute;
   inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.board-cell__ice {
+  display: block;
   width: 100%;
   height: 100%;
   padding: 0;
@@ -917,3 +925,179 @@ noscript p {
 }
 
 .challenge-close:focus-visible { outline-color: #fff; }
+
+/* Full, unchanged 1440 × 3200 artwork; only its blank centre receives HTML. */
+.receipt-dialog {
+  width: min(100% - 1rem, 30rem);
+  max-width: none;
+  max-height: calc(100% - 1rem);
+  margin: auto;
+  padding: max(0.25rem, env(safe-area-inset-top)) 0 max(0.25rem, env(safe-area-inset-bottom));
+  border: 0;
+  background: transparent;
+  color: #171710;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.receipt-dialog::backdrop { background: rgb(3 2 14 / 82%); }
+
+.receipt-paper {
+  position: relative;
+  container-type: inline-size;
+}
+
+.receipt-dialog[open] .receipt-paper {
+  animation: receipt-arrive 450ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.receipt-art { display: block; width: 100%; height: auto; pointer-events: none; }
+
+.receipt-content {
+  --receipt-section-gap: 0.65em;
+  --receipt-history-extra-height: 3.4em; /* Two rows: 2 × (1.4em line + 0.3em padding). */
+  position: absolute;
+  /* Blank area: x ≈ 302–1181, y ≈ 1216–2032 on the original canvas. */
+  left: 21%;
+  right: 18%;
+  top: 38%;
+  height: 25.5%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--receipt-section-gap);
+  font-family: "American Typewriter", "Courier New", Courier, monospace;
+  font-size: 0.875rem;
+  font-size: clamp(0.75rem, 3.8cqw, 0.9375rem);
+  font-weight: 400;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+.receipt-content h3 { margin: 0; font: inherit; }
+.receipt-content strong { font: inherit; }
+.receipt-line { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; align-items: baseline; gap: 0.35em; }
+.receipt-line > span { white-space: nowrap; }
+.receipt-board-value { font-size: 0.9375rem; font-size: clamp(0.8125rem, 4.1cqw, 1rem); }
+.receipt-challenges {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.25em;
+  /* Grow within the existing whitespace, preserving the balance's flow position. */
+  margin-top: calc(0px - var(--receipt-section-gap));
+  margin-bottom: calc(var(--receipt-section-gap) - var(--receipt-history-extra-height));
+}
+.receipt-history { flex: 1; min-height: 0; margin: 0; padding: 0; list-style: none; overflow-y: auto; overscroll-behavior: contain; }
+.receipt-transaction { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; align-items: baseline; gap: 0.35em; padding-block: 0.15em; font-weight: 400; }
+.receipt-board-value::after,
+.receipt-transaction::after { content: ""; grid-column: 2; grid-row: 1; border-bottom: 1px dotted currentColor; }
+.receipt-board-value > span,
+.receipt-transaction span:last-child { grid-column: 3; grid-row: 1; text-align: right; white-space: nowrap; }
+.receipt-prior-spending, .receipt-empty { font-size: 0.85em; }
+.receipt-total {
+  --receipt-balance-offset-x: -4cqw;
+  --receipt-balance-offset-y: 20px;
+  --receipt-balance-value-width: clamp(5rem, 25cqw, 8rem);
+  --receipt-sticker-right: calc(-2cqw + 20px);
+  --receipt-sticker-scale: 0.8;
+  --receipt-amount-shift-left: 0px;
+  --receipt-balance-amount-width: 6ch;
+  --receipt-balance-amount-font-size: clamp(1.25rem, 6.4cqw, 1.75rem);
+  --receipt-balance-line-thickness: 1px;
+  --receipt-balance-line-gap: 8px;
+  --receipt-balance-line-inset: 7cqw; /* About 9% of the visible paper's width. */
+  position: relative;
+  top: var(--receipt-balance-offset-y);
+  isolation: isolate;
+  flex: none;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 0.4em;
+  min-height: clamp(4.5rem, 19cqw, 5.5rem);
+  /* Use the blank paper to the right without changing the other receipt rows. */
+  margin-right: -8cqw;
+  /* Retain the old border's layout space; draw the inset lines separately. */
+  border-top: 1px solid transparent;
+  padding-top: 0.4em;
+}
+
+.receipt-total::before,
+.receipt-total::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  /* Paper spans roughly 12–90cqw; the balance row begins at 21cqw. */
+  left: calc(var(--receipt-balance-line-inset) - 9cqw);
+  right: var(--receipt-balance-line-inset);
+  top: calc(50% + 0.2em);
+  border-top: var(--receipt-balance-line-thickness) solid currentColor;
+  pointer-events: none;
+}
+
+.receipt-total::before { margin-top: calc(-0.6 * var(--receipt-balance-amount-font-size) - var(--receipt-balance-line-gap) - var(--receipt-balance-line-thickness)); }
+.receipt-total::after { margin-top: calc(0.6 * var(--receipt-balance-amount-font-size) + var(--receipt-balance-line-gap)); }
+.receipt-total h3 { position: relative; z-index: 2; font-size: 0.9375rem; font-size: clamp(0.8125rem, 4.1cqw, 1.125rem); font-weight: 400; white-space: nowrap; }
+.receipt-balance-value {
+  position: relative;
+  z-index: 1;
+  left: var(--receipt-balance-offset-x);
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-self: stretch;
+  align-self: stretch;
+  min-width: var(--receipt-balance-value-width);
+  /* Keep the amount inside its grid column even with the shared left offset. */
+  padding-left: max(0px, calc(0px - var(--receipt-balance-offset-x)));
+}
+.receipt-balance-amount {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: var(--receipt-balance-amount-width);
+  margin-left: auto;
+  /* Auto margin yields first on narrow screens, keeping text clear of the label. */
+  margin-right: var(--receipt-amount-shift-left);
+  color: #000;
+  font-size: 1.5rem;
+  font-size: var(--receipt-balance-amount-font-size);
+  font-weight: 400;
+  line-height: 1.2;
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* Clip only the decoration; text stays outside this independently sized box. */
+.receipt-sticker-clip { position: absolute; top: 0; bottom: 0; right: -5cqw; width: calc(var(--receipt-balance-value-width) + 5cqw); z-index: 0; overflow: hidden; pointer-events: none; }
+.receipt-sale-sticker { position: absolute; top: 50%; right: var(--receipt-sticker-right); width: clamp(7.25rem, 31cqw, 10rem); height: auto; transform-origin: center; transform: translateY(-50%) rotate(-8deg) scale(var(--receipt-sticker-scale)); pointer-events: none; }
+
+.receipt-close {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: block;
+  width: 48px;
+  min-height: 48px;
+  margin: 0 0 -48px auto;
+  padding: 0;
+  border: 0;
+  color: #fff;
+  background: transparent;
+  font: inherit;
+  font-size: 1.5rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.receipt-close:focus-visible { outline-color: #fff; }
+
+@keyframes receipt-arrive {
+  from { transform: translateY(-2rem); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .receipt-dialog[open] .receipt-paper { animation: none; }
+}

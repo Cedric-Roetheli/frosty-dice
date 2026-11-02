@@ -60,7 +60,7 @@ class AppTestElement {
   showModal() { this.open = true; }
   close() { this.open = false; }
   emit(type, target = this, properties = {}) {
-    const event = { target, ...properties, preventDefault() { this.defaultPrevented = true; } };
+    const event = { target, stopPropagation() { this.propagationStopped = true; }, ...properties, preventDefault() { this.defaultPrevented = true; } };
     for (const handler of this.listeners[type] ?? []) handler(event);
     return event;
   }
@@ -111,7 +111,7 @@ export function appTestDocument() {
   add("thead", "board-columns", board).className = "visually-hidden";
   add("tbody", "board-rows", board);
   for (const [tag, id] of [
-    ["p", "storage-status"], ["strong", "current-score"],
+    ["p", "storage-status"],
     ["p", "street-bonus"], ["p", "goal-status"], ["button", "new-game"],
   ]) add(tag, id);
   const actions = add("div", "attack-ice-actions");
@@ -119,7 +119,8 @@ export function appTestDocument() {
   add("span", "attack-ice-cell", actionLabel);
   add("button", "toggle-attack-ice", actions);
   add("button", "cancel-attack-ice", actions);
-  const undo = add("button", "undo-move");
+  const header = add("header", "app-header");
+  const undo = add("button", "undo-move", header);
   undo.setAttribute("aria-label", "Undo last move");
   undo.setAttribute("title", "Undo last move");
   const icon = document.createElement("span");
@@ -129,7 +130,26 @@ export function appTestDocument() {
   const confirmation = add("div", "reset-confirmation");
   add("button", "cancel-new-game", confirmation);
   add("button", "confirm-new-game", confirmation);
-  add("button", "open-challenge");
+  add("button", "open-challenge", header);
+  const receiptButton = add("button", "open-receipt", header);
+  receiptButton.textContent = "$";
+  receiptButton.setAttribute("aria-label", "Open Frosty Fresh Goods receipt");
+  const receipt = add("dialog", "receipt-dialog");
+  receipt.getBoundingClientRect = () => ({ left: 20, top: 20, right: 300, bottom: 600 });
+  add("button", "close-receipt", receipt);
+  add("span", "receipt-board-value", receipt);
+  add("p", "receipt-prior-spending", receipt);
+  add("ol", "receipt-history", receipt);
+  const balance = add("span", "receipt-balance-value", receipt);
+  const stickerClip = add("span", "receipt-sticker-clip", balance);
+  const sticker = add("img", "receipt-sale-sticker", stickerClip);
+  sticker.className = "receipt-sale-sticker";
+  sticker.alt = "";
+  sticker.width = 1024;
+  sticker.height = 1024;
+  const total = add("span", "receipt-total", balance);
+  total.textContent = "$";
+  add("strong", "current-score", total);
   const challenge = add("dialog", "challenge-dialog");
   const bidForm = add("form", "challenge-form", challenge);
   const note = add("div", "challenge-banknote", bidForm);
@@ -812,7 +832,7 @@ export function runAppInitializationTests() {
     const thawed = document.getElementById("cell-B3");
     assert(thawed.textContent.includes("31") && thawed.textContent.includes("Thawed"));
     assertEqual(thawed.querySelector("img"), null);
-    assert(thawed.getAttribute("aria-label").includes("permanently 0 points"));
+    assert(thawed.getAttribute("aria-label").includes("permanently $0"));
     assertEqual(document.getElementById("current-score").textContent, "168");
     assertEqual(document.getElementById("goal-status").hidden, false);
     assertEqual(document.getElementById("street-bonus").hidden, false);
@@ -926,7 +946,7 @@ export function runAppInitializationTests() {
       submitAppNumber(document, coordinate, value);
       assertEqual(document.getElementById("current-score").textContent, score);
     }
-    assertEqual(document.getElementById("street-bonus").textContent, "Street bonus +289 · 1 Street");
+    assertEqual(document.getElementById("street-bonus").textContent, "Street bonus +$289 · 1 Street");
     assert(document.getElementById("board-rows").children[1].className.includes("street"));
     const reloaded = startAppTest(storage.getItem(STORAGE_KEY));
     assertEqual(reloaded.document.getElementById("current-score").textContent, "578");
@@ -945,12 +965,12 @@ export function runAppInitializationTests() {
     const { document, storage } = startAppTest(serializeGame({ board: boardFixture(["A2", 66]), undo: null }));
     assertEqual(document.getElementById("current-score").textContent, "132");
     document.getElementById("open-challenge").emit("click");
-    assertEqual(document.getElementById("bid-limit").textContent, "Available Score: 132");
+    assertEqual(document.getElementById("bid-limit").textContent, "Available Frosty Dollars: $132");
     const input = document.getElementById("challenge-bid");
     assertEqual(input.max, "132");
     input.value = "133";
     document.getElementById("challenge-form").emit("submit");
-    assertEqual(document.getElementById("bid-feedback").textContent, "Not enough points.");
+    assertEqual(document.getElementById("bid-feedback").textContent, "Not enough Frosty Dollars.");
     assertEqual(document.getElementById("current-score").textContent, "132");
     input.value = "132";
     document.getElementById("challenge-form").emit("submit");
@@ -1629,7 +1649,7 @@ export function runAppInitializationTests() {
     document.getElementById("open-challenge").emit("click");
     assertEqual(document.getElementById("challenge-dialog").open, true);
     assertEqual(document.activeElement, document.getElementById("challenge-bid"));
-    assertEqual(document.getElementById("bid-limit").textContent, "Available Score: 46");
+    assertEqual(document.getElementById("bid-limit").textContent, "Available Frosty Dollars: $46");
     document.getElementById("challenge-bid").value = "12";
     document.getElementById("challenge-bid").emit("input");
     assertEqual(storage.getItem(STORAGE_KEY), saved);
@@ -1698,7 +1718,7 @@ export function runAppInitializationTests() {
     assertEqual(document.getElementById("challenge-bid").value, "");
     assertEqual(document.getElementById("challenge-bid").readOnly, false);
     assertEqual(document.getElementById("confirm-bid").disabled, false);
-    assertEqual(document.getElementById("bid-limit").textContent, "Available Score: 34");
+    assertEqual(document.getElementById("bid-limit").textContent, "Available Frosty Dollars: $34");
     document.getElementById("challenge-bid").value = "34";
     document.getElementById("challenge-form").emit("submit");
     assertEqual(document.getElementById("current-score").textContent, "0");
@@ -1928,7 +1948,7 @@ export function runAppInitializationTests() {
       finishNoteFlip(document);
       assertEqual(document.getElementById("challenge-bid").value, String(amount));
       assertEqual(document.getElementById("current-score").textContent,
-        new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(1533 - amount));
+        new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(1533 - amount));
       assertEqual(storage.getItem(STORAGE_KEY), saved);
       assertEqual(test.writes, 1);
     }

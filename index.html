@@ -20,8 +20,8 @@
         document.documentElement.style.setProperty("--background-meadow-image", 'url("' + image + '")');
       })();
     </script>
-    <link rel="stylesheet" href="./css/style.css?v=frosty-dollar-1">
-    <script type="module" src="./js/app.js?v=protective-rules-1"></script>
+    <link rel="stylesheet" href="./css/style.css?v=receipt-3">
+    <script type="module" src="./js/app.js?v=receipt-3"></script>
     <script type="module" src="./js/pwa.js"></script>
     <script type="module" src="./js/rules.js?v=additional-rules-1"></script>
   </head>
@@ -32,7 +32,7 @@
         <div class="game-stats">
           <button id="open-challenge" class="challenge-button" type="button" aria-haspopup="dialog" aria-controls="challenge-dialog">Challenge</button>
           <button id="undo-move" class="undo-button" type="button" aria-label="Undo last move" title="Undo last move" disabled><span aria-hidden="true">↶</span></button>
-          <p class="current-score"><span>Points</span><strong id="current-score">0</strong></p>
+          <button id="open-receipt" class="receipt-button" type="button" aria-label="Open Frosty Fresh Goods receipt" aria-haspopup="dialog" aria-controls="receipt-dialog">$</button>
         </div>
       </header>
 
@@ -120,7 +120,7 @@
             <div id="challenge-note-rotor" class="challenge-note__rotor">
               <div id="challenge-bid-face" class="challenge-note__face challenge-note__bid">
                 <img src="./assets/bid.png" alt="" width="2048" height="2048" decoding="async">
-                <label class="visually-hidden" for="challenge-bid">Secret point bid</label>
+                <label class="visually-hidden" for="challenge-bid">Secret bid in Frosty Dollars</label>
                 <input id="challenge-bid" class="challenge-bid" type="number" min="0" step="1" inputmode="numeric" autocomplete="off" aria-describedby="bid-limit bid-feedback">
               </div>
               <button id="reveal-bid" class="challenge-note__face challenge-note__cover" type="button" aria-label="Tap to reveal" aria-hidden="true" disabled hidden>
@@ -134,6 +134,32 @@
         <button id="confirm-bid" class="action-button challenge-confirm" type="submit">CONFIRM</button>
         <button id="close-challenge" class="challenge-close" type="button">CLOSE</button>
       </form>
+    </dialog>
+    <dialog id="receipt-dialog" class="receipt-dialog" aria-labelledby="receipt-heading">
+      <h2 id="receipt-heading" class="visually-hidden">Frosty Fresh Goods receipt · Frosty Dollars</h2>
+      <button id="close-receipt" class="receipt-close" type="button" aria-label="Close receipt" autofocus><span aria-hidden="true">×</span></button>
+      <div class="receipt-paper">
+        <img class="receipt-art" src="./assets/receipt.png" alt="" width="1440" height="3200" decoding="async">
+        <div class="receipt-content">
+          <div class="receipt-line receipt-board-value">
+            <h3>BOARD VALUE</h3>
+            <span id="receipt-board-value">$0</span>
+          </div>
+          <section class="receipt-challenges" aria-label="Challenge expenses">
+            <p id="receipt-prior-spending" class="receipt-prior-spending" hidden></p>
+            <ol id="receipt-history" class="receipt-history" tabindex="0" aria-label="Challenge transactions"></ol>
+          </section>
+          <div class="receipt-line receipt-total">
+            <h3>BALANCE (SALDO)</h3>
+            <span class="receipt-balance-value">
+              <span class="receipt-sticker-clip" aria-hidden="true">
+                <img id="receipt-sale-sticker" class="receipt-sale-sticker" src="./assets/sale_orange.png" alt="" width="1024" height="1024" decoding="async">
+              </span>
+              <span id="receipt-total" class="receipt-balance-amount">$<strong id="current-score">0</strong></span>
+            </span>
+          </div>
+        </div>
+      </div>
     </dialog>
   </body>
 </html>

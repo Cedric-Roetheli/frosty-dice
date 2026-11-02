@@ -127,7 +127,7 @@ clears the board, including frozen and thawed cells.
 ## 6. Physical Challenges and Attack Ice
 
 Instead of taking a normal turn, the active player may challenge any other
-player. Both players secretly bid points on their own devices. A bid must be an
+player. Both players secretly bid Frosty Dollars on their own devices. A bid must be an
 integer from **0 through that player's current available Score**, inclusive;
 blank, negative, fractional, and unaffordable bids are invalid. Both players
 spend their confirmed bids, regardless of the outcome. The challenger must bid
@@ -197,6 +197,10 @@ Removing or moving Attack Ice restores that row's Street eligibility if its
 current values and underlying statuses otherwise qualify.
 
 ## 8. Score
+
+The existing score is presented as **Frosty Dollars ($)**. This is terminology
+only: there is no separate currency, new scoring rule, or additional deduction.
+Board cells continue to display their ordinary two-digit numbers.
 
 **Available Score = normal cell contributions + Street bonuses − confirmed bids,
 with a minimum displayed Score of 0.**

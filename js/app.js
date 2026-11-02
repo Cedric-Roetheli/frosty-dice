@@ -14,10 +14,11 @@ import {
   placeGameNumber,
   undoLastMove,
   unfreezeGameCell,
-} from "./game.js?v=protective-rules-1";
+} from "./game.js?v=receipt-2";
 import { getCellScoreMultiplier, getScoreBreakdown } from "./scoring.js?v=v3-multipliers-1";
-import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=protective-rules-1";
+import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=receipt-2";
 import { createChallengeNote } from "./challenge-note.js?v=frosty-dollar-1";
+import { createReceipt, formatFrostyDollars } from "./receipt.js?v=receipt-3";
 
 // Shorten the core's explanations, without evaluating placement rules in the UI.
 function placementFeedback(reason) {
@@ -58,7 +59,11 @@ export function initializeApp(document, storage) {
   const closeChallengeButton = document.getElementById("close-challenge");
   const bidFeedback = document.getElementById("bid-feedback");
   const challengeNote = createChallengeNote(document);
-  const scoreFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+  const receipt = createReceipt(document, () => game);
+
+  function gameModalOpen() {
+    return challengeDialog.open || receipt.isOpen;
+  }
 
   function showStorageStatus(message) {
     storageStatus.textContent = message;
@@ -155,7 +160,7 @@ export function initializeApp(document, storage) {
     labels.push(value === null ? "empty" : String(value));
     if (record?.status === "frozen" || record?.status === "thawed") {
       const frozen = record.status === "frozen";
-      labels.push(record.status, "permanently 0 points", frozen || record.attackIce ? "cannot support placement" : "usable placement neighbor");
+      labels.push(record.status, "permanently $0", frozen || record.attackIce ? "cannot support placement" : "usable placement neighbor");
       if (frozen) {
         cell.classList.add("board-cell--frozen");
       } else {
@@ -179,7 +184,12 @@ export function initializeApp(document, storage) {
       ice.width = 48;
       ice.height = 48;
       ice.setAttribute("aria-hidden", "true");
-      cell.append(ice);
+      // Give the image a cell-sized box independent of button/flex image sizing.
+      const iceLayer = document.createElement("span");
+      iceLayer.className = "board-cell__ice-layer";
+      iceLayer.setAttribute("aria-hidden", "true");
+      iceLayer.append(ice);
+      cell.append(iceLayer);
     } else if (canFreeze) {
       labels.push("Freeze available");
     }
@@ -242,10 +252,10 @@ export function initializeApp(document, storage) {
   function render() {
     const scoring = getScoreBreakdown(game.board, game.pointsSpent ?? 0);
     renderBoard(scoring.streetRows);
-    document.getElementById("current-score").textContent = scoreFormat.format(scoring.score);
+    receipt.render();
     const streetBonus = document.getElementById("street-bonus");
     streetBonus.hidden = scoring.streetRows.length === 0;
-    streetBonus.textContent = "Street bonus +" + scoring.streetBonus + " · " + scoring.streetRows.length + " " + (scoring.streetRows.length === 1 ? "Street" : "Streets");
+    streetBonus.textContent = "Street bonus +" + formatFrostyDollars(scoring.streetBonus) + " · " + scoring.streetRows.length + " " + (scoring.streetRows.length === 1 ? "Street" : "Streets");
     const goalStatus = document.getElementById("goal-status");
     const goalMessage = hasReachedGoal(game.board) ? "You have reached the goal at D7!" : "";
     goalStatus.hidden = goalMessage.length === 0;
@@ -279,7 +289,7 @@ export function initializeApp(document, storage) {
   }
 
   boardRows.addEventListener("click", (event) => {
-    if (challengeDialog.open) return;
+    if (gameModalOpen()) return;
     const cell = event.target.closest("button[data-coordinate]");
     if (!cell) return;
     const coordinate = cell.dataset.coordinate;
@@ -311,7 +321,7 @@ export function initializeApp(document, storage) {
   });
 
   function attemptPlacement(input) {
-    if (challengeDialog.open) return;
+    if (gameModalOpen()) return;
     if (selectedCell === null || document.getElementById("cell-" + selectedCell) !== input) return;
     const coordinate = selectedCell;
     function reject(message) {
@@ -337,14 +347,16 @@ export function initializeApp(document, storage) {
     showStorageStatus(saveGame(game, storage) ? "" : "Local saving is unavailable. Changes may not survive a reload.");
     const placed = getCell(game.board, coordinate);
     clearEntry();
-    showAppStatus("Placed " + value + " at " + coordinate + "." + (placed.status === "frozen" ? " Frozen: 0 points; cannot support placement." : ""), "success");
+    showAppStatus("Placed " + value + " at " + coordinate + "." + (placed.status === "frozen" ? " Frozen: $0; cannot support placement." : ""), "success");
     render();
     board.focus({ preventScroll: true });
   }
 
-  document.getElementById("cancel-attack-ice").addEventListener("click", () => cancelEntry());
+  document.getElementById("cancel-attack-ice").addEventListener("click", () => {
+    if (!gameModalOpen()) cancelEntry();
+  });
   attackButton.addEventListener("click", () => {
-    if (challengeDialog.open) return;
+    if (gameModalOpen()) return;
     if (selectedActionCell === null) return;
     const coordinate = selectedActionCell;
     const removing = getCell(game.board, coordinate)?.attackIce === true;
@@ -373,6 +385,13 @@ export function initializeApp(document, storage) {
     cancelEntry(false);
   });
   document.addEventListener("keydown", (event) => {
+    if (receipt.isOpen) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        receipt.close();
+      }
+      return;
+    }
     if (challengeDialog.open && event.key === "Escape") {
       event.preventDefault();
       closeChallenge();
@@ -385,7 +404,7 @@ export function initializeApp(document, storage) {
   });
 
   undoButton.addEventListener("click", () => {
-    if (challengeDialog.open) return;
+    if (gameModalOpen()) return;
     if (!canUndo(game)) return;
     game = undoLastMove(game);
     clearEntry();
@@ -397,7 +416,7 @@ export function initializeApp(document, storage) {
   });
 
   newGameButton.addEventListener("click", () => {
-    if (challengeDialog.open) return;
+    if (gameModalOpen()) return;
     clearEntry();
     resetConfirmOpen = true;
     showAppStatus("Tap an empty cell to enter a number.");
@@ -405,12 +424,13 @@ export function initializeApp(document, storage) {
     document.getElementById("cancel-new-game").focus();
   });
   document.getElementById("cancel-new-game").addEventListener("click", () => {
+    if (gameModalOpen()) return;
     resetConfirmOpen = false;
     render();
     newGameButton.focus();
   });
   document.getElementById("confirm-new-game").addEventListener("click", () => {
-    if (challengeDialog.open) return;
+    if (gameModalOpen()) return;
     if (!resetConfirmOpen) return;
     if (!clearSavedGame(storage)) {
       showStorageStatus("The saved game could not be cleared. Your current game was kept; try again or cancel.");
@@ -432,8 +452,16 @@ export function initializeApp(document, storage) {
     challengeButton.focus({ preventScroll: true });
   }
 
+  document.getElementById("open-receipt").addEventListener("click", () => {
+    if (gameModalOpen()) return;
+    clearEntry();
+    resetConfirmOpen = false;
+    render();
+    receipt.open();
+  });
+
   challengeButton.addEventListener("click", () => {
-    if (challengeDialog.open) return;
+    if (gameModalOpen()) return;
     clearEntry();
     resetConfirmOpen = false;
     render();
@@ -447,7 +475,7 @@ export function initializeApp(document, storage) {
     bidFeedback.textContent = "";
     const available = getScoreBreakdown(game.board, game.pointsSpent ?? 0).score;
     bidInput.max = String(available);
-    document.getElementById("bid-limit").textContent = "Available Score: " + scoreFormat.format(available);
+    document.getElementById("bid-limit").textContent = "Available Frosty Dollars: " + formatFrostyDollars(available);
     challengeDialog.showModal();
     bidInput.focus({ preventScroll: true });
   });

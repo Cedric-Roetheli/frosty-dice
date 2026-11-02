@@ -499,6 +499,85 @@ types. Original artwork, core rules/scoring/storage, existing CSS, entry and
 Undo/Reset handlers, and the worker update strategy remain unchanged.
 No browser automation, screenshots, commit, or push was performed.
 
+## V3 — Frosty Fresh Goods receipt and Challenge records
+
+Replace only the permanent header Points value with an accessible white $
+button. Present the unchanged receipt.png in a native modal, with dynamic
+BOARD VALUE, Challenge expenses, and YOUR BALANCE (SALDO) in its measured blank centre.
+Use local American Typewriter/Courier fallbacks, a 450ms restrained downward
+entrance, and an instant reduced-motion alternative. Keep the history list
+independently scrollable without stretching the artwork or covering its footer.
+
+Reuse the authoritative scoring breakdown and bid balance. Change visible
+currency terminology to Frosty Dollars without changing any scoring mechanic.
+Each confirmed bid records one chronological expense without another deduction.
+Do not record or display outcomes: the local app has no reliable winner
+association. Do not infer results from reveal, inactivity, or manual ice actions.
+
+Version 8 adds optional itemized Challenge history to current state and the
+existing single Undo snapshot. Older saves retain board, aggregate spending,
+balance, and valid Undo without fabricated transactions. New bid Undo removes
+its record and deduction together; placement and ice Undo preserve history.
+Reset clears records and numbering while preserving Rules language.
+
+Precache the receipt image/controller, align changed module URLs, and bump the
+cache from v19 to v20 without changing worker installation/activation strategy.
+Add focused coordinator, scoring integration, transaction, migration, Undo,
+accessibility, reduced-motion, and offline regressions. Run the full automated
+suite once; manual illustration fit, keyboard/focus, animation, scrolling, and
+installed offline evaluation remain on iPhone. No browser automation,
+screenshots, commit, or push.
+
+**Status: Implemented for manual iPhone evaluation.** The full automated suite
+ran once in JavaScriptCore: **427/429 passed initially**, including all 24 new
+receipt tests and all 21 PWA tests. Two test fixtures were corrected for the
+requested comma-grouped currency format and an overridden Escape-event spy;
+the focused **2/2 recheck passed**, verifying all 429 cases across the runs.
+No production code changed after that suite run. Static checks confirm the
+original receipt/Rules artwork, scoring module, existing gameplay protections,
+landscape layout, Challenge animations, and worker update strategy are preserved.
+No browser automation, screenshots, commit, or push was performed.
+
+## Receipt refinement — Simple expenses and explicit ice layers
+
+Keep the native receipt and its artwork, authoritative scoring, bid spending,
+and Undo. Remove outcome tracking and symbols; persist only each expense's ID
+and amount. Keep schema version 8: accept obsolete outcome fields in existing
+current/Undo records, ignore them in accounting comparisons, and discard them
+from canonical copies. Preserve every deduction and transaction association.
+
+Show BOARD VALUE and regular-weight “1x Challenge #01” expense rows with CSS
+dotted leaders, without a Challenge History heading. Keep independent list
+scrolling. Place a larger YOUR BALANCE (SALDO) label above a prominent balance,
+using the existing American Typewriter fallbacks. Outline the unchanged 48px $
+target with a thin white circle and transparent fill.
+
+Ice investigation verified matching original PNGs, correct renderer paths and
+elements, successful local HTTP image responses, and both assets in the existing
+precache. The receipt changes did not remove those elements or alter their old
+styles. The report was from Safari over local HTTP, where service workers do not
+control the page. The exact device rendering cause could not be confirmed under
+the no-browser-automation constraint; after the direct-image test was unavailable,
+the user asked to proceed assuming the artwork loads. Harden the shared rendering
+path with an inset, explicitly stacked non-replaced layer around each image.
+Preserve full-cell fill, clipping, readable labels, cell dimensions, and mechanics.
+Manual iPhone confirmation remains necessary.
+
+Align runtime URLs at receipt-2 and bump the cache from v20 to v21; retain
+offline ice/receipt assets and the established worker update strategy. Add
+focused rendering, layout, canonical history compatibility, and offline checks,
+then run the full automated suite once without browser automation or screenshots.
+Do not commit or push.
+
+**Status: Implemented for manual iPhone recheck.** The complete automated suite
+ran once in JavaScriptCore: **435/435 passed**, including 30 receipt tests and
+21 PWA tests. Six added cases cover old outcome-bearing version-8 saves,
+expense formatting, circular header styling, both ice rendering paths through
+receipt/reload/Undo or thaw, and explicit CSS image geometry/paint order.
+The source PNGs, scoring, existing rule protections, Challenge animations,
+language controller, and worker lifecycle remain unchanged. Ice visibility on
+the actual iPhone is not established by these non-browser tests.
+
 ## Workflow
 
 Read the specifications, implement the current scope, keep rules deterministic,
