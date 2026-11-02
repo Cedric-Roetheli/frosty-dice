@@ -26,11 +26,11 @@
     <link rel="preload" as="image" href="./assets/digital_dice/dice_4.png">
     <link rel="preload" as="image" href="./assets/digital_dice/dice_5.png">
     <link rel="preload" as="image" href="./assets/digital_dice/dice_6.png">
-    <link rel="stylesheet" href="./css/style.css?v=digital-dice-2">
+    <link rel="stylesheet" href="./css/style.css?v=digital-dice-4">
     <script type="module" src="./js/app.js?v=receipt-3"></script>
     <script type="module" src="./js/pwa.js"></script>
     <script type="module" src="./js/rules.js?v=additional-rules-1"></script>
-    <script type="module" src="./js/digital-dice.js?v=digital-dice-2"></script>
+    <script type="module" src="./js/digital-dice.js?v=digital-dice-4"></script>
   </head>
   <body>
     <main>
@@ -96,17 +96,17 @@
       </button>
       <div id="digital-dice-panel" class="digital-dice__panel" aria-hidden="true" inert>
         <div class="digital-dice__panel-inner">
-          <div class="digital-dice__machine">
-            <img class="digital-dice__cabinet" src="./assets/digital_dice/dice_machine.png" alt="" width="1000" height="1800" draggable="false">
+          <div id="digital-dice-machine" class="digital-dice__machine">
+            <img class="digital-dice__cabinet" src="./assets/digital_dice/dice_machine.png" alt="" width="2048" height="2048" draggable="false">
             <div class="digital-dice__status" aria-live="polite" aria-atomic="true">
-              <p id="digital-dice-label">CHOOSE TWO DICE</p>
+              <p id="digital-dice-label" hidden></p>
               <div id="digital-dice-chosen" class="digital-dice__chosen" hidden></div>
             </div>
             <div id="digital-dice-column" class="digital-dice__column" aria-label="Four dice">
-              <button id="digital-die-0" class="digital-die" type="button" style="--digital-die-y:12.5%;--digital-die-width:41.149%" aria-label="Die showing 1" disabled><img src="./assets/digital_dice/dice_1.png" alt="" width="2048" height="2048" draggable="false"></button>
-              <button id="digital-die-1" class="digital-die" type="button" style="--digital-die-y:37.5%;--digital-die-width:41.149%" aria-label="Die showing 2" disabled><img src="./assets/digital_dice/dice_2.png" alt="" width="2048" height="2048" draggable="false"></button>
-              <button id="digital-die-2" class="digital-die" type="button" style="--digital-die-y:62.5%;--digital-die-width:41.149%" aria-label="Die showing 3" disabled><img src="./assets/digital_dice/dice_3.png" alt="" width="2048" height="2048" draggable="false"></button>
-              <button id="digital-die-3" class="digital-die" type="button" style="--digital-die-y:87.5%;--digital-die-width:41.149%" aria-label="Die showing 4" disabled><img src="./assets/digital_dice/dice_4.png" alt="" width="2048" height="2048" draggable="false"></button>
+              <button id="digital-die-0" class="digital-die" type="button" style="--digital-die-y:12.5%;--digital-die-width:50%" aria-label="Die showing 1" disabled><img src="./assets/digital_dice/dice_1.png" alt="" width="2048" height="2048" draggable="false"></button>
+              <button id="digital-die-1" class="digital-die" type="button" style="--digital-die-y:37.5%;--digital-die-width:50%" aria-label="Die showing 2" disabled><img src="./assets/digital_dice/dice_2.png" alt="" width="2048" height="2048" draggable="false"></button>
+              <button id="digital-die-2" class="digital-die" type="button" style="--digital-die-y:62.5%;--digital-die-width:50%" aria-label="Die showing 3" disabled><img src="./assets/digital_dice/dice_3.png" alt="" width="2048" height="2048" draggable="false"></button>
+              <button id="digital-die-3" class="digital-die" type="button" style="--digital-die-y:87.5%;--digital-die-width:50%" aria-label="Die showing 4" disabled><img src="./assets/digital_dice/dice_4.png" alt="" width="2048" height="2048" draggable="false"></button>
             </div>
             <button id="digital-dice-lever" class="digital-dice__lever" type="button" aria-label="Roll four dice">
               <img src="./assets/digital_dice/dice_lever.png" alt="" width="300" height="700" draggable="false">

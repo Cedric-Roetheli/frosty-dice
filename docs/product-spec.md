@@ -574,9 +574,25 @@ bracket, and six illustrated faces without modifying any PNG. The component
 sits in normal flow below `main` and above Rules, with green breathing room
 before and after it. Existing horizon, meadow variants, snowman/signpost anchors,
 board, and standalone PWA adjustments remain unchanged. Its responsive
-1260 × 1800 coordinate system includes the lever's full swing, with a maximum
-width of 32rem. Four dice always occupy one vertical column. Central CSS
-variables locate the cabinet, display, dice region, lever, and bracket.
+1800 × 1900 coordinate system includes the lever's full swing and the redesigned
+2048 × 2048 illustration's sign, raccoon, money bag, and right-hand decoration,
+with a maximum width of 32rem. Offset the unchanged PNG -260 source pixels to
+omit only transparent margins, without distorting it. Four dice always occupy
+one vertical column. Central CSS variables
+locate the cabinet, display, dice region, lever, and bracket. Align the lever
+and stationary bracket to the new frame, with an independent 44px-wide invisible
+touch area so narrow screens do not enlarge the lever artwork out of alignment.
+
+At widths up to 36rem, cancel the existing page insets for the dice section so
+its clipping panel reaches the viewport edge, without using `100vw` or creating
+scrollbar overflow. Keep the illustrated machine at its previous content width
+and height. Translate the complete composition horizontally using the source
+width and measured shorter pole tip, x=2019. The upper pole ends at x=2032,
+with 16 transparent pixels remaining in the PNG. Only its extra 13px tip extends
+offscreen; both poles meet the viewport edge. Cabinet, sign, raccoon, bag, and
+aligned lever remain visible. Wider screens retain the existing centered
+composition and full painted bounds. Vertical placement and landscape anchors
+remain unchanged.
 
 Keep a small semantic disclosure button directly above the machine, labeled
 “DIGITAL DICE” / “DIGITALE WÜRFEL” with a state chevron, `aria-expanded`, and
@@ -595,9 +611,11 @@ outcomes: an ongoing roll completes normally while hidden. Language changes
 translate the toggle without changing visibility. Reduced motion skips the
 disclosure transition as well as the existing dice animations.
 
-The new `js/digital-dice.js` module owns only temporary dice state and UI.
+The `js/digital-dice.js` module owns only temporary dice state and UI.
 Show neutral, unselectable 1/2/3/4 placeholders immediately without an initial
-random draw. The lever is the only roll control: a semantic button supporting
+random draw. Leave the upper selection area empty until a die is selected;
+the English-only CHOOSE TWO sign is already part of the illustration and is
+not recreated or translated in HTML/CSS. The lever is the only roll control: a semantic button supporting
 tap/click, native Enter/Space, and a short downward Pointer Event pull. Capture
 outside release, handle cancellation, and suppress the synthetic click following
 a handled pointer gesture. Only the lever restricts touch scrolling.
@@ -622,14 +640,24 @@ After rolling, choose up to two individual dice. Fade/shrink a chosen die for
 its own accessible deselection button in the upper display. Selecting duplicate
 values and deselecting either one restores the correct die. A third selection
 is silently ignored. No additional confirmation or Show button is required.
-The remaining three or two dice redistribute and grow with 250ms transitions,
-using the measured 560 × 1060 interior region to constrain their sizes and gaps.
+With no selections, use the full measured 600 × 1380 interior, starting at
+source y=330, for four evenly spaced dice. Each die is 300 source units square
+instead of approximately 217; initial placeholders, rolling, and stopped dice
+all use that same layout. No selection-text area is reserved in this state.
+When values are selected, measure their actual text/button height plus a 0.25rem
+gap and subtract only that space from the available region. The three or two
+remaining dice redistribute and resize within those bounds using the existing
+250ms transitions. Measure again on resize or language changes; last deselection
+and a new roll reclaim the full height. Individual stopping events never change
+the four-dice geometry. Reduced motion disables the region transitions too.
 The outer wrapper never changes size. The two remaining dice stay visible for
 other players until selection changes, another roll, or reload.
 
 Use the existing Rules language preference and controls. Read their restored
 language after document initialization, then update the machine labels on that
-same toggle: “CHOOSE TWO DICE” / “WÄHLE ZWEI WÜRFEL” and “CHOSEN:” / “GEWÄHLT:”.
+same toggle: “CHOSEN:” / “GEWÄHLT:” only while values are selected. Hide and clear
+the selected-value label when the last die is deselected or a new roll begins;
+show no replacement instruction, placeholder, or visible empty text box.
 Values and their order are unchanged by language switching. Keep accessible
 localized labels, native controls, visible focus, and usable touch targets.
 

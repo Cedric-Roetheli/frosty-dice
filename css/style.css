@@ -1102,24 +1102,28 @@ noscript p {
   .receipt-dialog[open] .receipt-paper { animation: none; }
 }
 
-/* Independent 1260 × 1800 coordinate system, including the lever's full swing. */
+/* 1800 × 1900 composition: the 2048px PNG is offset -260px; all painted art fits. */
 .digital-dice {
-  --digital-cabinet-left: 20.635%;
-  --digital-cabinet-width: 79.365%;
-  --digital-status-left: 37.302%;
-  --digital-status-top: 11.389%;
-  --digital-status-width: 46.429%;
-  --digital-status-height: 15%;
-  --digital-column-left: 38.095%;
-  --digital-column-top: 27.222%;
-  --digital-column-width: 44.444%;
-  --digital-column-height: 58.889%;
-  --digital-lever-left: 13.889%;
-  --digital-lever-top: 27.222%;
-  --digital-lever-width: 14.286%;
-  --digital-base-left: 21.825%;
-  --digital-base-top: 44.611%;
-  --digital-base-width: 7.937%;
+  --digital-cabinet-left: -14.444%;
+  --digital-cabinet-width: 113.778%;
+  --digital-source-width: 2048;
+  --digital-mobile-pole-edge: 2019; /* Shorter pole tip; longer tip at x=2032 may extend offscreen. */
+  --digital-page-inset-left: max(12px, env(safe-area-inset-left));
+  --digital-page-inset-right: max(12px, env(safe-area-inset-right));
+  --digital-selection-gap: 0.25rem;
+  --digital-status-left: 25.556%;
+  --digital-status-top: 17.368%;
+  --digital-status-width: 34.444%;
+  --digital-column-left: 26.111%;
+  --digital-column-top: 17.368%;
+  --digital-column-width: 33.333%;
+  --digital-column-height: 72.632%;
+  --digital-lever-left: 9.944%;
+  --digital-lever-top: 32.632%;
+  --digital-lever-width: 10%;
+  --digital-base-left: 15.5%;
+  --digital-base-top: 49.105%;
+  --digital-base-width: 5.556%;
   width: min(100%, 32rem);
   /* Main and its illustrated controls retain all existing horizon/ground anchors. */
   margin: calc(var(--meadow-painted-depth) + 3rem) auto 0;
@@ -1133,24 +1137,37 @@ noscript p {
 .digital-dice__panel { display: grid; grid-template-rows: 0fr; opacity: 0; visibility: hidden; transition: grid-template-rows 300ms ease, opacity 300ms ease, visibility 0s linear 300ms; }
 .digital-dice[data-expanded="true"] .digital-dice__panel { grid-template-rows: 1fr; opacity: 1; visibility: visible; transition-delay: 0s; }
 .digital-dice__panel-inner { min-height: 0; overflow: hidden; }
-.digital-dice__machine { position: relative; aspect-ratio: 1260 / 1800; container-type: inline-size; overflow: hidden; }
+.digital-dice__machine { position: relative; aspect-ratio: 1800 / 1900; container-type: inline-size; overflow: hidden; }
 .digital-dice img { display: block; height: auto; pointer-events: none; user-select: none; -webkit-user-drag: none; }
 .digital-dice__cabinet { position: absolute; left: var(--digital-cabinet-left); top: 0; width: var(--digital-cabinet-width); }
-.digital-dice__status { position: absolute; z-index: 1; left: var(--digital-status-left); top: var(--digital-status-top); width: var(--digital-status-width); height: var(--digital-status-height); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #172b3a; font-size: clamp(0.875rem, 4.5cqw, 1.125rem); font-weight: 600; line-height: 1.2; text-align: center; }
+.digital-dice__status { position: absolute; z-index: 1; left: var(--digital-status-left); top: var(--digital-status-top); width: var(--digital-status-width); margin-bottom: var(--digital-selection-gap); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #172b3a; font-size: clamp(0.875rem, 4.5cqw, 1.125rem); font-weight: 600; line-height: 1.2; text-align: center; }
 .digital-dice__chosen { display: flex; align-items: center; gap: 4px; }
 .digital-dice__chosen-value { min-width: 44px; min-height: 44px; padding: 0.25rem; border: 1px solid #6a4525; border-radius: 0.3rem; color: inherit; background: transparent; font: inherit; cursor: pointer; touch-action: manipulation; }
-.digital-dice__column { position: absolute; left: var(--digital-column-left); top: var(--digital-column-top); width: var(--digital-column-width); height: var(--digital-column-height); }
+.digital-dice__column { position: absolute; left: var(--digital-column-left); top: calc(var(--digital-column-top) + var(--digital-selection-space, 0%)); width: var(--digital-column-width); height: calc(var(--digital-column-height) - var(--digital-selection-space, 0%)); transition: top 250ms ease, height 250ms ease; }
 .digital-die { position: absolute; left: 50%; top: var(--digital-die-y); width: var(--digital-die-width); aspect-ratio: 1; padding: 0; border: 0; border-radius: 15%; background: transparent; overflow: hidden; transform: translate(-50%, -50%); transition: top 250ms ease, width 250ms ease, opacity 180ms ease, transform 180ms ease; cursor: pointer; touch-action: manipulation; }
 /* Trim transparent padding only: painted bounds are x=363..1756, y=326..1719. */
 .digital-die img { position: absolute; left: -26.059%; top: -23.403%; width: 147.021%; }
 .digital-die:disabled { opacity: 1; cursor: default; }
 .digital-die[data-leaving="true"] { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
 .digital-die[data-rolling="true"] { animation: digital-die-rattle 240ms ease-in-out infinite; }
-.digital-dice__lever { position: absolute; z-index: 2; left: var(--digital-lever-left); top: var(--digital-lever-top); width: var(--digital-lever-width); min-width: 44px; aspect-ratio: 300 / 700; padding: 0; border: 0; background: transparent; transform-origin: 93.5% 86.5%; transform: rotate(var(--digital-lever-pull-angle, 0deg)); cursor: pointer; touch-action: none; user-select: none; }
+.digital-dice__lever { position: absolute; z-index: 2; left: var(--digital-lever-left); top: var(--digital-lever-top); width: var(--digital-lever-width); aspect-ratio: 300 / 700; padding: 0; border: 0; background: transparent; transform-origin: 93.5% 86.5%; transform: rotate(var(--digital-lever-pull-angle, 0deg)); cursor: pointer; touch-action: none; user-select: none; }
+/* Enlarge only the touch area, so narrow screens never scale the lever out of alignment. */
+.digital-dice__lever::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: max(100%, 44px); transform: translateX(-50%); }
 .digital-dice__lever img { width: 100%; }
 .digital-dice__lever-base { position: absolute; z-index: 3; left: var(--digital-base-left); top: var(--digital-base-top); width: var(--digital-base-width); }
 .digital-dice[data-rolling="true"] .digital-dice__lever { animation: digital-lever-pull 480ms cubic-bezier(0.3, 0.1, 0.2, 1); }
 .digital-dice + .rules-illustration { margin-top: clamp(3rem, 10vw, 5rem); }
+
+@media (max-width: 36rem) {
+  /* Use the existing page insets, so this spans the viewport without 100vw scrollbar overflow. */
+  .digital-dice { width: calc(100% + var(--digital-page-inset-left) + var(--digital-page-inset-right)); margin-inline: calc(-1 * var(--digital-page-inset-left)) calc(-1 * var(--digital-page-inset-right)); }
+  .digital-dice__machine {
+    width: min(calc(100% - var(--digital-page-inset-left) - var(--digital-page-inset-right)), 32rem);
+    margin-left: auto;
+    /* Move the whole composition together; the panel clips only the pole ends at the screen edge. */
+    transform: translateX(calc(100% - var(--digital-cabinet-left) - var(--digital-cabinet-width) * var(--digital-mobile-pole-edge) / var(--digital-source-width)));
+  }
+}
 
 @keyframes digital-lever-pull {
   0% { transform: rotate(var(--digital-lever-start-angle, 0deg)); }
@@ -1164,7 +1181,7 @@ noscript p {
 }
 @media (prefers-reduced-motion: reduce) {
   .digital-dice__panel, .digital-dice__chevron { transition: none; }
-  .digital-die { transition: none; }
+  .digital-die, .digital-dice__column { transition: none; }
   .digital-die[data-rolling="true"],
   .digital-dice[data-rolling="true"] .digital-dice__lever { animation: none; }
 }

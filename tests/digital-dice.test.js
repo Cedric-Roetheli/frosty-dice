@@ -32,7 +32,7 @@ function fakeClock() {
 }
 
 // Existing roll/selection cases open the machine; null tests a fresh preference.
-function fixture({ values = [2, 4, 4, 6], reduced = false, language = "en", game, placeholders = false, expanded = true, preferences } = {}) {
+function fixture({ values = [2, 4, 4, 6], reduced = false, language = "en", game, placeholders = false, expanded = true, preferences, width = 512, selectionHeight = 68 } = {}) {
   const document = rulesDocument();
   const storage = appTestStorage(game ? serializeGame(game) : null);
   storage.setItem(RULES_LANGUAGE_KEY, language);
@@ -60,9 +60,15 @@ function fixture({ values = [2, 4, 4, 6], reduced = false, language = "en", game
   const panel = add("div", "digital-dice-panel", machine);
   panel.contains = (node) => node === panel || panel.descendants().includes(node);
   const inner = add("div", "digital-dice-panel-inner", panel);
-  const frame = add("div", "digital-dice-frame", inner);
-  add("p", "digital-dice-label", frame);
-  add("div", "digital-dice-chosen", frame);
+  const frame = add("div", "digital-dice-machine", inner);
+  let frameWidth = width;
+  let textHeight = selectionHeight;
+  frame.getBoundingClientRect = () => ({ width: frameWidth, height: frameWidth * 1900 / 1800 });
+  const selectionArea = add("div", "digital-dice-status", frame);
+  selectionArea.getBoundingClientRect = () => ({ height: textHeight });
+  add("p", "digital-dice-label", selectionArea);
+  add("div", "digital-dice-chosen", selectionArea);
+  document.defaultView.getComputedStyle = () => ({ marginBottom: "4px" });
   const column = add("div", "digital-dice-column", frame);
   const originals = [];
   if (placeholders) {
@@ -94,7 +100,7 @@ function fixture({ values = [2, 4, 4, 6], reduced = false, language = "en", game
     randomDie() { const value = values[randomCalls % values.length]; randomCalls += 1; return value; },
   });
   return {
-    document, storage, controller, clock, lever, machine, originals, toggle, panel,
+    document, storage, controller, clock, lever, machine, originals, toggle, panel, frame, selectionArea,
     get randomCalls() { return randomCalls; },
     card(id) { return document.getElementById("digital-die-" + id); },
     activate() { lever.emit("keydown", lever, { key: "Enter" }); lever.emit("click", lever, { detail: 0 }); },
@@ -103,6 +109,7 @@ function fixture({ values = [2, 4, 4, 6], reduced = false, language = "en", game
     setReduced(value) { motion.matches = value; motionListeners.forEach((handler) => handler({ matches: value })); },
     pagehide() { viewListeners.pagehide?.forEach((handler) => handler()); },
     toggleDisclosure() { toggle.emit("click"); },
+    resize(width, height = textHeight) { frameWidth = width; textHeight = height; viewListeners.resize?.forEach((handler) => handler()); },
   };
 }
 
@@ -126,6 +133,245 @@ export async function runDigitalDiceTests(sources) {
     } catch (error) { return [{ name: "Digital dice sources are available", passed: false, message: error.message }]; }
   }
 
+  function coordinate(name, extent) {
+    const match = sources.css.match(new RegExp(name + ":\\s*(-?[\\d.]+)%"));
+    assert(match, "Missing machine coordinate: " + name);
+    return Number(match[1]) / 100 * extent;
+  }
+
+  test("Mobile poles meet the viewport edge, including inset and scrollbar cases, while desktop stays centered", () => {
+    const sourceWidth = Number(sources.css.match(/--digital-source-width:\s*(\d+)/)?.[1]);
+    const poleEdge = Number(sources.css.match(/--digital-mobile-pole-edge:\s*(\d+)/)?.[1]);
+    assertEqual(sourceWidth, 2048);
+    assertEqual(poleEdge, 2019); // Shorter pole; the longer pole's alpha edge is 2032.
+    const artworkLeft = coordinate("--digital-cabinet-left", 1);
+    const artworkWidth = coordinate("--digital-cabinet-width", 1);
+    for (const [viewport, client, insetLeft, insetRight] of [[320, 320, 12, 12], [390, 390, 12, 12], [390, 375, 12, 12], [430, 430, 20, 32], [576, 576, 12, 12], [1024, 1009, 12, 12]]) {
+      const width = Math.min(client - insetLeft - insetRight, 512);
+      const oldHeight = width * 1900 / 1800;
+      const mobile = viewport <= 576;
+      const shift = width * (1 - artworkLeft - artworkWidth * poleEdge / sourceWidth);
+      const stageLeft = mobile ? client - width + shift : insetLeft + (client - insetLeft - insetRight - width) / 2;
+      const rightTip = stageLeft + width * (artworkLeft + artworkWidth * poleEdge / sourceWidth);
+      if (mobile) {
+        assert(Math.abs(rightTip - client) < 0.00001);
+        assert(stageLeft > 0); // The complete lever and cabinet remain onscreen.
+        // All non-pole artwork ends before x=1900 in the source and is never clipped.
+        assert(stageLeft + width * (artworkLeft + artworkWidth * 1900 / sourceWidth) < client);
+      } else {
+        assert(rightTip < client);
+        assert(Math.abs(stageLeft + width / 2 - client / 2) < 0.00001);
+      }
+      assertEqual(width * 1900 / 1800, oldHeight); // No whole-machine enlargement.
+      assertEqual((client - insetLeft - insetRight) + insetLeft + insetRight, client);
+    }
+    assert(sources.css.includes("@media (max-width: 36rem)"));
+    assert(sources.css.includes("width: calc(100% + var(--digital-page-inset-left) + var(--digital-page-inset-right))"));
+    assert(sources.css.includes("margin-inline: calc(-1 * var(--digital-page-inset-left)) calc(-1 * var(--digital-page-inset-right))"));
+    assert(sources.css.includes("width: min(calc(100% - var(--digital-page-inset-left) - var(--digital-page-inset-right)), 32rem)"));
+    assert(sources.css.includes("transform: translateX(calc(100% - var(--digital-cabinet-left) - var(--digital-cabinet-width) * var(--digital-mobile-pole-edge) / var(--digital-source-width)))"));
+    assert(!sources.css.includes("width: 100vw"));
+    assert(sources.css.includes(".digital-dice__panel-inner { min-height: 0; overflow: hidden; }"));
+  });
+
+  test("Four placeholders use the reclaimed full interior and are 38 percent larger without enlarging the machine", () => {
+    const f = fixture();
+    const column = f.document.getElementById("digital-dice-column");
+    assertEqual(column.style["--digital-selection-space"], "0%");
+    assertEqual(DICE_REGION.height, 1380);
+    for (let id = 0; id < 4; id += 1) assertEqual(f.card(id).style["--digital-die-width"], "50%");
+    const oldSize = 1000 / 4.6;
+    const newSize = getDigitalDiceLayout(createDiceState())[0].width / 100 * DICE_REGION.width;
+    assertEqual(newSize, 300);
+    assert(Math.abs(newSize / oldSize - 1.38) < 0.00001);
+    assertEqual(f.frame.getBoundingClientRect().width, 512);
+    assertEqual(f.randomCalls, 0);
+  });
+
+  test("Rolling and sequential stops retain the exact full-height four-dice layout", () => {
+    const f = fixture();
+    const positions = [0, 1, 2, 3].map((id) => JSON.stringify(f.card(id).style));
+    f.activate();
+    for (const elapsed of [0, 700, 300, 300, 300]) {
+      f.clock.advance(elapsed);
+      assertEqual(f.document.getElementById("digital-dice-column").style["--digital-selection-space"], "0%");
+      [0, 1, 2, 3].forEach((id) => assertEqual(JSON.stringify(f.card(id).style), positions[id]));
+    }
+    assertEqual(f.controller.getState().rolling, false);
+    assertEqual(f.randomCalls, 4);
+  });
+
+  test("Three and two dice use only the measured text reservation and fit narrow and desktop interiors", () => {
+    for (const [width, selectionHeight] of [[296, 62.8], [366, 65.8], [512, 68]]) {
+      const f = fixture({ width, selectionHeight, reduced: true });
+      f.activate();
+      const column = f.document.getElementById("digital-dice-column");
+      for (const id of [0, 1]) {
+        f.select(id);
+        const reservedPixels = parseFloat(column.style["--digital-selection-space"]) / 100 * f.frame.getBoundingClientRect().height;
+        assert(Math.abs(reservedPixels - (selectionHeight + 4)) < 0.00001);
+        const available = DICE_REGION.height / 1800 * width - reservedPixels;
+        const visible = [0, 1, 2, 3].filter((id) => !f.card(id).hidden);
+        assertEqual(visible.length, 3 - id);
+        let bottom = 0;
+        for (const visibleId of visible) {
+          const size = parseFloat(f.card(visibleId).style["--digital-die-width"]) / 100 * DICE_REGION.width / 1800 * width;
+          const center = parseFloat(f.card(visibleId).style["--digital-die-y"]) / 100 * available;
+          assert(center - size / 2 > bottom);
+          bottom = center + size / 2;
+          assert(bottom < available);
+          assert(size < DICE_REGION.width / 1800 * width);
+        }
+      }
+    }
+  });
+
+  test("Last deselection and a new roll restore the full four-dice layout with no text reservation", () => {
+    const f = fixture({ reduced: true });
+    f.activate();
+    const column = f.document.getElementById("digital-dice-column");
+    f.select(1); f.select(2); f.deselect(1);
+    assert(parseFloat(column.style["--digital-selection-space"]) > 0);
+    f.deselect(2);
+    assertEqual(column.style["--digital-selection-space"], "0%");
+    [0, 1, 2, 3].forEach((id) => assertEqual(f.card(id).style["--digital-die-width"], "50%"));
+    f.select(0); f.activate();
+    assertEqual(column.style["--digital-selection-space"], "0%");
+    assertEqual(f.machine.dataset.visibleDice, "4");
+    [0, 1, 2, 3].forEach((id) => assertEqual(f.card(id).style["--digital-die-width"], "50%"));
+    assertEqual(f.randomCalls, 8);
+  });
+
+  test("Resizing and language updates remeasure text without changing selected IDs, values, or collapse preference", () => {
+    const f = fixture({ reduced: true });
+    f.activate(); f.select(1); f.select(2);
+    const state = JSON.stringify(f.controller.getState());
+    const column = f.document.getElementById("digital-dice-column");
+    const original = column.style["--digital-selection-space"];
+    f.resize(296, 62.8);
+    assert(column.style["--digital-selection-space"] !== original);
+    f.selectionArea.getBoundingClientRect = () => ({ height: 80 });
+    f.document.getElementById("rules-language-de").emit("click");
+    const reserved = parseFloat(column.style["--digital-selection-space"]) / 100 * f.frame.getBoundingClientRect().height;
+    assert(Math.abs(reserved - 84) < 0.00001);
+    f.toggleDisclosure(); f.toggleDisclosure();
+    assertEqual(JSON.stringify(f.controller.getState()), state);
+    assertEqual(f.storage.getItem(DIGITAL_DICE_EXPANDED_KEY), "true");
+    assertEqual(f.randomCalls, 4);
+  });
+
+  test("Only internal region geometry animates on selection and reduced motion disables that transition", () => {
+    const column = sources.css.match(/\.digital-dice__column\s*\{([^}]+)\}/)?.[1];
+    const status = sources.css.match(/\.digital-dice__status\s*\{([^}]+)\}/)?.[1];
+    assert(column.includes("top: calc(var(--digital-column-top) + var(--digital-selection-space, 0%))"));
+    assert(column.includes("height: calc(var(--digital-column-height) - var(--digital-selection-space, 0%))"));
+    assert(column.includes("transition: top 250ms ease, height 250ms ease"));
+    assert(!/(?:^|;)\s*height:/.test(status));
+    assert(status.includes("margin-bottom: var(--digital-selection-gap)"));
+    assert(sources.css.includes(".digital-die, .digital-dice__column { transition: none; }"));
+  });
+
+  test("The illustrated sign replaces initial instructions in either language, before and after a roll", () => {
+    for (const language of ["en", "de"]) {
+      const f = fixture({ language, reduced: true });
+      const label = f.document.getElementById("digital-dice-label");
+      const chosen = f.document.getElementById("digital-dice-chosen");
+      assertEqual(label.textContent, "");
+      assert(label.hidden); assert(chosen.hidden);
+      f.activate();
+      assertEqual(label.textContent, "");
+      assert(label.hidden); assert(chosen.hidden);
+    }
+    for (const source of [sources.html, sources.digitalDice]) {
+      assert(!source.includes("CHOOSE TWO DICE"));
+      assert(!source.includes("WÄHLE ZWEI WÜRFEL"));
+    }
+    assert(sources.html.includes('<p id="digital-dice-label" hidden></p>'));
+  });
+
+  test("Chosen text appears only for selections, retains independent values, and clears on deselection or a new roll", () => {
+    const f = fixture({ reduced: true, values: [4, 4, 2, 6] });
+    const label = f.document.getElementById("digital-dice-label");
+    const chosen = f.document.getElementById("digital-dice-chosen");
+    f.activate(); f.select(1); f.select(0);
+    assertEqual(label.textContent, "CHOSEN:");
+    assertEqual(label.hidden, false); assertEqual(chosen.hidden, false);
+    assertEqual(chosen.querySelectorAll("button").length, 2);
+    assertDeepEqual(f.controller.getState().selectedIds, [1, 0]);
+    f.document.getElementById("rules-language-de").emit("click");
+    assertEqual(label.textContent, "GEWÄHLT:");
+    f.deselect(1);
+    assertEqual(label.hidden, false);
+    assertDeepEqual(f.controller.getState().selectedIds, [0]);
+    f.deselect(0);
+    assert(label.hidden); assert(chosen.hidden);
+    assertEqual(label.textContent, "");
+    f.select(2); f.activate();
+    assert(label.hidden); assert(chosen.hidden);
+    assertEqual(label.textContent, "");
+  });
+
+  test("The complete redesigned sign, frame, raccoon, bag, and right-side artwork fit without distortion", () => {
+    const width = 1800;
+    const height = 1900;
+    const left = coordinate("--digital-cabinet-left", width);
+    const scale = coordinate("--digital-cabinet-width", width) / 2048;
+    // Measured alpha bounds of the unchanged 2048 × 2048 source PNG.
+    const painted = { left: 634, top: 30, right: 2032, bottom: 1827 };
+    assert(left + painted.left * scale > 0);
+    assert(left + painted.right * scale < width);
+    assert(painted.top * scale > 0);
+    assert(painted.bottom * scale < height);
+    assert(sources.html.includes('class="digital-dice__cabinet" src="./assets/digital_dice/dice_machine.png" alt="" width="2048" height="2048"'));
+    const style = sources.css.match(/\.digital-dice__cabinet\s*\{([^}]+)\}/)?.[1];
+    assert(!style.includes("height:"));
+    assert(sources.css.includes(".digital-dice img { display: block; height: auto;"));
+  });
+
+  test("Dice and selected values stay inside the measured light interior and below the illustrated sign", () => {
+    const left = coordinate("--digital-cabinet-left", 1800);
+    const x = coordinate("--digital-column-left", 1800) - left;
+    const y = coordinate("--digital-column-top", 1900);
+    const width = coordinate("--digital-column-width", 1800);
+    const height = coordinate("--digital-column-height", 1900);
+    assert(Math.abs(width - DICE_REGION.width) < 0.02);
+    assert(Math.abs(height - DICE_REGION.height) < 0.02);
+    assert(x > 714 && x + width < 1344);
+    assert(y > 310 && y + height < 1740);
+    assert(Math.abs(coordinate("--digital-status-top", 1900) - y) < 0.02);
+    assert(!sources.css.includes("--digital-status-height"));
+    assert(coordinate("--digital-status-top", 1900) > 295);
+    // The placeholder width matches the same pure layout used after initialization.
+    const placeholder = Number(sources.html.match(/--digital-die-width:([\d.]+)%/)?.[1]);
+    assert(Math.abs(placeholder - getDigitalDiceLayout(createDiceState())[0].width) < 0.001);
+  });
+
+  test("The realigned lever and mounting bracket fit the entire unchanged swing with a separate 44px touch area", () => {
+    const x = coordinate("--digital-lever-left", 1800);
+    const y = coordinate("--digital-lever-top", 1900);
+    const size = coordinate("--digital-lever-width", 1800);
+    const pivot = { x: size * 0.935, y: size * 700 / 300 * 0.865 };
+    const baseX = coordinate("--digital-base-left", 1800);
+    const baseY = coordinate("--digital-base-top", 1900);
+    const baseSize = coordinate("--digital-base-width", 1800);
+    assert(x + pivot.x > baseX && x + pivot.x < baseX + baseSize);
+    assert(y + pivot.y > baseY && y + pivot.y < baseY + baseSize);
+    for (const degrees of [0, -32, 2]) {
+      const angle = degrees * Math.PI / 180;
+      for (const sourceX of [21, 293]) for (const sourceY of [3, 672]) {
+        const dx = sourceX * size / 300 - pivot.x;
+        const dy = sourceY * size / 300 - pivot.y;
+        const pointX = x + pivot.x + dx * Math.cos(angle) - dy * Math.sin(angle);
+        const pointY = y + pivot.y + dx * Math.sin(angle) + dy * Math.cos(angle);
+        assert(pointX >= 0 && pointX <= 1800);
+        assert(pointY >= 0 && pointY <= 1900);
+      }
+    }
+    const lever = sources.css.match(/\.digital-dice__lever\s*\{([^}]+)\}/)?.[1];
+    assert(!lever.includes("min-width:"));
+    assert(sources.css.match(/\.digital-dice__lever::before\s*\{([^}]+)\}/)?.[1].includes("width: max(100%, 44px)"));
+  });
+
   test("Initial placeholders have stable unique IDs and never call RNG or permit selection", () => {
     const initial = createDiceState();
     assertDeepEqual(initial.dice, [1, 2, 3, 4].map((value, id) => ({ id, value })));
@@ -134,7 +380,8 @@ export async function runDigitalDiceTests(sources) {
     assertEqual(f.randomCalls, 0);
     assertEqual(f.clock.pending.size, 0);
     assertEqual(f.machine.dataset.visibleDice, "4");
-    assertEqual(f.document.getElementById("digital-dice-label").textContent, "CHOOSE TWO DICE");
+    assertEqual(f.document.getElementById("digital-dice-label").textContent, "");
+    assert(f.document.getElementById("digital-dice-label").hidden);
     for (let id = 0; id < 4; id += 1) {
       assert(f.card(id).disabled);
       assertEqual(f.card(id).querySelector("img").src, "./assets/digital_dice/dice_" + (id + 1) + ".png");
@@ -514,7 +761,8 @@ export async function runDigitalDiceTests(sources) {
     f.deselect(0);
     assertDeepEqual(f.controller.getState().selectedIds, []);
     assertEqual(f.machine.dataset.visibleDice, "4");
-    assertEqual(f.document.getElementById("digital-dice-label").textContent, "CHOOSE TWO DICE");
+    assertEqual(f.document.getElementById("digital-dice-label").textContent, "");
+    assert(f.document.getElementById("digital-dice-label").hidden);
   });
 
   test("A new roll replaces every selection without requiring a board action or confirmation", () => {
@@ -558,13 +806,13 @@ export async function runDigitalDiceTests(sources) {
   });
 
   test("The wrapper stays fixed while dice and chosen text change, with the lever inside its geometry", () => {
-    assert(sources.css.includes("aspect-ratio: 1260 / 1800"));
+    assert(sources.css.includes("aspect-ratio: 1800 / 1900"));
     assert(sources.css.includes("width: min(100%, 32rem)"));
-    assert(sources.css.includes("--digital-cabinet-left: 20.635%"));
+    assert(sources.css.includes("--digital-cabinet-left: -14.444%"));
     assert(sources.css.includes("transform-origin: 93.5% 86.5%"));
     assert(sources.css.includes("28% { transform: rotate(-32deg); }"));
     assert(sources.css.includes("top 250ms ease, width 250ms ease"));
-    assert(sources.css.includes(".digital-dice__machine { position: relative; aspect-ratio: 1260 / 1800; container-type: inline-size; overflow: hidden; }"));
+    assert(sources.css.includes(".digital-dice__machine { position: relative; aspect-ratio: 1800 / 1900; container-type: inline-size; overflow: hidden; }"));
     const f = fixture({ reduced: true });
     const style = JSON.stringify(f.machine.style);
     f.activate(); f.select(0); f.select(1); f.deselect(0);
@@ -573,7 +821,8 @@ export async function runDigitalDiceTests(sources) {
 
   test("Existing Rules preference and toggle update labels without changing values or chosen order", () => {
     const f = fixture({ language: "de", reduced: true });
-    assertEqual(f.document.getElementById("digital-dice-label").textContent, "WÄHLE ZWEI WÜRFEL");
+    assertEqual(f.document.getElementById("digital-dice-label").textContent, "");
+    assert(f.document.getElementById("digital-dice-label").hidden);
     assertEqual(f.lever.getAttribute("aria-label"), "Vier Würfel werfen");
     f.activate(); f.select(3); f.select(0);
     const state = JSON.stringify(f.controller.getState());

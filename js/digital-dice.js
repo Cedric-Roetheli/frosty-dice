@@ -1,11 +1,12 @@
 // Optional dice only: no imports from board, scoring, storage, or turn logic.
 export const DICE_STOP_TIMES = Object.freeze([700, 1000, 1300, 1600]);
-export const DICE_REGION = Object.freeze({ width: 560, height: 1060 });
+export const DICE_REGION = Object.freeze({ width: 600, height: 1380 });
+const MACHINE_HEIGHT = 1900;
 export const DIGITAL_DICE_EXPANDED_KEY = "frosty-dice.digital-dice-expanded";
 const FACE_PATH = "./assets/digital_dice/dice_";
 const labels = {
-  en: { toggle: "DIGITAL DICE", choose: "CHOOSE TWO DICE", chosen: "CHOSEN:", roll: "Roll four dice", select: "Select die showing ", deselect: "Deselect die showing ", rolling: "Rolling die ", name: "Digital Dice Machine" },
-  de: { toggle: "DIGITALE WÜRFEL", choose: "WÄHLE ZWEI WÜRFEL", chosen: "GEWÄHLT:", roll: "Vier Würfel werfen", select: "Würfel wählen mit ", deselect: "Würfel abwählen mit ", rolling: "Würfel wird geworfen: ", name: "Digitale Würfelmaschine" },
+  en: { toggle: "DIGITAL DICE", chosen: "CHOSEN:", roll: "Roll four dice", select: "Select die showing ", deselect: "Deselect die showing ", rolling: "Rolling die ", name: "Digital Dice Machine" },
+  de: { toggle: "DIGITALE WÜRFEL", chosen: "GEWÄHLT:", roll: "Vier Würfel werfen", select: "Würfel wählen mit ", deselect: "Würfel abwählen mit ", rolling: "Würfel wird geworfen: ", name: "Digitale Würfelmaschine" },
 };
 
 export function randomDieValue(crypto = globalThis.crypto, fallback = Math.random) {
@@ -48,21 +49,24 @@ export function deselectDigitalDie(state, id) {
     : { ...state, selectedIds: state.selectedIds.filter((selected) => selected !== id) };
 }
 
-export function getDigitalDiceLayout(state) {
+export function getDigitalDiceLayout(state, selectionSpace = 0) {
   const visible = state.dice.filter((die) => !state.selectedIds.includes(die.id));
-  const size = Math.min(DICE_REGION.width * 0.8, DICE_REGION.height / (visible.length + 0.6));
+  const height = Math.max(0, DICE_REGION.height - selectionSpace);
+  const size = Math.min(DICE_REGION.width * 0.8, height / (visible.length + 0.6));
   return visible.map(({ id }, index) => ({ id, centerY: (index + 0.5) / visible.length * 100, width: size / DICE_REGION.width * 100 }));
 }
 
 export function initializeDigitalDice(document, options = {}) {
   const view = document.defaultView;
   const machine = document.getElementById("digital-dice");
+  const frame = document.getElementById("digital-dice-machine");
   const toggle = document.getElementById("digital-dice-toggle");
   const toggleLabel = document.getElementById("digital-dice-toggle-label");
   const panel = document.getElementById("digital-dice-panel");
   const lever = document.getElementById("digital-dice-lever");
   const area = document.getElementById("digital-dice-column");
   const status = document.getElementById("digital-dice-label");
+  const selectionArea = status.parentNode;
   const chosen = document.getElementById("digital-dice-chosen");
   const motion = options.motion ?? view.matchMedia?.("(prefers-reduced-motion: reduce)") ?? { matches: false };
   const randomDie = options.randomDie ?? (() => randomDieValue(view.crypto));
@@ -177,15 +181,14 @@ export function initializeDigitalDice(document, options = {}) {
   function render() {
     renderDisclosure();
     const text = labels[language];
-    const layout = getDigitalDiceLayout(state);
-    machine.dataset.visibleDice = String(layout.length);
     machine.dataset.rolling = String(state.rolling);
     machine.setAttribute("aria-busy", String(state.rolling));
     machine.setAttribute("aria-label", text.name);
     area.setAttribute("aria-label", language === "de" ? "Vier Würfel" : "Four dice");
     lever.disabled = state.rolling;
     lever.setAttribute("aria-label", text.roll);
-    status.textContent = state.selectedIds.length ? text.chosen : text.choose;
+    status.textContent = state.selectedIds.length ? text.chosen : "";
+    status.hidden = state.selectedIds.length === 0;
     chosen.hidden = state.selectedIds.length === 0;
     const key = state.selectedIds.join(",");
     if (key !== shownSelection) {
@@ -202,6 +205,18 @@ export function initializeDigitalDice(document, options = {}) {
       chosen.replaceChildren(...nodes);
       shownSelection = key;
     }
+    // Reserve actual text height only while selected; rolling always uses all 1380px.
+    let selectionSpace = 0;
+    if (state.selectedIds.length) {
+      const height = frame.getBoundingClientRect().height;
+      if (height > 0) {
+        const gap = parseFloat(view.getComputedStyle(selectionArea).marginBottom) || 0;
+        selectionSpace = (selectionArea.getBoundingClientRect().height + gap) / height * MACHINE_HEIGHT;
+      }
+    }
+    const layout = getDigitalDiceLayout(state, selectionSpace);
+    area.style.setProperty("--digital-selection-space", selectionSpace / MACHINE_HEIGHT * 100 + "%");
+    machine.dataset.visibleDice = String(layout.length);
     for (const [index, die] of state.dice.entries()) {
       const { card, art } = cards.get(die.id);
       const position = layout.find((entry) => entry.id === die.id);
@@ -311,6 +326,7 @@ export function initializeDigitalDice(document, options = {}) {
     language = lang;
     render();
   });
+  listen(view, "resize", render);
   listen(view, "pagehide", () => { releasePointer(); finishNow(); });
   listen(motion, "change", () => { if (motion.matches) finishNow(); });
   render();

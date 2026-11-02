@@ -650,6 +650,76 @@ game modules, game rules, all PNGs, machine geometry, landscape positioning,
 saved-game format, and worker lifecycle. No browser automation, screenshots,
 commit, or push was performed.
 
+## Digital Dice artwork refinement — Illustrated sign and raccoon
+
+Use the redesigned 2048 × 2048 dice_machine.png unchanged. Fit all painted
+artwork, including the sign, raccoon, bag, and right-side decoration, inside an
+1800 × 1900 responsive composition capped at the existing 32rem. Exclude only
+transparent padding via CSS positioning. Realign the existing lever and bracket
+to the frame while preserving the pivot and animation; maintain its touch area
+independently of artwork scaling.
+
+Remove initial EN/DE instruction text: the illustration supplies the intentional
+English-only CHOOSE TWO sign. Leave the upper interior empty until selection.
+Retain individually interactive, ordered CHOSEN/GEWÄHLT values, clearing the
+label after the last deselection or another roll. Use a measured 600 × 1000 dice
+region below that display with the existing four/three/two resizing algorithm.
+Preserve rolling, IDs, duplicate selection, reduced motion, collapsed defaults,
+visibility preference, and independence from all gameplay and saved state.
+
+Bump the cache from v24 to v25 and align CSS/controller URLs without changing
+the precache asset list or worker lifecycle. Add focused empty/selected display,
+complete artwork bounds, interior geometry, lever alignment, and touch-area
+regressions; run relevant digital dice and PWA tests without browser automation
+or screenshots. Do not commit or push.
+
+**Status: Implemented for manual evaluation.** Relevant automated tests ran once
+in JavaScriptCore: **65/65 passed** (42 digital dice and 23 PWA), including five
+new cases for blank initial text, interactive selected values, complete painted
+artwork bounds, measured interior geometry, and lever swing/bracket alignment.
+Existing roll, selection, duplicate-ID, collapse, persistence, language,
+reduced-motion, game-isolation, and offline tests also pass. The user-supplied
+replacement PNG and all other artwork remain byte-for-byte unchanged; game
+modules and worker lifecycle are unchanged. No browser automation, screenshots,
+commit, or push was performed. Device artwork fit remains a manual check.
+
+## Digital Dice layout refinement — Viewport poles and full-height dice
+
+Use the PNG's measured alpha bounds to place the mobile pole ends at the viewport
+edge. The upper pole ends at x=2032 with 16px transparent padding; the lower pole
+ends at x=2019. Align the latter so both reach the edge, allowing only the upper
+pole's extra tip to extend offscreen. Cancel existing page insets for the local
+panel, retain the machine's previous content width/height, and translate the
+entire composition together. Clip locally, avoid `100vw` scrollbar overflow,
+and preserve the centered desktop layout above 36rem. Do not move the machine
+vertically, its lever relative to the cabinet, or any landscape element.
+
+Reclaim the light interior at y=330..1710: use 600 × 1380 for four dice, increasing
+their source size from approximately 217 to 300 (38%). Use exactly that layout
+for placeholders, rolling, and every sequential stop. Only after selection,
+measure the actual chosen-value text/buttons plus a 0.25rem gap and reserve that
+height. Pass the reservation into pure layout math, with 250ms internal region
+and die transitions and an instant reduced-motion alternative. Recalculate on
+resize/language changes; deselection and another roll release the space.
+
+Preserve all dice outcomes, timing, IDs, selection semantics, collapse preference,
+board/game data, and artwork. Update CSS/controller URLs and the PWA cache from
+v25 to v26 without changing its asset list or lifecycle. Add focused mobile,
+desktop, scrollbar/inset geometry, all four/three/two dice states, resize,
+collapse, and animation regressions; run relevant tests without browser
+automation, screenshots, commit, or push.
+
+**Status: Implemented for manual evaluation.** Relevant tests ran once in
+JavaScriptCore: **72/72 passed** (49 digital dice and 23 PWA). Seven added cases
+cover mobile/desktop edge geometry, safe-area insets and scrollbar compensation,
+larger neutral/rolling/stopped dice, measured text reservations for three/two
+dice, full-height restoration, resize/language handling, and reduced-motion
+transitions. Existing collapse, state preservation, dice outcomes, selection,
+game-isolation, and offline tests also pass. Geometry is modeled at narrow
+mobile and desktop sizes; no actual browser/viewport rendering or screenshots
+were used. Artwork, game modules, and worker lifecycle remain unchanged.
+No commit or push was performed. Manual iPhone visual confirmation remains.
+
 ## Workflow
 
 Read the specifications, implement the current scope, keep rules deterministic,
