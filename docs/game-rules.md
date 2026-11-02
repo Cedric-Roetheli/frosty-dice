@@ -18,8 +18,9 @@ it, independently of the board's Prime Ice.
 
 ## 2. Physical turns and number formation
 
-The active player rolls **four physical six-sided dice**, chooses two of them,
-and may form a two-digit number from that chosen pair.
+The active player rolls **four six-sided dice**, either physically or using the
+optional Digital Dice Machine, chooses two of them, and may form a two-digit
+number from that chosen pair.
 
 The **two unused dice are available to ALL other players**. Each other player
 may form a number from that pair and enter it on their own board if legal.
@@ -29,9 +30,11 @@ For two different dice values, either order is possible: 1 and 6 produce 16 or
 61. Equal dice produce one distinct number: 3 and 3 produce 33. Each digit must
 be from 1 through 6.
 
-The app does not roll dice, track turns or rolls, record opponents, or distinguish
-the origin of an entered number. Every entered number uses the same placement
-and scoring rules. Repeated-digit numbers have no separate special action.
+The board does not track turns or rolls, record opponents, or distinguish the
+origin of an entered number. The optional digital machine only rolls and displays
+dice; it neither enters numbers nor validates them against board placements.
+Every entered number uses the same placement and scoring rules. Repeated-digit
+numbers have no separate special action.
 
 ## 3. First placement
 
@@ -280,5 +283,7 @@ immediately, finishes the round, or continues has not yet been decided.
 
 ## 12. Scope
 
-There is no digital dice roller, multiplayer synchronization, opponent state,
-account system, or replacement special action for repeated-digit numbers.
+There is no multiplayer synchronization, opponent state, account system, or
+replacement special action for repeated-digit numbers. The optional digital
+dice machine replaces physical dice only; it does not manage turns or referee
+the game.

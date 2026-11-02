@@ -2,12 +2,13 @@
 // below when adding/removing files or changing their query-string versions.
 // Also version changed modules and their importers for browsers without a worker.
 const CACHE_PREFIX = "frosty-dice-pwa-";
-const CACHE_NAME = CACHE_PREFIX + "v22";
+const CACHE_NAME = CACHE_PREFIX + "v24";
 const APP_SHELL = "/index.html";
 const PRECACHE_URLS = [
   APP_SHELL,
   "/manifest.webmanifest",
-  "/css/style.css?v=receipt-3",
+  "/css/style.css?v=digital-dice-2",
+  "/js/digital-dice.js?v=digital-dice-2",
   "/js/app.js?v=receipt-3",
   "/js/receipt.js?v=receipt-3",
   "/js/challenge-note.js?v=frosty-dollar-1",
@@ -45,6 +46,15 @@ const PRECACHE_URLS = [
   "/assets/icecube.png",
   "/assets/icecube2.png",
   "/assets/d7_flag.png",
+  "/assets/digital_dice/dice_machine.png",
+  "/assets/digital_dice/dice_lever.png",
+  "/assets/digital_dice/dice_lever_base.png",
+  "/assets/digital_dice/dice_1.png",
+  "/assets/digital_dice/dice_2.png",
+  "/assets/digital_dice/dice_3.png",
+  "/assets/digital_dice/dice_4.png",
+  "/assets/digital_dice/dice_5.png",
+  "/assets/digital_dice/dice_6.png",
 ];
 const PRECACHE_REQUEST_URLS = new Set(PRECACHE_URLS.map((path) => self.location.origin + path));
 

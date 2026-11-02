@@ -4,7 +4,7 @@
 
 Frosty Dice is a mobile-first browser companion for a physical tabletop game.
 Each player uses their own phone as a game sheet. Players communicate verbally
-and roll physical dice; the website does not replace either activity.
+and may use physical dice or the optional independent Digital Dice Machine.
 
 The redesigned mechanics are defined in [game-rules.md](./game-rules.md).
 The core refactor and compatibility repairs are complete. Gameplay now uses
@@ -14,14 +14,15 @@ broad visual polish and release evaluation remain deferred.
 
 ## 2. Physical play
 
-The active player rolls four physical six-sided dice, chooses two, and may use
+The active player rolls four six-sided dice, physically or digitally, chooses two, and may use
 one two-digit number formed from that pair. The unused pair is available to ALL
 other players, who may each form a number and place it if legal on their board.
 
 The app does not record whose dice supplied a number, who is active, or how many
 rolls occurred. Every entered number uses the same guarded placement operation.
-Optional pure helpers can generate the two orientations of a selected pair;
-they never roll dice or model a physical turn.
+Optional pure game helpers can generate the two orientations of a selected pair;
+they never roll dice or model a physical turn. The digital dice component is
+separate from those helpers and from all board validation.
 
 ## 3. Product scope
 
@@ -42,9 +43,10 @@ The app should:
 - Allow a confirmed new-game reset.
 - Remain mobile-first, accessible, static, and GitHub Pages compatible.
 - Offer optional home-screen installation and offline play after complete local precaching, while keeping the normal website immediately usable.
+- Offer an optional illustrated digital dice machine between the gameplay area and Rules, with an always-visible disclosure toggle independent of the game sheet.
 
 There is no roll counter, number-origin tracking, number-removal action, opponent
-state, synchronization, backend, database, account, digital dice roller, cloud
+state, synchronization, backend, database, account, cloud
 save, or replacement special action for repeated-digit numbers.
 
 ## 4. Local game state
@@ -72,7 +74,8 @@ board, spending, and itemized history including Attack Ice and every Prime statu
 include explicit pre-bid spending, even when zero.
 The snapshot never contains an older Undo. Score, Streets, legal targets, and
 goal are derived and not persisted. Selection, number drafts, unfinished bids,
-the revealed bid, and the open/confirmed dialog state remain temporary UI data.
+the revealed bid, the open/confirmed dialog state, and all digital dice values
+and selections remain temporary UI data.
 
 Version 8 saves the board, spending, history, and this one nullable snapshot together.
 Validate both boards, reject recursive history or a snapshot that does not
@@ -563,6 +566,80 @@ Frosty Dice. Add no new header surface or controls.
 Use HTML, CSS, and vanilla JavaScript with relative asset/module paths. Keep
 rule logic independent from DOM code and storage mechanics in storage.js.
 Introduce no dependencies, framework, build system, backend, or multiplayer networking.
+
+## 9.1 Optional Digital Dice Machine
+
+Display the supplied cabinet, separate rotating lever, stationary mounting
+bracket, and six illustrated faces without modifying any PNG. The component
+sits in normal flow below `main` and above Rules, with green breathing room
+before and after it. Existing horizon, meadow variants, snowman/signpost anchors,
+board, and standalone PWA adjustments remain unchanged. Its responsive
+1260 × 1800 coordinate system includes the lever's full swing, with a maximum
+width of 32rem. Four dice always occupy one vertical column. Central CSS
+variables locate the cabinet, display, dice region, lever, and bracket.
+
+Keep a small semantic disclosure button directly above the machine, labeled
+“DIGITAL DICE” / “DIGITALE WÜRFEL” with a state chevron, `aria-expanded`, and
+`aria-controls`. Default to collapsed, restoring only an explicitly saved
+expanded preference from the separate `frosty-dice.digital-dice-expanded` key.
+Store visibility changes as `true`/`false` strings; missing or malformed values
+default to collapsed. Catch unavailable storage and allow session toggling.
+This preference is independent of the game save and Rules language.
+
+Animate wrapper height and opacity over 300ms without scaling or changing the
+illustrated machine. The collapsed panel reserves no height; Rules follows
+upward naturally. Keep its DOM mounted and remove hidden controls from focus
+and accessibility navigation using `inert` and `aria-hidden`. Return focus to
+the toggle if needed. Collapse never changes dice, selections, roll timers, or
+outcomes: an ongoing roll completes normally while hidden. Language changes
+translate the toggle without changing visibility. Reduced motion skips the
+disclosure transition as well as the existing dice animations.
+
+The new `js/digital-dice.js` module owns only temporary dice state and UI.
+Show neutral, unselectable 1/2/3/4 placeholders immediately without an initial
+random draw. The lever is the only roll control: a semantic button supporting
+tap/click, native Enter/Space, and a short downward Pointer Event pull. Capture
+outside release, handle cancellation, and suppress the synthetic click following
+a handled pointer gesture. Only the lever restricts touch scrolling.
+
+Generate four independent final values at roll start. Prefer
+`crypto.getRandomValues` with rejection of Uint32 values at or above 4294967292
+before mapping modulo six. If Web Crypto is unavailable, use
+`Math.floor(Math.random() * 6) + 1`. Animation never determines or redraws the
+outcome. Stable die IDs 0–3 distinguish equal values throughout selection.
+
+Rotate the lever at its lower-right pivot through approximately -32 degrees,
+with a restrained +2-degree spring-back over 480ms; the mounting bracket stays
+still. Preload all six faces, reuse the four image elements, and cycle faces
+every 80ms. Stop top-to-bottom at 700/1000/1300/1600ms. Lock the lever and
+selection during rolling. Cancel scheduled work with generation guards on
+completion, a replacement roll, or teardown; leaving the page settles the
+current display. Reduced motion shows the final result immediately, without
+rapid cycling, lever animation, or selection transitions.
+
+After rolling, choose up to two individual dice. Fade/shrink a chosen die for
+180ms, then hide it; keep its ID in selection order. Show each chosen value as
+its own accessible deselection button in the upper display. Selecting duplicate
+values and deselecting either one restores the correct die. A third selection
+is silently ignored. No additional confirmation or Show button is required.
+The remaining three or two dice redistribute and grow with 250ms transitions,
+using the measured 560 × 1060 interior region to constrain their sizes and gaps.
+The outer wrapper never changes size. The two remaining dice stay visible for
+other players until selection changes, another roll, or reload.
+
+Use the existing Rules language preference and controls. Read their restored
+language after document initialization, then update the machine labels on that
+same toggle: “CHOOSE TWO DICE” / “WÄHLE ZWEI WÜRFEL” and “CHOSEN:” / “GEWÄHLT:”.
+Values and their order are unchanged by language switching. Keep accessible
+localized labels, native controls, visible focus, and usable touch targets.
+
+The machine imports no game, scoring, storage, Challenge, or receipt module. It
+does not form or place board numbers, validate manual entry against dice,
+change Score/Frosty Dollars, modify Undo/history/ice, or track turns/opponents.
+Players continue entering numbers manually. Do not save dice or selections;
+reload returns the machine to its placeholders without changing the saved game
+or storage schema. Precache the module and all nine original illustrations
+within the existing PWA snapshot and update strategy.
 
 ## 10. Optional PWA
 

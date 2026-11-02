@@ -578,6 +578,78 @@ The source PNGs, scoring, existing rule protections, Challenge animations,
 language controller, and worker lifecycle remain unchanged. Ice visibility on
 the actual iPhone is not established by these non-browser tests.
 
+## Optional Digital Dice Machine — Independent illustrated component
+
+Add the supplied cabinet, separate lever/bracket, and six illustrated dice as
+an optional, permanently visible component in normal flow below gameplay and
+above Rules. Preserve existing board and landscape anchors, meadow variants,
+standalone PWA adjustments, Rules controls, receipt, and all source artwork.
+Keep a stable responsive wrapper that includes the lever's swing and one
+vertical dice column; constrain and redistribute four/three/two visible dice
+within the measured cabinet interior.
+
+Use an independent vanilla module with pure dice-state and layout helpers,
+stable die IDs, unbiased Web Crypto generation (documented Math.random fallback),
+neutral unselectable placeholders, and no automatic initial roll. Support
+semantic-button tap, keyboard, and downward pointer pulls without double rolls.
+Precompute outcomes, lock interaction during the 1.6-second sequential animation,
+reuse face images, and clean up guarded timers. Respect reduced motion.
+Allow two ordered selections and individual deselection, including equal values;
+leave the enlarged remaining pair visible for other players. Reuse the existing
+DE/EN preference and toggle without persisting temporary dice state.
+
+Do not connect the machine to board placement/validation, scoring, Challenge,
+receipt/history, Undo, storage, turns, or opponents. Clarify only the optional
+physical/digital choice in game-rules.md; no underlying mechanics change.
+Preload six faces, precache the controller and all nine original PNGs, and bump
+`frosty-dice-pwa-v22` to `frosty-dice-pwa-v23` without changing worker activation
+or update strategy. Add focused state, RNG, gesture, timing, selection, layout,
+language, game-isolation, and offline tests. Run the full automated suite once;
+device artwork fit and interaction evaluation remain manual on iPhone.
+No browser automation, screenshots, commit, or push.
+
+**Status: Implemented for manual iPhone evaluation.** The full automated suite
+ran once in JavaScriptCore: **471/471 passed**, including 27 new digital dice
+tests and 23 PWA tests. Coverage includes initial placeholders, uniform mapping
+and fallback, precomputed results, gesture/keyboard safety, sequential stops,
+timer cleanup, reduced motion, duplicate IDs, ordered selection/deselection,
+constrained layouts, language changes, saved-game isolation, and offline assets.
+Static checks confirm all original PNGs and existing JavaScript modules are
+unchanged, all 50 precache paths exist, and worker lifecycle logic is preserved.
+No browser automation, screenshots, commit, or push was performed.
+
+## Digital Dice disclosure — Optional, remembered visibility
+
+Wrap the existing mounted machine in a collapsible panel without rebuilding or
+changing its geometry, dice logic, roll timers, or selection. Add one semantic
+DE/EN toggle with a chevron and `aria-expanded`/`aria-controls`. Default to
+collapsed; persist only visibility in `frosty-dice.digital-dice-expanded`,
+separate from game state and language. Invalid or unavailable storage safely
+falls back to collapsed while session toggling remains available.
+
+Animate wrapper height and opacity for 300ms, with no scaling and an instant
+reduced-motion alternative. A collapsed machine occupies no height; Rules moves
+up naturally without moving landscape controls. Keep hidden controls inert and
+out of accessibility navigation, with focus returned to the toggle as needed.
+Rolls continue and settle normally while hidden; reopening preserves the dice,
+selection order, and reusable DOM elements. Language changes affect labels only.
+
+Update HTML/CSS/controller versions and bump the PWA cache from v23 to v24,
+preserving its asset list and lifecycle strategy. Add focused defaults,
+restoration, toggling, storage failure, state/timer preservation, language,
+native keyboard semantics, and reduced-motion regressions. Do not modify game
+rules or saved-game format. No browser automation, screenshots, commit, or push.
+
+**Status: Implemented for manual evaluation.** The full automated suite ran once
+in JavaScriptCore: **481/481 passed**, including 37 digital dice tests (10 new
+disclosure cases) and 23 PWA tests. Coverage includes collapsed defaults,
+remembered visibility, malformed/unavailable storage, preserved selections and
+DOM nodes, rolling while hidden, language changes, native button semantics,
+focus return, and reduced-motion styling. Static comparison confirms unchanged
+game modules, game rules, all PNGs, machine geometry, landscape positioning,
+saved-game format, and worker lifecycle. No browser automation, screenshots,
+commit, or push was performed.
+
 ## Workflow
 
 Read the specifications, implement the current scope, keep rules deterministic,

@@ -12,8 +12,9 @@ import { runPwaTests } from "./pwa.test.js";
 import { runRulesTests } from "./rules.test.js";
 import { runMeadowTests } from "./meadow.test.js";
 import { runReceiptTests } from "./receipt.test.js";
+import { runDigitalDiceTests } from "./digital-dice.test.js";
 
-const results = [...runGameTests(), ...runNumberInputTests(), ...runFrozenPrimeTests(), ...runScoringTests(), ...runGoalTests(), ...runStorageTests(), ...runAppInitializationTests(), ...runUndoTests(), ...runAttackIceTests(), ...runChallengeTests(), ...runRulesTests(), ...await runMeadowTests(), ...await runPwaTests(), ...await runReceiptTests()];
+const results = [...runGameTests(), ...runNumberInputTests(), ...runFrozenPrimeTests(), ...runScoringTests(), ...runGoalTests(), ...runStorageTests(), ...runAppInitializationTests(), ...runUndoTests(), ...runAttackIceTests(), ...runChallengeTests(), ...runRulesTests(), ...await runMeadowTests(), ...await runPwaTests(), ...await runReceiptTests(), ...await runDigitalDiceTests()];
 const failed = results.filter((result) => !result.passed).length;
 const summary = document.getElementById("test-summary");
 summary.textContent = `${results.length - failed}/${results.length} tests passed; ${failed} failed.`;

@@ -166,12 +166,25 @@ export async function runPwaTests(sources) {
     const worker = workerHarness(sources.worker);
     await worker.lifecycle("install");
     worker.offline = true;
-    for (const path of ["/assets/icecube.png", "/assets/icecube2.png", "/assets/receipt.png", "/js/receipt.js?v=receipt-3", "/css/style.css?v=receipt-3"]) {
+    for (const path of ["/assets/icecube.png", "/assets/icecube2.png", "/assets/receipt.png", "/js/receipt.js?v=receipt-3", "/css/style.css?v=digital-dice-2"]) {
       assert(worker.PRECACHE_URLS.includes(path), path);
       assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
     }
     assertEqual(worker.networkCalls.length, 0);
     assert(sources.html.includes('src="./assets/receipt.png"'));
+  });
+
+  await test("The independent dice module and all nine original illustrations work offline", async () => {
+    const worker = workerHarness(sources.worker);
+    await worker.lifecycle("install");
+    worker.offline = true;
+    const paths = ["/js/digital-dice.js?v=digital-dice-2", ...["dice_machine", "dice_lever", "dice_lever_base", "dice_1", "dice_2", "dice_3", "dice_4", "dice_5", "dice_6"].map((name) => "/assets/digital_dice/" + name + ".png")];
+    for (const path of paths) {
+      assert(worker.PRECACHE_URLS.includes(path), path);
+      assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
+    }
+    assertEqual(worker.networkCalls.length, 0);
+    assert(sources.html.includes('src="./js/digital-dice.js?v=digital-dice-2"'));
   });
 
   await test("All four hand-drawn sale stickers are available offline", async () => {

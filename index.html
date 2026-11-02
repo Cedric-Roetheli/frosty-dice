@@ -20,10 +20,17 @@
         document.documentElement.style.setProperty("--background-meadow-image", 'url("' + image + '")');
       })();
     </script>
-    <link rel="stylesheet" href="./css/style.css?v=receipt-3">
+    <link rel="preload" as="image" href="./assets/digital_dice/dice_1.png">
+    <link rel="preload" as="image" href="./assets/digital_dice/dice_2.png">
+    <link rel="preload" as="image" href="./assets/digital_dice/dice_3.png">
+    <link rel="preload" as="image" href="./assets/digital_dice/dice_4.png">
+    <link rel="preload" as="image" href="./assets/digital_dice/dice_5.png">
+    <link rel="preload" as="image" href="./assets/digital_dice/dice_6.png">
+    <link rel="stylesheet" href="./css/style.css?v=digital-dice-2">
     <script type="module" src="./js/app.js?v=receipt-3"></script>
     <script type="module" src="./js/pwa.js"></script>
     <script type="module" src="./js/rules.js?v=additional-rules-1"></script>
+    <script type="module" src="./js/digital-dice.js?v=digital-dice-2"></script>
   </head>
   <body>
     <main>
@@ -82,6 +89,33 @@
         </button>
       </div>
     </main>
+    <section id="digital-dice" class="digital-dice" aria-label="Digital Dice Machine" data-visible-dice="4" data-rolling="false" data-expanded="false">
+      <button id="digital-dice-toggle" class="digital-dice__toggle" type="button" aria-expanded="false" aria-controls="digital-dice-panel">
+        <span id="digital-dice-toggle-label">DIGITAL DICE</span>
+        <span class="digital-dice__chevron" aria-hidden="true"></span>
+      </button>
+      <div id="digital-dice-panel" class="digital-dice__panel" aria-hidden="true" inert>
+        <div class="digital-dice__panel-inner">
+          <div class="digital-dice__machine">
+            <img class="digital-dice__cabinet" src="./assets/digital_dice/dice_machine.png" alt="" width="1000" height="1800" draggable="false">
+            <div class="digital-dice__status" aria-live="polite" aria-atomic="true">
+              <p id="digital-dice-label">CHOOSE TWO DICE</p>
+              <div id="digital-dice-chosen" class="digital-dice__chosen" hidden></div>
+            </div>
+            <div id="digital-dice-column" class="digital-dice__column" aria-label="Four dice">
+              <button id="digital-die-0" class="digital-die" type="button" style="--digital-die-y:12.5%;--digital-die-width:41.149%" aria-label="Die showing 1" disabled><img src="./assets/digital_dice/dice_1.png" alt="" width="2048" height="2048" draggable="false"></button>
+              <button id="digital-die-1" class="digital-die" type="button" style="--digital-die-y:37.5%;--digital-die-width:41.149%" aria-label="Die showing 2" disabled><img src="./assets/digital_dice/dice_2.png" alt="" width="2048" height="2048" draggable="false"></button>
+              <button id="digital-die-2" class="digital-die" type="button" style="--digital-die-y:62.5%;--digital-die-width:41.149%" aria-label="Die showing 3" disabled><img src="./assets/digital_dice/dice_3.png" alt="" width="2048" height="2048" draggable="false"></button>
+              <button id="digital-die-3" class="digital-die" type="button" style="--digital-die-y:87.5%;--digital-die-width:41.149%" aria-label="Die showing 4" disabled><img src="./assets/digital_dice/dice_4.png" alt="" width="2048" height="2048" draggable="false"></button>
+            </div>
+            <button id="digital-dice-lever" class="digital-dice__lever" type="button" aria-label="Roll four dice">
+              <img src="./assets/digital_dice/dice_lever.png" alt="" width="300" height="700" draggable="false">
+            </button>
+            <img class="digital-dice__lever-base" src="./assets/digital_dice/dice_lever_base.png" alt="" width="300" height="300" draggable="false">
+          </div>
+        </div>
+      </div>
+    </section>
     <section id="rules" class="rules-illustration" aria-labelledby="rules-heading">
       <h2 id="rules-heading">Rules</h2>
       <div class="rules-language-selector" role="group" aria-label="Rules language">
