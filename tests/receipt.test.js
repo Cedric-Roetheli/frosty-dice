@@ -1,7 +1,7 @@
 import { initializeApp } from "../js/app.js";
 import { cloneGameState, confirmGameBid, createGameState, freezeGameCell, isValidGameState, placeGameNumber, undoLastMove, unfreezeGameCell } from "../js/game.js";
 import { calculateScore, getCellScoreMultiplier } from "../js/scoring.js";
-import { formatFrostyDollars, getSaleSticker } from "../js/receipt.js";
+import { chooseReceiptBackground, createReceipt, formatFrostyDollars, getSaleSticker, RECEIPT_BACKGROUNDS } from "../js/receipt.js";
 import { SAVE_VERSION, STORAGE_KEY, deserializeGame, loadGame, serializeGame } from "../js/storage.js";
 import { appTestDocument, appTestStorage } from "./app-initialization.test.js";
 import { boardFixture } from "./fixtures.js";
@@ -52,6 +52,90 @@ export async function runReceiptTests(sources) {
       return [{ name: "Receipt source files are available", passed: false, message: error.message }];
     }
   }
+
+  test("All four receipt designs have equal quarter-interval probability", () => {
+    assertDeepEqual(RECEIPT_BACKGROUNDS, ["./assets/receipt.png", "./assets/receipt2.png", "./assets/receipt3.png", "./assets/receipt4.png"]);
+    for (let index = 0; index < 4; index += 1) {
+      for (const sample of [index / 4, (index + 0.5) / 4, (index + 1) / 4 - 0.000001]) {
+        assertEqual(chooseReceiptBackground(() => sample), RECEIPT_BACKGROUNDS[index]);
+      }
+    }
+  });
+
+  test("Every new opening draws once, permits consecutive repeats, and stays stable during renders and repeated open calls", () => {
+    const document = appTestDocument();
+    const samples = [0, 0.25, 0.5, 0.75, 0.75, 0];
+    let draws = 0;
+    const receipt = createReceipt(document, createGameState, () => samples[draws++]);
+    const image = document.getElementById("receipt-art");
+    const dialog = document.getElementById("receipt-dialog");
+    const showModal = dialog.showModal.bind(dialog);
+    dialog.showModal = () => {
+      assertEqual(image.src, RECEIPT_BACKGROUNDS[Math.floor(samples[draws - 1] * 4)]);
+      showModal();
+    };
+    receipt.render();
+    assertEqual(draws, 0);
+    const shown = [];
+    for (let index = 0; index < samples.length; index += 1) {
+      receipt.open();
+      const design = image.src;
+      shown.push(design);
+      receipt.render(); receipt.open();
+      assertEqual(image.src, design);
+      assertEqual(draws, index + 1);
+      receipt.close();
+      assertEqual(draws, index + 1);
+    }
+    assertDeepEqual(shown, [...RECEIPT_BACKGROUNDS, RECEIPT_BACKGROUNDS[3], RECEIPT_BACKGROUNDS[0]]);
+  });
+
+  test("Every receipt design shares unchanged Board Value, expenses, balance, stickers, and game/Undo data", () => {
+    let game = placeGameNumber(createGameState(), "A1", 22);
+    game = placeGameNumber(game, "B1", 24);
+    game = confirmGameBid(game, 10);
+    const before = JSON.stringify(game);
+    const document = appTestDocument();
+    let draws = 0;
+    const receipt = createReceipt(document, () => game, () => draws++ / 4);
+    const image = document.getElementById("receipt-art");
+    for (const design of RECEIPT_BACKGROUNDS) {
+      receipt.open();
+      assertEqual(document.getElementById("receipt-art"), image);
+      assertEqual(image.src, design);
+      assertEqual(image.width, 1440); assertEqual(image.height, 3200);
+      assertEqual(document.getElementById("receipt-board-value").textContent, "$68");
+      assertEqual(document.getElementById("receipt-total").textContent, "$58");
+      assertEqual(document.getElementById("receipt-sale-sticker").src, "./assets/sale_orange.png");
+      assertEqual(history(document)[0].textContent, "1x Challenge #01-$10");
+      assert(document.getElementById("receipt-prior-spending").hidden);
+      assertEqual(JSON.stringify(game), before);
+      receipt.close();
+    }
+  });
+
+  test("The real dollar-button path uses receipt backgrounds without saving or replacing board state and Undo", () => {
+    const game = confirmGameBid(placeGameNumber(createGameState(), "A1", 22), 5);
+    const { document, storage } = start(game);
+    const saved = storage.getItem(STORAGE_KEY);
+    for (let visit = 0; visit < 4; visit += 1) {
+      open(document);
+      assert(RECEIPT_BACKGROUNDS.includes(document.getElementById("receipt-art").src));
+      assertEqual(document.getElementById("receipt-board-value").textContent, "$44");
+      assertEqual(document.getElementById("receipt-total").textContent, "$39");
+      assertEqual(history(document)[0].textContent, "1x Challenge #01-$5");
+      close(document);
+      assertEqual(storage.getItem(STORAGE_KEY), saved);
+      assertDeepEqual(loadGame(storage).state, game);
+    }
+  });
+
+  test("All four designs preload for the same single receipt image and preserve its natural dimensions", () => {
+    const head = sources.html.split("</head>")[0];
+    for (const path of RECEIPT_BACKGROUNDS) assert(head.includes('rel="preload" as="image" href="' + path + '"'));
+    assertEqual((sources.html.match(/id="receipt-art"/g) ?? []).length, 1);
+    assert(sources.html.includes('id="receipt-art" class="receipt-art" src="./assets/receipt.png" alt="" width="1440" height="3200"'));
+  });
 
   test("Frosty Dollars use a dollar sign and grouped whole-number amounts", () => {
     for (const [amount, text] of [[0, "$0"], [25, "$25"], [150, "$150"], [1420, "$1,420"]]) {

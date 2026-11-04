@@ -720,6 +720,36 @@ mobile and desktop sizes; no actual browser/viewport rendering or screenshots
 were used. Artwork, game modules, and worker lifecycle remain unchanged.
 No commit or push was performed. Manual iPhone visual confirmation remains.
 
+## Receipt artwork variants — Independent choice on each opening
+
+Choose uniformly among receipt.png and receipt2/3/4.png on each closed-to-open
+transition, allowing consecutive repeats. Keep one receipt image and the existing
+shared content, scrolling, stickers, separator lines, close/focus behavior, and
+450ms/reduced-motion entrance. Do not draw during renders or repeated open calls,
+tie the choice to any game/UI value, or persist the choice.
+
+All source PNGs are 1440 × 3200 with identical overall alpha bounds. Inspection
+confirms aligned paper edges, heading, separators, blank content area, barcode,
+and bottom edge; footer wording varies within its existing space. The existing
+receipt CSS can stay unchanged. Preload all four images and switch the source
+before showing the modal. Keep original files untouched.
+
+Add the three new PNGs to the precache, bump v26 to v27, and align the receipt
+module/importer URLs at receipt-4 while retaining the worker lifecycle. Add focused
+uniform-selection, per-opening/repeat, shared-data, game/Undo persistence, preload,
+and offline regressions. Run relevant receipt, app coordination, and PWA tests.
+Do not change game rules, storage format, or unrelated UI; do not commit or push.
+
+**Status: Implemented for manual evaluation.** Relevant automated tests ran once
+in JavaScriptCore: **180/180 passed** (42 receipt, 114 app coordination, 24 PWA).
+Five new receipt cases cover uniform quarter-interval selection, fresh openings
+and permitted repeats, stable open/render behavior, unchanged shared data and
+game/Undo state, and preloading one shared image. A new PWA case verifies all
+four backgrounds offline. Existing receipt scrolling, stickers, formatting,
+closing/focus, scoring/history/Undo, and entrance/reduced-motion checks pass.
+All illustrations, receipt CSS, gameplay modules, storage format, and worker
+lifecycle remain unchanged. No browser automation, screenshots, commit, or push.
+
 ## Workflow
 
 Read the specifications, implement the current scope, keep rules deterministic,

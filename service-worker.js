@@ -2,15 +2,15 @@
 // below when adding/removing files or changing their query-string versions.
 // Also version changed modules and their importers for browsers without a worker.
 const CACHE_PREFIX = "frosty-dice-pwa-";
-const CACHE_NAME = CACHE_PREFIX + "v26";
+const CACHE_NAME = CACHE_PREFIX + "v27";
 const APP_SHELL = "/index.html";
 const PRECACHE_URLS = [
   APP_SHELL,
   "/manifest.webmanifest",
   "/css/style.css?v=digital-dice-4",
   "/js/digital-dice.js?v=digital-dice-4",
-  "/js/app.js?v=receipt-3",
-  "/js/receipt.js?v=receipt-3",
+  "/js/app.js?v=receipt-4",
+  "/js/receipt.js?v=receipt-4",
   "/js/challenge-note.js?v=frosty-dollar-1",
   "/js/board-state.js?v=v3-multipliers-1",
   "/js/game.js?v=receipt-2",
@@ -39,6 +39,9 @@ const PRECACHE_URLS = [
   "/assets/bid.png",
   "/assets/bid_front.png",
   "/assets/receipt.png",
+  "/assets/receipt2.png",
+  "/assets/receipt3.png",
+  "/assets/receipt4.png",
   "/assets/sale_orange.png",
   "/assets/sale_yellow.png",
   "/assets/sale_green.png",

@@ -26,8 +26,12 @@
     <link rel="preload" as="image" href="./assets/digital_dice/dice_4.png">
     <link rel="preload" as="image" href="./assets/digital_dice/dice_5.png">
     <link rel="preload" as="image" href="./assets/digital_dice/dice_6.png">
+    <link rel="preload" as="image" href="./assets/receipt.png">
+    <link rel="preload" as="image" href="./assets/receipt2.png">
+    <link rel="preload" as="image" href="./assets/receipt3.png">
+    <link rel="preload" as="image" href="./assets/receipt4.png">
     <link rel="stylesheet" href="./css/style.css?v=digital-dice-4">
-    <script type="module" src="./js/app.js?v=receipt-3"></script>
+    <script type="module" src="./js/app.js?v=receipt-4"></script>
     <script type="module" src="./js/pwa.js"></script>
     <script type="module" src="./js/rules.js?v=additional-rules-1"></script>
     <script type="module" src="./js/digital-dice.js?v=digital-dice-4"></script>
@@ -173,7 +177,7 @@
       <h2 id="receipt-heading" class="visually-hidden">Frosty Fresh Goods receipt · Frosty Dollars</h2>
       <button id="close-receipt" class="receipt-close" type="button" aria-label="Close receipt" autofocus><span aria-hidden="true">×</span></button>
       <div class="receipt-paper">
-        <img class="receipt-art" src="./assets/receipt.png" alt="" width="1440" height="3200" decoding="async">
+        <img id="receipt-art" class="receipt-art" src="./assets/receipt.png" alt="" width="1440" height="3200" decoding="async">
         <div class="receipt-content">
           <div class="receipt-line receipt-board-value">
             <h3>BOARD VALUE</h3>

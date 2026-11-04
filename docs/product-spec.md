@@ -347,9 +347,19 @@ reject background game actions while the receipt is open. Opening and closing
 never save, spend, or create Undo. The receipt starts closed after every launch,
 including at the local goal, and reaching D7 does not open it automatically.
 
-Use the unchanged 1440 × 3200 `assets/receipt.png`, displayed at its natural
-aspect ratio. Its actual blank centre spans approximately x=302–1181 and
-y=1216–2032. Place BOARD VALUE, the transaction list, and BALANCE (SALDO) in that
+On each new opening, choose independently and uniformly among `assets/receipt.png`,
+`assets/receipt2.png`, `assets/receipt3.png`, and `assets/receipt4.png` (25% each).
+Consecutive repeats are allowed. Keep the design stable while the receipt is
+open; rendering or repeated open calls do not draw again. The choice is temporary
+presentation state, independent of the board, balance, spending/history, meadow,
+language, and saved game. Preload all four images and assign the new source while
+the modal is still closed, before the existing entrance animation.
+
+All four unchanged PNGs are 1440 × 3200 with matching paper bounds, RECEIPT heading,
+separator positions, blank content region, barcode, and bottom edge. Their logos
+and footer wording differ, without requiring layout changes. Reuse one image and
+the existing shared overlays at the natural aspect ratio. The actual blank centre
+spans approximately x=302–1181 and y=1216–2032. Place BOARD VALUE, the transaction list, and BALANCE (SALDO) in that
 bounded region. Do not repeat text baked into the illustration. Use local
 American Typewriter with Courier New/Courier/monospace fallbacks, without downloads.
 
@@ -390,7 +400,7 @@ from the label, transactions, thank-you message, and barcode.
 Use a restrained 450ms downward entrance on the receipt alone; reduced motion
 shows it immediately. Keep existing Challenge flips unchanged. Reset clears
 history and spending, restarts numbering at #01, and preserves Rules language.
-Precache the artwork and receipt controller in the existing versioned shell.
+Precache all four artworks and the receipt controller in the existing versioned shell.
 
 ## 9. Technical constraints
 

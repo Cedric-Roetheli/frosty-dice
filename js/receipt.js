@@ -1,6 +1,16 @@
 import { getScoreBreakdown } from "./scoring.js?v=v3-multipliers-1";
 
 const dollars = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+export const RECEIPT_BACKGROUNDS = Object.freeze([
+  "./assets/receipt.png",
+  "./assets/receipt2.png",
+  "./assets/receipt3.png",
+  "./assets/receipt4.png",
+]);
+
+export function chooseReceiptBackground(random = Math.random) {
+  return RECEIPT_BACKGROUNDS[Math.floor(random() * RECEIPT_BACKGROUNDS.length)];
+}
 
 export function formatFrostyDollars(value) {
   return "$" + dollars.format(value);
@@ -14,8 +24,9 @@ export function getSaleSticker(balance) {
 }
 
 // Presentation only: read authoritative state, never spend, save, or create Undo.
-export function createReceipt(document, readGame) {
+export function createReceipt(document, readGame, random = Math.random) {
   const dialog = document.getElementById("receipt-dialog");
+  const art = document.getElementById("receipt-art");
   const opener = document.getElementById("open-receipt");
   const closeButton = document.getElementById("close-receipt");
   const list = document.getElementById("receipt-history");
@@ -95,6 +106,7 @@ export function createReceipt(document, readGame) {
     render,
     open() {
       if (dialog.open) return;
+      art.src = chooseReceiptBackground(random);
       render();
       list.scrollTop = 0;
       dialog.showModal();

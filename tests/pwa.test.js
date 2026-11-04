@@ -147,14 +147,14 @@ export async function runPwaTests(sources) {
 
   await test("Receipt release uses fresh matching module URLs in Safari and the offline cache", () => {
     const worker = workerHarness(sources.worker);
-    assert(sources.html.includes('src="./js/app.js?v=receipt-3"'));
-    for (const [name, version] of [["app", "receipt-3"], ["game", "receipt-2"], ["storage", "receipt-2"], ["receipt", "receipt-3"]]) {
+    assert(sources.html.includes('src="./js/app.js?v=receipt-4"'));
+    for (const [name, version] of [["app", "receipt-4"], ["game", "receipt-2"], ["storage", "receipt-2"], ["receipt", "receipt-4"]]) {
       const path = "/js/" + name + ".js?v=" + version;
       assertDeepEqual(worker.PRECACHE_URLS.filter((url) => url.startsWith("/js/" + name + ".js?")), [path]);
     }
     assert(sources.app.includes('from "./game.js?v=receipt-2"'));
     assert(sources.app.includes('from "./storage.js?v=receipt-2"'));
-    assert(sources.app.includes('from "./receipt.js?v=receipt-3"'));
+    assert(sources.app.includes('from "./receipt.js?v=receipt-4"'));
     assert(sources.storage.includes('from "./game.js?v=receipt-2"'));
     for (const source of [sources.app, sources.storage]) {
       assert(!source.includes("game.js?v=v3-multipliers-1"));
@@ -162,11 +162,23 @@ export async function runPwaTests(sources) {
     }
   });
 
+  await test("All four receipt backgrounds are precached and available offline", async () => {
+    const worker = workerHarness(sources.worker);
+    await worker.lifecycle("install");
+    worker.offline = true;
+    for (const name of ["receipt.png", "receipt2.png", "receipt3.png", "receipt4.png"]) {
+      const path = "/assets/" + name;
+      assert(worker.PRECACHE_URLS.includes(path));
+      assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
+    }
+    assertEqual(worker.networkCalls.length, 0);
+  });
+
   await test("Prime Ice, Attack Ice, and receipt assets are precached and available offline", async () => {
     const worker = workerHarness(sources.worker);
     await worker.lifecycle("install");
     worker.offline = true;
-    for (const path of ["/assets/icecube.png", "/assets/icecube2.png", "/assets/receipt.png", "/js/receipt.js?v=receipt-3", "/css/style.css?v=digital-dice-4"]) {
+    for (const path of ["/assets/icecube.png", "/assets/icecube2.png", "/assets/receipt.png", "/js/receipt.js?v=receipt-4", "/css/style.css?v=digital-dice-4"]) {
       assert(worker.PRECACHE_URLS.includes(path), path);
       assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
     }

@@ -136,6 +136,10 @@ export function appTestDocument() {
   receiptButton.setAttribute("aria-label", "Open Frosty Fresh Goods receipt");
   const receipt = add("dialog", "receipt-dialog");
   receipt.getBoundingClientRect = () => ({ left: 20, top: 20, right: 300, bottom: 600 });
+  const receiptArt = add("img", "receipt-art", receipt);
+  receiptArt.src = "./assets/receipt.png";
+  receiptArt.width = 1440;
+  receiptArt.height = 3200;
   add("button", "close-receipt", receipt);
   add("span", "receipt-board-value", receipt);
   add("p", "receipt-prior-spending", receipt);
