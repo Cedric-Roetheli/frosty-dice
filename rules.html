@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#03020e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Frosty Dice">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="description" content="The complete illustrated Frosty Dice rules in English and German.">
+    <title>Full Rules — Frosty Dice</title>
+    <link rel="icon" href="data:,">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="./css/style.css?v=digital-dice-4">
+    <link rel="stylesheet" href="./css/rules-page.css?v=rules-page-1">
+    <script type="module" src="./js/rules.js?v=rules-page-1"></script>
+    <script type="module" src="./js/pwa.js"></script>
+  </head>
+  <body class="rules-page">
+    <main id="rules" class="rules-illustration rules-page__content" aria-labelledby="rules-heading">
+      <h1 id="rules-heading">Full Rules</h1>
+      <div class="rules-language-selector" role="group" aria-label="Rules language">
+        <img id="rules-fill-de" class="rules-language-selector__fill" src="./assets/language_de_fill.png" alt="" width="1024" height="512" aria-hidden="true" hidden>
+        <img id="rules-fill-en" class="rules-language-selector__fill" src="./assets/language_en_fill.png" alt="" width="1024" height="512" aria-hidden="true">
+        <img class="rules-language-selector__art" src="./assets/language_select.png" alt="" width="1024" height="512" aria-hidden="true">
+        <button id="rules-language-de" class="rules-language-selector__button" type="button" lang="de" aria-label="Deutsch" aria-pressed="false" aria-controls="rules-image"></button>
+        <button id="rules-language-en" class="rules-language-selector__button" type="button" lang="en" aria-label="English" aria-pressed="true" aria-controls="rules-image"></button>
+      </div>
+      <div class="rules-image-container">
+        <img id="rules-image" src="./assets/Rules.png" alt="Hand-drawn Frosty Dice game rules" lang="en" width="2480" height="3508" loading="lazy" decoding="async">
+        <button id="open-additional-rules" class="rules-additional-trigger" type="button" aria-label="Open Additional Rules" aria-haspopup="dialog" aria-controls="additional-rules-dialog" hidden>
+          <svg class="rules-zoom-hint" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+            <circle cx="10" cy="10" r="6"></circle>
+            <path d="m14.5 14.5 6 6"></path>
+          </svg>
+        </button>
+      </div>
+      <a id="back-to-game" class="rules-page-link" href="./index.html">BACK TO GAME</a>
+    </main>
+    <dialog id="additional-rules-dialog" class="additional-rules-dialog" aria-labelledby="additional-rules-heading">
+      <div class="additional-rules-header">
+        <h2 id="additional-rules-heading">Additional Rules</h2>
+        <button id="close-additional-rules" class="additional-rules-close" type="button" aria-label="Close Additional Rules" autofocus><span aria-hidden="true">×</span></button>
+      </div>
+      <div id="additional-rules-text" class="additional-rules-text" tabindex="0"></div>
+    </dialog>
+  </body>
+</html>

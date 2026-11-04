@@ -77,7 +77,7 @@ export function initializeDigitalDice(document, options = {}) {
   const cards = new Map();
   const choices = new Map();
   let state = createDiceState();
-  let language = document.getElementById("rules-image")?.lang === "de" ? "de" : "en";
+  let language = document.getElementById("rules-language-de")?.getAttribute("aria-pressed") === "true" ? "de" : "en";
   let leaving = new Set();
   let faces = [1, 2, 3, 4];
   let stopped = 4;
@@ -322,8 +322,8 @@ export function initializeDigitalDice(document, options = {}) {
     roll(); // Native Enter/Space and assistive activation produce a zero-detail click.
   });
   listen(lever, "dragstart", (event) => event.preventDefault());
-  for (const lang of ["de", "en"]) listen(document.getElementById("rules-language-" + lang), "click", () => {
-    language = lang;
+  listen(document, "ruleslanguagechange", (event) => {
+    language = event.detail;
     render();
   });
   listen(view, "resize", render);

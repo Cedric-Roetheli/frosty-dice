@@ -129,23 +129,28 @@ clears the board, including frozen and thawed cells.
 
 ## 6. Physical Challenges and Attack Ice
 
-Instead of taking a normal turn, the active player may challenge any other
-player. Both players secretly bid Frosty Dollars on their own devices. A bid must be an
+Before taking their normal dice turn, a player may challenge another player.
+The Challenge does not replace the normal turn: after it concludes, the player
+who initiated it may still roll the dice. Both players secretly bid Frosty Dollars
+on their own devices. A bid must be an
 integer from **0 through that player's current available Score**, inclusive;
 blank, negative, fractional, and unaffordable bids are invalid. Both players
-spend their confirmed bids, regardless of the outcome. The challenger must bid
-**strictly higher** to win; a tie favors the defender.
+spend their confirmed bids, regardless of who wins. The **higher bid wins**.
+Equal bids have **no winner**: both players bid again until their bids differ.
+The exact treatment of spending from tied rounds remains unspecified; do not
+infer an additional deduction, refund, or automatic tie winner.
 
 Before confirmation, closing the bid cancels without spending. Confirmation
 spends the points once and locks the displayed bid for physical reveal. Closing
 after confirmation does not refund it. Reopening starts a new bid.
 
-- If the **challenger wins**, they may remove Attack Ice from their own board,
-  if present, **AND** place Attack Ice on an eligible occupied cell of the
-  losing player's board.
-- If the **challenged player wins**, they choose **ONE**: remove Attack Ice
-  from their own board, if present, **OR** place Attack Ice on an eligible
-  occupied cell of the challenger's board.
+The winner chooses **exactly ONE** action:
+
+- **Freeze:** place Attack Ice on one eligible occupied cell of the opponent's board.
+- **Unfreeze:** remove Attack Ice from one eligible cell of their own board.
+
+Both players have identical winner privileges, regardless of who initiated the
+Challenge. These are alternative actions; the winner does not receive both.
 
 Players compare their confirmed bids physically and the winner resolves the
 Attack Ice consequences above using the existing manual Freeze/Unfreeze
@@ -276,10 +281,13 @@ Challenge dialog before using Undo; it is unavailable inside the dialog.
 Undo itself is immediate and requires no confirmation;
 it also discards any unsubmitted number-entry draft or open cell action.
 
-## 11. Open rule question
+## 11. Open rule questions
 
 When a player reaches a usable D7, whether that player or the whole table stops
 immediately, finishes the round, or continues has not yet been decided.
+
+The exact treatment of already confirmed bids in tied Challenge rounds has not
+been decided. The app does not resolve ties or infer refunds or extra deductions.
 
 ## 12. Scope
 

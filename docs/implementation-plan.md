@@ -750,6 +750,108 @@ closing/focus, scoring/history/Undo, and entrance/reduced-motion checks pass.
 All illustrations, receipt CSS, gameplay modules, storage format, and worker
 lifecycle remain unchanged. No browser automation, screenshots, commit, or push.
 
+## Interactive How to Play — Twelve-step bilingual demonstration
+
+Add a separate native tutorial controller, declarative scene module, and scoped
+stylesheet in the existing Rules section. HOW TO PLAY / SPIELANLEITUNG and FULL
+RULES / ALLE REGELN are independent semantic disclosures, collapsed initially.
+Reopening retains the tutorial step; Full Rules keeps both unchanged illustrated
+Rules and the Additional Rules modal mounted and functional. Reuse the existing
+language selector/preference, including Digital Dice's existing language behavior.
+
+Exactly twelve steps follow one validated example: A1=12, B1=24, C1=46, C2=46,
+B2=35. Immutable snapshots and fresh clones make backward navigation deterministic.
+The last placement is valid through C2 despite the incompatible number above.
+Use existing pure game/scoring helpers, never another engine. Validate the later
+continuation under both alternative Challenge actions through usable D7. The
+final $1,114 board minus Player A's $30 bid gives a $1,084 receipt balance.
+
+Use one canonical 400×700 board per example player. Full views open/close the
+sequence; upper excerpts show two rows plus 45% of row 3, physically clipped by
+overflow-hidden viewports. Related placement steps keep cell size stable. Paired
+Challenge excerpts are vertically arranged beside aligned, width-capped example
+banknotes. Camera transforms/window sizes transition for 400ms. Finite animations
+demonstrate placement, deterministic dice, concealed bids, reveal, and one ice action.
+Generation guards and timer cancellation prevent stale callbacks; reduced motion
+shows settled scenes immediately. Never advance tutorial steps automatically.
+
+Correct Challenge documentation and readable Additional Rules: initiate before
+the normal dice turn, which still follows; higher bid wins, ties have no winner
+and require another bid; both spend their confirmed bids; either winner chooses
+exactly ONE of Freeze an eligible opponent cell OR Unfreeze their own Attack Ice.
+Use unequal $30/$50 bids with Player B winning. Tied-round deductions/refunds remain
+unspecified. The real Challenge code already records only local bids and manual
+ice actions, with no role-specific rights or automatic winner/tie determination;
+no gameplay-code correction is needed. Keep the original Rules artwork unchanged.
+
+Prime Ice is intentionally omitted from all tutorial explanations and examples.
+The complete Rules retain it. The tutorial never accesses real game/Undo state,
+game saves, actual dice, the live receipt, or real Challenge transactions. Its final
+action only scrolls/focuses the real board. Original game/UI modules and assets stay
+unchanged. Precache the new tutorial modules/CSS and version the Rules module;
+bump the worker from v27 to v28 without changing its update lifecycle.
+
+Add focused navigation, snapshots, legal sequences, clipping/camera geometry,
+Challenge alternatives/concealment, language, accessibility/disclosures, cancellation,
+reduced-motion, isolation, and offline tests. Run focused tests and the existing
+full suite without browser automation or screenshots. Manual iPhone evaluation
+remains with the user. Do not commit or push.
+
+**Status: Implemented for manual evaluation.** Native JavaScriptCore focused
+tests pass **123/123** (25 tutorial, 24 Rules, 49 Digital Dice, 25 PWA), and the
+complete automated suite passes **527/527**. The tests exercise the actual
+tutorial controller alongside existing Rules, live app, dice, receipt, storage,
+and worker doubles. Camera geometry is checked mathematically at representative
+mobile/desktop widths; no browser automation, screenshots, or visual testing was
+performed. Real gameplay modules, main styling, original artwork, and persistence
+format remain unchanged. No commit or push was performed.
+
+## Full Rules — Dedicated reference page
+
+Move the complete illustrated rules and Additional Rules modal from the main
+page to `/rules.html`. The main `#rules` section keeps only the unchanged
+12-step tutorial and language selector; its existing meadow signpost still
+navigates there. Remove the Full Rules disclosure, image wrapper, and modal from
+index.html. Add a small, underlined FULL RULES / ALLE REGELN footer link in its
+own grid row, preserving both original footer illustrations and their geometry.
+
+The new static page uses the existing plain dark-blue canvas, fonts, 36rem
+illustration maximum, responsive proportions, safe-area insets, selector artwork,
+Additional Rules hit region, and accessible native modal. Show the illustration
+immediately under a Full Rules / Alle Regeln h1. BACK TO GAME / ZURÜCK ZUM SPIEL
+navigates normally to index.html, restoring progress through existing storage.
+Do not load game, dice, tutorial, Challenge, or receipt components on this page.
+
+Reuse one Rules controller and `frosty-dice.rules-language` on both pages.
+Initialize illustrated functionality only where its elements exist. Publish
+language changes to the existing tutorial/dice through a small DOM event, and
+read initial language from the selected language control rather than the removed
+Rules image. Refresh preferences on page-show/storage events, including Safari
+Back restoration, while preserving current tutorial progress, animations, dice,
+and game state. The bid reveal label reads the same selected control. Tutorial
+scenes, camera, animation timings, explanations, and surprise mechanic stay intact.
+
+Precache rules.html and the small new scoped stylesheet, align changed module
+URLs at rules-page-1, and bump cache v29 to v30. Extend existing cached navigation
+to keep Rules and game pages distinct offline, including query variants; preserve
+installation, waiting activation, cache cleanup, and all existing artwork.
+
+Add focused tests for main-page structure, standalone Rules initialization,
+localization/normal navigation/Back-cache preference restoration, Additional Rules
+accessibility, live game/Undo isolation, unchanged tutorial/dice behavior, responsive
+CSS geometry, and offline navigation/resources. Run relevant automated tests without
+browser automation or screenshots. Manual iPhone visual verification remains with
+the user. Do not change game rules or persistence, and do not commit or push.
+
+**Status: Implemented for manual evaluation.** Relevant native JavaScriptCore
+tests pass **250/250**: 28 Rules, 26 tutorial, 49 Digital Dice, 114 app coordination,
+6 meadow, and 27 PWA. Coverage includes restored German initialization without
+the old image, cross-page preference changes and Safari Back-cache restoration,
+live modal translation, saved board/Undo preservation, and distinct offline
+documents. No browser automation or screenshots were used. Original artwork,
+game rules, core gameplay/scoring/storage, tutorial scenes/styles/animation
+timings, and the existing main stylesheet remain unchanged. No commit or push.
+
 ## Workflow
 
 Read the specifications, implement the current scope, keep rules deterministic,

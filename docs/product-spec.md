@@ -245,13 +245,15 @@ Occupied values are readonly, and there is no direct value correction interface.
 
 ## 8. Physical Challenges and manual Attack Ice
 
-Instead of a normal turn, the active player may challenge any other player.
+Before a normal dice turn, a player may challenge another player and may still
+take their normal dice turn after the Challenge concludes.
 Both secretly bid an integer from 0 through their current available Score and
 spend their confirmed bid regardless of outcome. They compare screens physically:
-the challenger must bid strictly higher, so ties favor the defender. A winning challenger
-may remove their own Attack Ice **AND** apply Attack Ice on the loser's board.
-A winning challenged player chooses **ONE**: remove their own Attack Ice **OR**
-apply it on the challenger's board. A new Freeze replaces/moves any existing
+the higher bid wins. Equal bids have no winner; both players bid again until
+their bids differ. Accounting for already confirmed bids in tied rounds remains
+unspecified. Every winner chooses **exactly ONE** action: Freeze an eligible
+opponent cell **OR** Unfreeze an eligible cell of their own. The same options
+apply regardless of who initiated the Challenge. A new Freeze replaces/moves any existing
 Attack Ice on that board. Full mechanics are in game-rules.md section 6.
 
 The app records local bid spending and manual Freeze/Unfreeze actions, trusting
@@ -460,15 +462,25 @@ status labels, and multipliers use z-index 1 above it. Both original PNGs and
 their cell-filling appearance remain unchanged. Cells, grid dimensions, interactions, and Prime-thawed treatment do not
 change. General visual redesign and PNG optimization remain deferred.
 
-A bilingual rules illustration appears in a plain section after the game
-interface, with a large centered white Rules heading that stays English and
-no card surface.
-Keep the game region at least as tall as the existing horizon height, without
-moving its controls. Add responsive spacing matching the scaled PNG's lower
-painted ground (941/1440 of its displayed width), plus 1.5rem, so the section
-begins near the transition to solid-green continuation. Leave 0.5rem between
-the heading and selector, selector and image, and 2rem of bottom breathing room.
-Use 96% of available width, capped at 36rem, centered. Display `assets/Rules.png`
+The main page's Rules / Regeln area is the primary onboarding experience and
+contains only the existing interactive How-to-Play tutorial and language selector,
+with no card surface. Preserve its spacing, signpost anchor, disclosure, twelve
+steps, animations, and camera system. Keep the game region and meadow controls
+unchanged; removing Full Rules leaves no empty disclosure or illustration wrapper.
+
+Complete illustrated rules are available separately at `/rules.html`, reached
+through a small underlined FULL RULES / ALLE REGELN footer link below the original
+cowboy/contact illustrations. Keep those illustrations in their existing grid row
+at their existing sizes. The link spans a separate row and has a 48px touch target.
+Use ordinary `./rules.html` navigation, with no routing or game-state changes.
+
+The dedicated page uses the existing dark-blue canvas, fonts, white text, and
+illustration/selector/modal styling. It has a Full Rules / Alle Regeln h1, the
+existing selector, the illustration and Additional Rules hit area, and an underlined
+BACK TO GAME / ZURÜCK ZUM SPIEL link to `./index.html`. Keep normal body/safe-area
+insets, 96% content width capped at 36rem, responsive images, and no meadow,
+game, dice, receipt, or tutorial components. Only the shared Rules controller and
+PWA registration initialize here. Display `assets/Rules.png`
 for English and `assets/rules_german.png` for German, without cropping either.
 Use each image's actual width/height to reserve space, with responsive width
 and automatic height. Do not assume matching aspect ratios or internal margins.
@@ -503,8 +515,8 @@ to percentages of that image's own dimensions so responsive scaling stays
 aligned. Keep the original artwork unchanged. A small magnifying-glass hint
 sits below the lower-right edge without covering text or enlarging the hit area.
 
-Open a native modal with the selected Rules language and the supplied English
-or German paragraphs verbatim. Use Additional Rules / Zusätzliche Regeln,
+Open a native modal with the selected Rules language and readable English
+or German paragraphs reflecting the current confirmed rules. Use Additional Rules / Zusätzliche Regeln,
 white 18px text, comfortable paragraph spacing, a restrained dark frosted panel,
 and a dark translucent backdrop. Respect safe areas and permit the text to
 scroll while the close button remains available. Close with ×, backdrop tap,
@@ -513,10 +525,55 @@ return focus to the box, and restore the previous page styles and scroll
 position after temporarily locking background scrolling. Do not alter the
 normal scrolling behavior outside the modal.
 
-The popup copy is a readable reproduction of the supplied illustration text,
-not a game-rule change. Keep all mechanics, including defender-favored bidding
-ties, unchanged. Opening/closing the modal never writes the game or language
+The popup retains the readable illustrated rules and reflects the clarified
+Challenge timing, tie rule, and identical one-action winner privileges. Original
+illustrations stay unchanged. Opening/closing the modal never writes the game or language
 preference. Embed all text in the existing rules controller for offline use.
+
+### Interactive How to Play and Full Rules
+
+Keep the existing Rules signpost anchor and language selector on the main page.
+HOW TO PLAY / SPIELANLEITUNG is the only Rules disclosure, initially collapsed.
+Full Rules is a footer link to the separate page, where the original illustration
+is immediately visible and its Additional Rules interaction remains intact.
+Opening How to Play immediately displays Step 1; reopening preserves the current
+step for the page session. There is no tutorial preference or game-save change.
+
+Both pages reuse `frosty-dice.rules-language` and one Rules controller. The
+controller updates whichever page's elements exist and emits a small language-change
+event for the tutorial and Digital Dice. Initial language comes from the selected
+semantic language control, never a hidden or absent Rules image. Page-show/storage
+restoration refreshes changed preferences, including Safari Back-cache navigation,
+without writing a game save or resetting tutorial/dice state. Localized headings,
+footer/back links, illustration, and Additional Rules use the same preference.
+
+The tutorial has exactly 12 bilingual steps, Back/Next navigation, twelve progress
+dots, and a final LET’S PLAY! / JETZT SPIELEN! action that scrolls to the real board
+without resetting it. Language changes use the existing Rules preference and do
+not reset progress or restart animations. All meaningful text follows that language.
+
+One canonical 4×7 example board is shown through dynamic camera viewports: full
+board at the beginning/end, enlarged upper rows for placement, and paired cropped
+boards for Challenges. Related placement steps preserve cell size. The viewport
+physically clips approximately 45% of peripheral row 3, while relevant cells remain
+fully visible. Camera transitions last 400ms; reduced motion shows settled scenes.
+
+Example snapshots are reconstructed using the existing pure placement and scoring
+helpers, starting A1=12, B1=24, C1=46, C2=46, B2=35. The last connection is legal
+through C2 despite the mismatch above. A validated later continuation reaches D7.
+Player A bids $30, Player B bids $50, and B chooses exactly one demonstrated action:
+Freeze A's B2 or Unfreeze B's pre-existing Attack Ice at B2. Both branches preserve
+the same later $1,114 board value, $30 spending, and $1,084 balance. The example uses
+unequal bids; tied-round accounting remains unspecified. A fixed existing receipt
+illustration shows this calculation after the goal, with Board/Receipt view controls.
+
+The tutorial intentionally does not mention or demonstrate Prime Ice. Full Rules
+and Additional Rules retain their complete explanations. Tutorial scenes, dice,
+bids, receipt, timers, and animation state are independent of the real board, score,
+Challenges, Undo, receipt, Digital Dice, and local game persistence. Navigation
+cancels obsolete work with generation guards and reconstructs deterministic scenes.
+Animations settle without automatically advancing steps. Reuse existing artwork;
+precache the new native modules and scoped stylesheet with the existing PWA strategy.
 
 Illustrated landscape controls replace the former New Game / Reset and Rules
 text row, with no remaining row spacing. The supplied transparent PNGs remain
@@ -561,7 +618,8 @@ retain their complete canvases, natural aspect ratios, and transparency,
 without cropping or overlapping. Leave a 2rem gap above the footer (collapsing with the Rules
 section's existing bottom margin) and 1rem below, plus the existing body safe-area
 padding. The artwork's transparent margins provide additional breathing room.
-Add no card, background, border, duplicated contact text, links, or controls.
+Add no card, background, border, or duplicated contact text. The small Full Rules
+link occupies its own grid row without moving/resizing the illustration row.
 The existing full-document meadow/green continuation extends behind the footer
 and bottom spacing; do not repeat or reposition the landscape or meadow controls.
 
@@ -694,9 +752,10 @@ button, accounts, backend, push, analytics, cloud saves, or new gameplay.
 Registration is independent of game initialization and fails silently. Existing
 game code, UI, localStorage, Undo, and reset remain independent of PWA installation.
 
-Cache the complete static application, including all lazy Rules/contact/bid/ice
-artwork. Each installed/browser context needs an online visit long enough for
-the required batch to finish. Offline root/index navigation uses cached index.
+Cache the complete static application, including `/rules.html`, its scoped page
+stylesheet, and all lazy Rules/contact/bid/ice artwork. Each installed/browser context needs an online visit long enough for
+the required batch to finish. Offline root/index navigation uses cached index;
+Rules navigation uses cached rules.html, including either page's query variants.
 Cache-first resources stay in one versioned snapshot. Online launches check
 the worker for updates without the HTTP cache. New versions precache fresh
 files, wait for existing windows/tabs to close, then activate, clean only older

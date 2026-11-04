@@ -11,9 +11,9 @@ const illustrations = {
       paragraphs: [
         "All numbers placed on the board turn into points.",
         "Placing two prime numbers next to eachother freezes the cell.",
-        "Points may be used to challenge another player. The challenge is a blind auction and works as follows: both players secretly bid points, bids are then confirmed and revealed. The higher bid wins.",
-        "Both bids are spent and the points subtracted from the players.",
-        "The winner may freeze a cell of the losers board or unfreeze their own cell.",
+        "Before a normal dice turn, a player may challenge another player. Both secretly bid Frosty Dollars, then confirm and reveal. The higher bid wins. Equal bids have no winner: bid again until the bids differ.",
+        "Both players spend their confirmed bids regardless of who wins. After the Challenge, the player who initiated it may still take their normal dice turn.",
+        "The winner chooses exactly one action: Freeze an eligible opponent cell OR remove Attack Ice from an eligible cell of their own. Both players have the same options. New Attack Ice is not allowed in the first row.",
       ],
     },
   },
@@ -26,10 +26,10 @@ const illustrations = {
       paragraphs: [
         "Alle Zahlen, die auf dem Spielfeld platziert werden, zählen als Punkte.",
         "Werden zwei Primzahlen nebeneinander platziert, friert das entsprechende Feld ein.",
-        "Punkte können verwendet werden, um einen anderen Spieler herauszufordern. Die Herausforderung erfolgt in Form einer verdeckten Auktion und funktioniert wie folgt:",
-        "Beide Spieler bieten geheim eine bestimmte Anzahl Punkte. Sobald beide Gebote bestätigt wurden, werden sie aufgedeckt. Der Spieler mit dem höheren Gebot gewinnt.",
-        "Beide Spieler verlieren die jeweils gebotenen Punkte, unabhängig davon, wer gewonnen hat.",
-        "Der Gewinner darf entweder ein Feld auf dem Spielfeld des Verlierers einfrieren oder eines seiner eigenen eingefrorenen Felder auftauen.",
+        "Vor dem normalen Würfelzug kann ein Spieler einen anderen herausfordern. Beide bieten verdeckt Frosty Dollars und bestätigen ihre Gebote.",
+        "Die Gebote werden aufgedeckt; das höhere Gebot gewinnt. Gleiche Gebote haben keinen Gewinner: Beide bieten erneut, bis sich die Gebote unterscheiden.",
+        "Beide Spieler bezahlen ihr bestätigtes Gebot, unabhängig vom Gewinner. Wer die Challenge begonnen hat, darf danach noch seinen normalen Würfelzug machen.",
+        "Der Gewinner wählt genau eine Aktion: ein geeignetes gegnerisches Feld einfrieren ODER Attack Ice von einem geeigneten eigenen Feld entfernen. Beide Spieler haben dieselben Optionen. In der ersten Reihe darf kein neues Attack Ice platziert werden.",
       ],
     },
   },
@@ -73,36 +73,95 @@ export function initializeRules(document, storage) {
     button: document.getElementById("rules-language-" + language),
     fill: document.getElementById("rules-fill-" + language),
   }));
+  if (controls.some(({ button, fill }) => !button || !fill)) return;
 
   function showLanguage(selectedLanguage) {
     language = selectedLanguage;
     const illustration = illustrations[language];
-    // Reserve this image's own aspect ratio before changing its source.
-    image.width = illustration.width;
-    image.height = illustration.height;
-    image.alt = illustration.alt;
-    image.lang = language;
-    image.src = illustration.src;
-    trigger.style.left = illustration.box.x / illustration.width * 100 + "%";
-    trigger.style.top = illustration.box.y / illustration.height * 100 + "%";
-    trigger.style.width = illustration.box.width / illustration.width * 100 + "%";
-    trigger.style.height = illustration.box.height / illustration.height * 100 + "%";
-    trigger.setAttribute("aria-label", illustration.additional.open);
-    trigger.hidden = false;
+    const section = document.getElementById("rules");
+    if (section) section.lang = language;
+    const pageHeading = document.getElementById("rules-heading");
+    if (pageHeading) pageHeading.textContent = image
+      ? language === "de" ? "Alle Regeln" : "Full Rules"
+      : language === "de" ? "Regeln" : "Rules";
+    if (image) {
+      // Reserve this image's own aspect ratio before changing its source.
+      image.width = illustration.width;
+      image.height = illustration.height;
+      image.alt = illustration.alt;
+      image.lang = language;
+      image.src = illustration.src;
+      document.documentElement.lang = language;
+      document.title = (language === "de" ? "Alle Regeln" : "Full Rules") + " — Frosty Dice";
+    }
+    if (trigger) {
+      trigger.style.left = illustration.box.x / illustration.width * 100 + "%";
+      trigger.style.top = illustration.box.y / illustration.height * 100 + "%";
+      trigger.style.width = illustration.box.width / illustration.width * 100 + "%";
+      trigger.style.height = illustration.box.height / illustration.height * 100 + "%";
+      trigger.setAttribute("aria-label", illustration.additional.open);
+      trigger.hidden = false;
+    }
+    for (const [id, en, de] of [["full-rules-link", "FULL RULES", "ALLE REGELN"],
+      ["back-to-game", "BACK TO GAME", "ZURÜCK ZUM SPIEL"]]) {
+      const link = document.getElementById(id);
+      if (link) { link.textContent = language === "de" ? de : en; link.lang = language; }
+    }
     for (const control of controls) {
       const active = control.language === language;
       control.button.setAttribute("aria-pressed", String(active));
       control.fill.hidden = !active;
     }
+    if (dialog?.open) renderAdditionalRules();
+    document.dispatchEvent(new document.defaultView.CustomEvent("ruleslanguagechange", { detail: language }));
   }
 
-  try {
-    const saved = preferenceStorage(storage).getItem(RULES_LANGUAGE_KEY);
-    if (saved === "de" || saved === "en") language = saved;
-  } catch {
-    // Blocked storage still permits language switching for this visit.
+  function readPreference() {
+    try {
+      const saved = preferenceStorage(storage).getItem(RULES_LANGUAGE_KEY);
+      return saved === "de" || saved === "en" ? saved : "en";
+    } catch {
+      return language; // Blocked storage still permits switching for this visit.
+    }
   }
-  showLanguage(language);
+  showLanguage(readPreference());
+
+  for (const control of controls) {
+    // Native buttons handle touch, mouse, Enter, and Space without custom keys.
+    control.button.addEventListener("click", () => {
+      showLanguage(control.language);
+      try {
+        preferenceStorage(storage).setItem(RULES_LANGUAGE_KEY, control.language);
+      } catch {
+        // A failed preference write must not prevent language switching.
+      }
+    });
+  }
+  function restoreLanguage() {
+    const saved = readPreference();
+    if (saved !== language) showLanguage(saved);
+  }
+  // A Back navigation may restore a frozen page without re-running its modules.
+  document.defaultView.addEventListener?.("pageshow", restoreLanguage);
+  document.defaultView.addEventListener?.("storage", (event) => {
+    if (event.key === RULES_LANGUAGE_KEY || event.key === null) restoreLanguage();
+  });
+
+  // The main page only needs language controls; the illustrated dialog is here.
+  if (!image || !trigger || !dialog || !heading || !text || !closeButton) return;
+
+  function renderAdditionalRules() {
+    const content = illustrations[language].additional;
+    dialog.lang = language;
+    heading.textContent = content.heading;
+    closeButton.setAttribute("aria-label", content.close);
+    text.replaceChildren(...content.paragraphs.map((paragraph) => {
+      const element = document.createElement("p");
+      element.textContent = paragraph;
+      return element;
+    }));
+    text.scrollTop = 0;
+  }
 
   function finishClose() {
     if (!unlockScroll) return;
@@ -119,16 +178,7 @@ export function initializeRules(document, storage) {
 
   trigger.addEventListener("click", () => {
     if (dialog.open) return;
-    const content = illustrations[language].additional;
-    dialog.lang = language;
-    heading.textContent = content.heading;
-    closeButton.setAttribute("aria-label", content.close);
-    text.replaceChildren(...content.paragraphs.map((paragraph) => {
-      const element = document.createElement("p");
-      element.textContent = paragraph;
-      return element;
-    }));
-    text.scrollTop = 0;
+    renderAdditionalRules();
     unlockScroll = lockRulesPage(document);
     try {
       dialog.showModal();
@@ -162,19 +212,8 @@ export function initializeRules(document, storage) {
     backdropPointer = false;
   });
 
-  for (const control of controls) {
-    // Native buttons handle touch, mouse, Enter, and Space without custom keys.
-    control.button.addEventListener("click", () => {
-      showLanguage(control.language);
-      try {
-        preferenceStorage(storage).setItem(RULES_LANGUAGE_KEY, control.language);
-      } catch {
-        // A failed preference write must not prevent viewing the chosen rules.
-      }
-    });
-  }
 }
 
-if (typeof document !== "undefined" && document.getElementById("rules-image")) {
+if (typeof document !== "undefined" && document.getElementById("rules-language-de")) {
   initializeRules(document);
 }

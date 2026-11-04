@@ -2,22 +2,27 @@
 // below when adding/removing files or changing their query-string versions.
 // Also version changed modules and their importers for browsers without a worker.
 const CACHE_PREFIX = "frosty-dice-pwa-";
-const CACHE_NAME = CACHE_PREFIX + "v27";
+const CACHE_NAME = CACHE_PREFIX + "v30";
 const APP_SHELL = "/index.html";
 const PRECACHE_URLS = [
   APP_SHELL,
+  "/rules.html",
   "/manifest.webmanifest",
   "/css/style.css?v=digital-dice-4",
-  "/js/digital-dice.js?v=digital-dice-4",
-  "/js/app.js?v=receipt-4",
+  "/css/tutorial.css?v=tutorial-1",
+  "/css/rules-page.css?v=rules-page-1",
+  "/js/tutorial.js?v=rules-page-1",
+  "/js/tutorial-scenes.js?v=tutorial-2",
+  "/js/digital-dice.js?v=rules-page-1",
+  "/js/app.js?v=rules-page-1",
   "/js/receipt.js?v=receipt-4",
-  "/js/challenge-note.js?v=frosty-dollar-1",
+  "/js/challenge-note.js?v=rules-page-1",
   "/js/board-state.js?v=v3-multipliers-1",
   "/js/game.js?v=receipt-2",
   "/js/scoring.js?v=v3-multipliers-1",
   "/js/storage.js?v=receipt-2",
   "/js/pwa.js",
-  "/js/rules.js?v=additional-rules-1",
+  "/js/rules.js?v=rules-page-1",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png",
   "/assets/icons/apple-touch-icon.png",
@@ -105,9 +110,9 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET" || !request.url.startsWith(self.location.origin + "/")) return;
   const path = request.url.slice(self.location.origin.length).split("?")[0];
-  if (request.mode === "navigate" && (path === "/" || path === APP_SHELL)) {
-    // Root, index.html, and their query variants all launch the same cached game.
-    event.respondWith(cachedResponse(request, APP_SHELL));
+  if (request.mode === "navigate" && (path === "/" || path === APP_SHELL || path === "/rules.html")) {
+    // Keep each static page and its query variants on its own offline document.
+    event.respondWith(cachedResponse(request, path === "/rules.html" ? path : APP_SHELL));
   } else if (PRECACHE_REQUEST_URLS.has(request.url)) {
     event.respondWith(cachedResponse(request));
   }

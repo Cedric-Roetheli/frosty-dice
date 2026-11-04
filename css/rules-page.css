@@ -1,0 +1,37 @@
+/* Shared navigation; keep the two footer illustrations in their existing row. */
+.contact-illustration > img:nth-of-type(2) { grid-column: 2 / 4; }
+.contact-illustration > .rules-page-link { grid-column: 1 / -1; justify-self: center; }
+.rules-page-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  max-width: 100%;
+  padding: 0.5rem 0.75rem;
+  color: #fff;
+  font-size: 0.8125rem;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-underline-offset: 0.25em;
+  overflow-wrap: anywhere;
+  touch-action: manipulation;
+}
+.rules-page-link:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+/* The dedicated reference page uses the existing plain dark-blue canvas. */
+.rules-page::before, .rules-page::after { content: none; }
+.rules-page .rules-page__content {
+  width: 96%;
+  max-width: 36rem;
+  min-height: 0;
+  margin: 1.5rem auto 2rem;
+  text-align: center;
+}
+.rules-page__content h1 {
+  margin-bottom: 0.5rem;
+  color: #fff;
+  font-size: clamp(2rem, 8vw, 3rem);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.rules-page__content > .rules-page-link { margin-top: 1rem; }

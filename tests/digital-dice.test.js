@@ -33,7 +33,7 @@ function fakeClock() {
 
 // Existing roll/selection cases open the machine; null tests a fresh preference.
 function fixture({ values = [2, 4, 4, 6], reduced = false, language = "en", game, placeholders = false, expanded = true, preferences, width = 512, selectionHeight = 68 } = {}) {
-  const document = rulesDocument();
+  const document = rulesDocument({ illustrated: false });
   const storage = appTestStorage(game ? serializeGame(game) : null);
   storage.setItem(RULES_LANGUAGE_KEY, language);
   if (expanded !== null) storage.setItem(DIGITAL_DICE_EXPANDED_KEY, String(expanded));
@@ -89,7 +89,7 @@ function fixture({ values = [2, 4, 4, 6], reduced = false, language = "en", game
     addEventListener(type, handler) { motionListeners.add(handler); },
     removeEventListener(type, handler) { motionListeners.delete(handler); },
   };
-  const viewListeners = {};
+  const viewListeners = document.defaultView.listeners;
   document.defaultView.addEventListener = (type, handler) => { (viewListeners[type] ??= new Set()).add(handler); };
   document.defaultView.removeEventListener = (type, handler) => viewListeners[type]?.delete(handler);
   const clock = fakeClock();
@@ -116,6 +116,8 @@ function fixture({ values = [2, 4, 4, 6], reduced = false, language = "en", game
 function pointer(target, type, x, y, id = 1) {
   return target.emit(type, target, { pointerId: id, isPrimary: true, button: 0, clientX: x, clientY: y });
 }
+
+export { fixture as digitalDiceFixture };
 
 export async function runDigitalDiceTests(sources) {
   const results = [];

@@ -4,21 +4,29 @@ import { STORAGE_KEY } from "../js/storage.js";
 import { appTestDocument, appTestStorage } from "./app-initialization.test.js";
 import { assert, assertDeepEqual, assertEqual } from "./assert.js";
 
-export function rulesDocument() {
+export function rulesDocument({ illustrated = true, game = true } = {}) {
   const document = appTestDocument();
-  for (const [tag, id] of [["h2", "rules-heading"], ["img", "rules-image"],
+  if (!game) document.root.replaceChildren();
+  const section = document.createElement(illustrated ? "main" : "section");
+  section.id = "rules";
+  document.root.append(section);
+  const elements = [[illustrated ? "h1" : "h2", "rules-heading"],
     ["img", "rules-fill-de"], ["img", "rules-fill-en"],
     ["button", "rules-language-de"], ["button", "rules-language-en"],
+    ["a", illustrated ? "back-to-game" : "full-rules-link"]];
+  if (illustrated) elements.push(["img", "rules-image"],
     ["button", "open-additional-rules"], ["dialog", "additional-rules-dialog"],
     ["h2", "additional-rules-heading"], ["div", "additional-rules-text"],
-    ["button", "close-additional-rules"]]) {
+    ["button", "close-additional-rules"]);
+  for (const [tag, id] of elements) {
     const node = document.createElement(tag);
     node.id = id;
     node.style = {};
     if (tag === "button") node.type = "button";
-    document.root.append(node);
+    section.append(node);
   }
   document.getElementById("rules-heading").textContent = "Rules";
+  document.getElementById(illustrated ? "back-to-game" : "full-rules-link").href = illustrated ? "./index.html" : "./rules.html";
   document.body = document.root;
   document.body.style = { position: "", top: "", left: "", width: "", overflow: "" };
   document.defaultView.scrollX = 0;
@@ -29,7 +37,7 @@ export function rulesDocument() {
     document.defaultView.scrollX = options.left;
     document.defaultView.scrollY = options.top;
   };
-  document.getElementById("additional-rules-dialog").getBoundingClientRect = () => ({
+  if (illustrated) document.getElementById("additional-rules-dialog").getBoundingClientRect = () => ({
     left: 20, top: 20, right: 300, bottom: 500,
   });
   return document;
@@ -46,7 +54,7 @@ function assertLanguage(document, language) {
   assertEqual(image.lang, language);
   assertEqual(image.width, 2480);
   assertEqual(image.height, 3508);
-  assertEqual(document.getElementById("rules-heading").textContent, "Rules");
+  assertEqual(document.getElementById("rules-heading").textContent, language === "de" ? "Alle Regeln" : "Full Rules");
   for (const option of ["de", "en"]) {
     assertEqual(document.getElementById("rules-language-" + option).getAttribute("aria-pressed"), String(option === language));
     assertEqual(document.getElementById("rules-fill-" + option).hidden, option !== language);
@@ -222,9 +230,9 @@ export function runRulesTests() {
     assertDeepEqual(document.getElementById("additional-rules-text").children.map((node) => node.textContent), [
       "All numbers placed on the board turn into points.",
       "Placing two prime numbers next to eachother freezes the cell.",
-      "Points may be used to challenge another player. The challenge is a blind auction and works as follows: both players secretly bid points, bids are then confirmed and revealed. The higher bid wins.",
-      "Both bids are spent and the points subtracted from the players.",
-      "The winner may freeze a cell of the losers board or unfreeze their own cell.",
+      "Before a normal dice turn, a player may challenge another player. Both secretly bid Frosty Dollars, then confirm and reveal. The higher bid wins. Equal bids have no winner: bid again until the bids differ.",
+      "Both players spend their confirmed bids regardless of who wins. After the Challenge, the player who initiated it may still take their normal dice turn.",
+      "The winner chooses exactly one action: Freeze an eligible opponent cell OR remove Attack Ice from an eligible cell of their own. Both players have the same options. New Attack Ice is not allowed in the first row.",
     ]);
     assertEqual(document.activeElement, document.getElementById("close-additional-rules"));
     assertEqual(document.body.style.position, "fixed");
@@ -241,10 +249,10 @@ export function runRulesTests() {
     assertDeepEqual(document.getElementById("additional-rules-text").children.map((node) => node.textContent), [
       "Alle Zahlen, die auf dem Spielfeld platziert werden, zählen als Punkte.",
       "Werden zwei Primzahlen nebeneinander platziert, friert das entsprechende Feld ein.",
-      "Punkte können verwendet werden, um einen anderen Spieler herauszufordern. Die Herausforderung erfolgt in Form einer verdeckten Auktion und funktioniert wie folgt:",
-      "Beide Spieler bieten geheim eine bestimmte Anzahl Punkte. Sobald beide Gebote bestätigt wurden, werden sie aufgedeckt. Der Spieler mit dem höheren Gebot gewinnt.",
-      "Beide Spieler verlieren die jeweils gebotenen Punkte, unabhängig davon, wer gewonnen hat.",
-      "Der Gewinner darf entweder ein Feld auf dem Spielfeld des Verlierers einfrieren oder eines seiner eigenen eingefrorenen Felder auftauen.",
+      "Vor dem normalen Würfelzug kann ein Spieler einen anderen herausfordern. Beide bieten verdeckt Frosty Dollars und bestätigen ihre Gebote.",
+      "Die Gebote werden aufgedeckt; das höhere Gebot gewinnt. Gleiche Gebote haben keinen Gewinner: Beide bieten erneut, bis sich die Gebote unterscheiden.",
+      "Beide Spieler bezahlen ihr bestätigtes Gebot, unabhängig vom Gewinner. Wer die Challenge begonnen hat, darf danach noch seinen normalen Würfelzug machen.",
+      "Der Gewinner wählt genau eine Aktion: ein geeignetes gegnerisches Feld einfrieren ODER Attack Ice von einem geeigneten eigenen Feld entfernen. Beide Spieler haben dieselben Optionen. In der ersten Reihe darf kein neues Attack Ice platziert werden.",
     ]);
   });
 
@@ -389,6 +397,112 @@ export function runRulesTests() {
     assertEqual(document.getElementById("current-score").textContent, "44");
     assertEqual(document.getElementById("undo-move").disabled, false);
     assertEqual(document.getElementById("challenge-dialog").open, false);
+  });
+
+  test("The dedicated page shows Full Rules immediately with a localized Back to Game link", () => {
+    const document = rulesDocument({ game: false });
+    initializeRules(document, appTestStorage());
+    assertEqual(document.getElementById("game-board"), null);
+    assertEqual(document.getElementById("full-rules-toggle"), null);
+    assertEqual(document.getElementById("rules-image").hidden, false);
+    assertEqual(document.getElementById("back-to-game").textContent, "BACK TO GAME");
+    assertEqual(document.getElementById("back-to-game").href, "./index.html");
+    selectLanguage(document, "de");
+    assertLanguage(document, "de");
+    assertEqual(document.title, "Alle Regeln — Frosty Dice");
+    assertEqual(document.documentElement.lang, "de");
+    assertEqual(document.getElementById("back-to-game").textContent, "ZURÜCK ZUM SPIEL");
+    assertEqual(openAdditionalRules(document).lang, "de");
+    closeAdditionalRules(document);
+    assertEqual(document.activeElement, document.getElementById("open-additional-rules"));
+  });
+
+  test("Main-page language controls and footer initialize without any illustrated Rules or modal nodes", () => {
+    const document = rulesDocument({ illustrated: false, game: false });
+    initializeRules(document, appTestStorage());
+    for (const id of ["rules-image", "additional-rules-dialog", "open-additional-rules", "full-rules-panel"]) {
+      assertEqual(document.getElementById(id), null);
+    }
+    const link = document.getElementById("full-rules-link");
+    assertEqual(link.href, "./rules.html");
+    assertEqual(link.tagName, "a");
+    assertEqual(link.textContent, "FULL RULES");
+    selectLanguage(document, "de");
+    assertEqual(link.textContent, "ALLE REGELN");
+    assertEqual(document.getElementById("rules-heading").textContent, "Regeln");
+    assertEqual(document.getElementById("rules-language-de").getAttribute("aria-pressed"), "true");
+  });
+
+  test("Navigation to Rules and back shares only language, preserving the saved game and Undo", () => {
+    const storage = appTestStorage();
+    const main = rulesDocument({ illustrated: false });
+    initializeRules(main, storage);
+    initializeApp(main, storage);
+    main.getElementById("board-rows").emit("click", main.getElementById("cell-A1"));
+    main.getElementById("cell-A1").value = "22";
+    main.getElementById("cell-A1").emit("input");
+    const saved = storage.getItem(STORAGE_KEY);
+    selectLanguage(main, "de");
+    const rules = rulesDocument({ game: false });
+    initializeRules(rules, storage);
+    assertLanguage(rules, "de");
+    selectLanguage(rules, "en");
+    openAdditionalRules(rules); closeAdditionalRules(rules);
+    const returned = rulesDocument({ illustrated: false });
+    initializeRules(returned, storage);
+    initializeApp(returned, storage);
+    assertEqual(returned.getElementById("full-rules-link").textContent, "FULL RULES");
+    assertEqual(returned.getElementById("cell-A1").dataset.state, "normal");
+    assertEqual(returned.getElementById("current-score").textContent, "44");
+    assertEqual(returned.getElementById("undo-move").disabled, false);
+    assertEqual(storage.getItem(STORAGE_KEY), saved);
+  });
+
+  test("Safari Back restoration and cross-page storage changes refresh language without writes", () => {
+    const storage = appTestStorage();
+    const main = rulesDocument({ illustrated: false });
+    initializeRules(main, storage);
+    const rules = rulesDocument({ game: false });
+    initializeRules(rules, storage);
+    const changes = [];
+    main.addEventListener("ruleslanguagechange", (event) => changes.push(event.detail));
+    selectLanguage(rules, "de");
+    storage.setItem = () => { throw new Error("Restoring a page must not write preferences"); };
+    main.defaultView.dispatchEvent({ type: "pageshow", persisted: true });
+    assertEqual(main.getElementById("full-rules-link").textContent, "ALLE REGELN");
+    assertDeepEqual(changes, ["de"]);
+    main.defaultView.dispatchEvent({ type: "pageshow", persisted: true });
+    assertDeepEqual(changes, ["de"]);
+    storage.removeItem(RULES_LANGUAGE_KEY);
+    main.defaultView.dispatchEvent({ type: "storage", key: RULES_LANGUAGE_KEY });
+    assertEqual(main.getElementById("full-rules-link").textContent, "FULL RULES");
+    assertDeepEqual(changes, ["de", "en"]);
+  });
+
+  test("Cross-page language changes also update an already-open Additional Rules modal without closing it", () => {
+    const storage = appTestStorage();
+    const main = rulesDocument({ illustrated: false });
+    const rules = rulesDocument({ game: false });
+    initializeRules(main, storage);
+    initializeRules(rules, storage);
+    const dialog = openAdditionalRules(rules);
+    selectLanguage(main, "de");
+    rules.defaultView.dispatchEvent({ type: "storage", key: RULES_LANGUAGE_KEY });
+    assertEqual(dialog.open, true);
+    assertEqual(dialog.lang, "de");
+    assertEqual(rules.getElementById("additional-rules-heading").textContent, "Zusätzliche Regeln");
+    assertEqual(rules.getElementById("additional-rules-text").children.length, 6);
+    assertEqual(rules.activeElement, rules.getElementById("close-additional-rules"));
+    closeAdditionalRules(rules);
+    assertEqual(rules.body.style.position, "");
+  });
+
+  test("Blocked storage preserves a session language when returning to the page", () => {
+    const document = rulesDocument({ illustrated: false });
+    initializeRules(document, { getItem() { throw new Error("Blocked"); }, setItem() { throw new Error("Blocked"); } });
+    selectLanguage(document, "de");
+    document.defaultView.dispatchEvent({ type: "pageshow", persisted: true });
+    assertEqual(document.getElementById("full-rules-link").textContent, "ALLE REGELN");
   });
 
   return results;

@@ -87,7 +87,7 @@ export function createChallengeNote(document) {
     amount = "";
     input.value = "";
     input.readOnly = false;
-    const german = document.getElementById("rules-image")?.lang === "de";
+    const german = document.getElementById("rules-language-de")?.getAttribute("aria-pressed") === "true";
     cover.lang = german ? "de" : "en";
     cover.setAttribute("aria-label", german ? "Zum Aufdecken tippen" : "Tap to reveal");
     setPhase("editing");

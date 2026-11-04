@@ -111,7 +111,7 @@ export async function runPwaTests(sources) {
   if (!sources) {
     try {
       const paths = { worker: "../service-worker.js", registration: "../js/pwa.js", manifest: "../manifest.webmanifest", html: "../index.html",
-        app: "../js/app.js", storage: "../js/storage.js", css: "../css/style.css", receipt: "../js/receipt.js" };
+        app: "../js/app.js", storage: "../js/storage.js", css: "../css/style.css", receipt: "../js/receipt.js", rulesHtml: "../rules.html", rulesCss: "../css/rules-page.css" };
       sources = Object.fromEntries(await Promise.all(Object.entries(paths).map(async ([name, url]) => {
         const result = await fetch(url, { cache: "no-store" });
         if (!result.ok) throw new Error("Cannot load " + url);
@@ -147,8 +147,8 @@ export async function runPwaTests(sources) {
 
   await test("Receipt release uses fresh matching module URLs in Safari and the offline cache", () => {
     const worker = workerHarness(sources.worker);
-    assert(sources.html.includes('src="./js/app.js?v=receipt-4"'));
-    for (const [name, version] of [["app", "receipt-4"], ["game", "receipt-2"], ["storage", "receipt-2"], ["receipt", "receipt-4"]]) {
+    assert(sources.html.includes('src="./js/app.js?v=rules-page-1"'));
+    for (const [name, version] of [["app", "rules-page-1"], ["game", "receipt-2"], ["storage", "receipt-2"], ["receipt", "receipt-4"]]) {
       const path = "/js/" + name + ".js?v=" + version;
       assertDeepEqual(worker.PRECACHE_URLS.filter((url) => url.startsWith("/js/" + name + ".js?")), [path]);
     }
@@ -190,13 +190,13 @@ export async function runPwaTests(sources) {
     const worker = workerHarness(sources.worker);
     await worker.lifecycle("install");
     worker.offline = true;
-    const paths = ["/js/digital-dice.js?v=digital-dice-4", ...["dice_machine", "dice_lever", "dice_lever_base", "dice_1", "dice_2", "dice_3", "dice_4", "dice_5", "dice_6"].map((name) => "/assets/digital_dice/" + name + ".png")];
+    const paths = ["/js/digital-dice.js?v=rules-page-1", ...["dice_machine", "dice_lever", "dice_lever_base", "dice_1", "dice_2", "dice_3", "dice_4", "dice_5", "dice_6"].map((name) => "/assets/digital_dice/" + name + ".png")];
     for (const path of paths) {
       assert(worker.PRECACHE_URLS.includes(path), path);
       assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
     }
     assertEqual(worker.networkCalls.length, 0);
-    assert(sources.html.includes('src="./js/digital-dice.js?v=digital-dice-4"'));
+    assert(sources.html.includes('src="./js/digital-dice.js?v=rules-page-1"'));
   });
 
   await test("All four hand-drawn sale stickers are available offline", async () => {
@@ -224,16 +224,35 @@ export async function runPwaTests(sources) {
   await test("Rules keep their anchor and English heading with semantic accessible language buttons", () => {
     assert(sources.html.includes('href="#rules"'));
     assert(sources.html.includes('<h2 id="rules-heading">Rules</h2>'));
-    assert(sources.html.includes('id="rules-image" src="./assets/Rules.png"'));
-    assert(sources.html.includes('src="./js/rules.js?v=additional-rules-1"'));
+    assert(sources.rulesHtml.includes('<h1 id="rules-heading">Full Rules</h1>'));
+    assert(!sources.html.includes('id="rules-image"'));
+    assert(sources.rulesHtml.includes('id="rules-image" src="./assets/Rules.png"'));
+    assert(sources.html.includes('src="./js/rules.js?v=rules-page-1"'));
     for (const [language, label, pressed] of [["de", "Deutsch", "false"], ["en", "English", "true"]]) {
       const button = sources.html.match(new RegExp('<button id="rules-language-' + language + '"[^>]*>'))?.[0];
       assert(button, language);
       assert(button.includes('type="button"'));
       assert(button.includes('aria-label="' + label + '"'));
       assert(button.includes('aria-pressed="' + pressed + '"'));
-      assert(button.includes('aria-controls="rules-image"'));
+      assert(button.includes('aria-controls="interactive-tutorial"'));
+      const rulesButton = sources.rulesHtml.match(new RegExp('<button id="rules-language-' + language + '"[^>]*>'))?.[0];
+      assert(rulesButton.includes('aria-controls="rules-image"'));
     }
+  });
+
+  await test("Tutorial modules, scoped styling, and reused artwork are available offline", async () => {
+    const worker = workerHarness(sources.worker);
+    await worker.lifecycle("install");
+    worker.offline = true;
+    for (const path of ["/js/tutorial.js?v=rules-page-1", "/js/tutorial-scenes.js?v=tutorial-2",
+      "/css/tutorial.css?v=tutorial-1", "/js/rules.js?v=rules-page-1", "/assets/Rules.png",
+      "/assets/rules_german.png", "/assets/bid.png", "/assets/bid_front.png",
+      "/assets/icecube2.png", "/assets/receipt.png", "/assets/d7_flag.png",
+      ...[1, 2, 3, 4, 5, 6].map((value) => "/assets/digital_dice/dice_" + value + ".png")]) {
+      assert(worker.PRECACHE_URLS.includes(path), path);
+      assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
+    }
+    assertEqual(worker.networkCalls.length, 0);
   });
 
   await test("Registration waits for page load and checks for updates without the HTTP cache", async () => {
@@ -271,7 +290,7 @@ export async function runPwaTests(sources) {
     const worker = workerHarness(sources.worker);
     await worker.lifecycle("install");
     worker.offline = true;
-    for (const path of ["/assets/bid.png", "/assets/bid_front.png", "/js/challenge-note.js?v=frosty-dollar-1"]) {
+    for (const path of ["/assets/bid.png", "/assets/bid_front.png", "/js/challenge-note.js?v=rules-page-1"]) {
       assert(worker.PRECACHE_URLS.includes(path), path);
       assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
     }
@@ -320,6 +339,46 @@ export async function runPwaTests(sources) {
     assertEqual(worker.networkCalls.length, 0);
   });
 
+  await test("Rules and game navigations keep their distinct offline pages, including query variants", async () => {
+    const worker = workerHarness(sources.worker);
+    await worker.lifecycle("install");
+    worker.offline = true;
+    for (const path of ["/rules.html", "/rules.html?from=footer", "/index.html", "/"]) {
+      const page = path.startsWith("/rules.html") ? "/rules.html" : "/index.html";
+      assertEqual((await worker.request(path, { mode: "navigate" })).body, "cached:" + ORIGIN + page);
+    }
+    for (const path of ["/css/rules-page.css?v=rules-page-1", "/js/rules.js?v=rules-page-1",
+      "/assets/Rules.png", "/assets/rules_german.png", "/assets/language_select.png",
+      "/assets/language_de_fill.png", "/assets/language_en_fill.png"]) {
+      assert(worker.PRECACHE_URLS.includes(path));
+      assertEqual((await worker.request(path)).body, "cached:" + ORIGIN + path);
+    }
+    assertEqual(worker.networkCalls.length, 0);
+  });
+
+  await test("The standalone Rules page reuses the original reference UI and links, without game components", () => {
+    assert(sources.html.includes('id="full-rules-link" class="rules-page-link" href="./rules.html"'));
+    assert(sources.rulesHtml.includes('id="back-to-game" class="rules-page-link" href="./index.html"'));
+    assert(sources.rulesHtml.includes('<title>Full Rules — Frosty Dice</title>'));
+    assert(sources.rulesHtml.includes('class="rules-page"'));
+    assert(sources.rulesHtml.includes('id="open-additional-rules"'));
+    assert(sources.rulesHtml.includes('id="additional-rules-dialog"'));
+    assert(sources.rulesHtml.includes('src="./js/rules.js?v=rules-page-1"'));
+    assert(sources.rulesHtml.includes('src="./js/pwa.js"'));
+    for (const name of ["app", "digital-dice", "tutorial", "receipt", "challenge-note"]) {
+      assert(!sources.rulesHtml.includes('src="./js/' + name + '.js'));
+    }
+    for (const id of ["game-board", "tutorial-toggle", "digital-dice", "challenge-dialog", "receipt-dialog", "new-game"]) {
+      assert(!sources.rulesHtml.includes('id="' + id + '"'));
+    }
+    assert(sources.rulesCss.includes('.rules-page::before, .rules-page::after { content: none; }'));
+    assert(sources.rulesCss.includes('max-width: 36rem;'));
+    assert(sources.rulesCss.includes('min-height: 48px;'));
+    assert(sources.rulesCss.includes('.contact-illustration > img:nth-of-type(2) { grid-column: 2 / 4; }'));
+    assert(!/100vw|width:\s*\d{3,}px/.test(sources.rulesCss));
+    assert(/width: 100%;\s*height: auto;/.test(sources.css));
+  });
+
   await test("Every precached module, icon, and image is available offline without a network request", async () => {
     const worker = workerHarness(sources.worker);
     await worker.lifecycle("install");
@@ -348,7 +407,7 @@ export async function runPwaTests(sources) {
     await worker.lifecycle("install");
     worker.offline = true;
     for (const path of ["/assets/Rules.png", "/assets/rules_german.png", "/assets/language_select.png",
-      "/assets/language_de_fill.png", "/assets/language_en_fill.png", "/js/rules.js?v=additional-rules-1"]) {
+      "/assets/language_de_fill.png", "/assets/language_en_fill.png", "/js/rules.js?v=rules-page-1"]) {
       assert(worker.PRECACHE_URLS.includes(path), path);
       assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
     }

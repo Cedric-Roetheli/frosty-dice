@@ -55,8 +55,11 @@ class AppTestElement {
   }
   querySelectorAll(selector) { return this.descendants().filter((node) => node.matches(selector)); }
   querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; }
+  contains(node) { return node === this || this.descendants().includes(node); }
   closest(selector) { return this.matches(selector) ? this : this.parentNode?.closest(selector) ?? null; }
   addEventListener(type, handler) { (this.listeners[type] ??= []).push(handler); }
+  removeEventListener(type, handler) { this.listeners[type] = (this.listeners[type] ?? []).filter((entry) => entry !== handler); }
+  scrollIntoView(options) { this.lastScrollOptions = options; }
   showModal() { this.open = true; }
   close() { this.open = false; }
   emit(type, target = this, properties = {}) {
@@ -77,6 +80,11 @@ export function appTestDocument() {
   const pendingTimers = new Map();
   const document = {
     defaultView: {
+      listeners: {},
+      CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } },
+      addEventListener(type, handler) { (this.listeners[type] ??= new Set()).add(handler); },
+      removeEventListener(type, handler) { this.listeners[type]?.delete(handler); },
+      dispatchEvent(event) { this.listeners[event.type]?.forEach((handler) => handler(event)); },
       setTimeout(callback, delay) { pendingTimers.set(++nextTimer, { callback, delay }); return nextTimer; },
       clearTimeout(id) { pendingTimers.delete(id); },
     },
@@ -87,9 +95,15 @@ export function appTestDocument() {
     },
     listeners: {},
     createElement(tag) { return new AppTestElement(tag, this); },
+    createElementNS(namespace, tag) { return this.createElement(tag); },
     createDocumentFragment() { return this.createElement("#fragment"); },
     getElementById(id) { return this.root.descendants().find((node) => node.id === id) ?? null; },
     addEventListener(type, handler) { (this.listeners[type] ??= []).push(handler); },
+    removeEventListener(type, handler) { this.listeners[type] = (this.listeners[type] ?? []).filter((entry) => entry !== handler); },
+    dispatchEvent(event) {
+      for (const handler of this.listeners[event.type] ?? []) handler(event);
+      return !event.defaultPrevented;
+    },
     emit(type, target = this.root, properties = {}) {
       const event = { target, ...properties, preventDefault() { this.defaultPrevented = true; } };
       for (const handler of this.listeners[type] ?? []) handler(event);
@@ -97,6 +111,7 @@ export function appTestDocument() {
     },
   };
   document.root = document.createElement("#root");
+  document.documentElement = document.root;
   function add(tag, id, parent = document.root) {
     const node = document.createElement(tag);
     node.id = id;
@@ -211,10 +226,10 @@ function startNoteTest({ reducedMotion = false, language = "en", largeBalance = 
     assertEqual(query, "(prefers-reduced-motion: reduce)");
     return motion;
   };
-  const rulesImage = document.createElement("img");
-  rulesImage.id = "rules-image";
-  rulesImage.lang = language;
-  document.root.append(rulesImage);
+  const languageButton = document.createElement("button");
+  languageButton.id = "rules-language-de";
+  languageButton.setAttribute("aria-pressed", String(language === "de"));
+  document.root.append(languageButton);
   const board = largeBalance
     ? boardFixture(...Array.from({ length: 7 }, (_, row) => [21, 22, 33, 44].map((value, column) => ["ABCD"[column] + (row + 1), value])).flat())
     : boardFixture(["A1", 23], ["B1", 24]);

@@ -17,7 +17,7 @@ import {
 } from "./game.js?v=receipt-2";
 import { getCellScoreMultiplier, getScoreBreakdown } from "./scoring.js?v=v3-multipliers-1";
 import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=receipt-2";
-import { createChallengeNote } from "./challenge-note.js?v=frosty-dollar-1";
+import { createChallengeNote } from "./challenge-note.js?v=rules-page-1";
 import { createReceipt, formatFrostyDollars } from "./receipt.js?v=receipt-4";
 
 // Shorten the core's explanations, without evaluating placement rules in the UI.
