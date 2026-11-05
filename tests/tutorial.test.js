@@ -521,7 +521,7 @@ export async function runTutorialTests(sources) {
 
   test("Semantic HTML, isolated styling, reduced motion, fixed receipt, and no surprise-mechanic copy", () => {
     assert(sources.html.includes('href="./css/tutorial.css?v=tutorial-1"'));
-    assert(sources.html.includes('src="./js/tutorial.js?v=rules-page-1"'));
+    assert(sources.html.includes('src="./js/tutorial.js?v=receipt-5"'));
     for (const [toggle, panel] of [["tutorial-toggle", "tutorial-panel"]]) {
       const button = sources.html.match(new RegExp('<button id="' + toggle + '"[^>]*>'))?.[0];
       assert(button.includes('type="button"'));

@@ -350,14 +350,16 @@ never save, spend, or create Undo. The receipt starts closed after every launch,
 including at the local goal, and reaching D7 does not open it automatically.
 
 On each new opening, choose independently and uniformly among `assets/receipt.png`,
-`assets/receipt2.png`, `assets/receipt3.png`, and `assets/receipt4.png` (25% each).
+`assets/receipt2.png`, `assets/receipt3.png`, `assets/receipt4.png`,
+`assets/receipt6.png` (Frosty Gardens), and `assets/receipt7.png` (Frosty Charity Run),
+with a 1/6 probability for each design.
 Consecutive repeats are allowed. Keep the design stable while the receipt is
 open; rendering or repeated open calls do not draw again. The choice is temporary
 presentation state, independent of the board, balance, spending/history, meadow,
-language, and saved game. Preload all four images and assign the new source while
+language, and saved game. Preload all six images and assign the new source while
 the modal is still closed, before the existing entrance animation.
 
-All four unchanged PNGs are 1440 × 3200 with matching paper bounds, RECEIPT heading,
+All six unchanged PNGs are 1440 × 3200 with matching paper bounds, RECEIPT heading,
 separator positions, blank content region, barcode, and bottom edge. Their logos
 and footer wording differ, without requiring layout changes. Reuse one image and
 the existing shared overlays at the natural aspect ratio. The actual blank centre
@@ -371,7 +373,8 @@ score after `pointsSpent`, exactly matching the Challenge maximum. Derive both
 on every render/open. Existing aggregate spending may exceed itemized history;
 show that remainder as earlier spending, never as invented Challenge records.
 
-Show chronological expenses as “1x Challenge #01” and “-$50” with flexible CSS
+Use the same Challenge transaction names on all six designs; do not theme them
+after the illustration. Show chronological expenses as “1x Challenge #01” and “-$50” with flexible CSS
 dotted leaders. Transactions follow BOARD VALUE directly, with no separate
 CHALLENGE HISTORY heading, outcome symbols, outcome fields, or winner inference.
 The independent devices cannot reliably associate results with these expenses.
@@ -402,7 +405,7 @@ from the label, transactions, thank-you message, and barcode.
 Use a restrained 450ms downward entrance on the receipt alone; reduced motion
 shows it immediately. Keep existing Challenge flips unchanged. Reset clears
 history and spending, restarts numbering at #01, and preserves Rules language.
-Precache all four artworks and the receipt controller in the existing versioned shell.
+Precache all six receipt artworks and the receipt controller in the existing versioned shell.
 
 ## 9. Technical constraints
 

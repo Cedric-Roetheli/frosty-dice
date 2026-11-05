@@ -147,14 +147,14 @@ export async function runPwaTests(sources) {
 
   await test("Receipt release uses fresh matching module URLs in Safari and the offline cache", () => {
     const worker = workerHarness(sources.worker);
-    assert(sources.html.includes('src="./js/app.js?v=rules-page-1"'));
-    for (const [name, version] of [["app", "rules-page-1"], ["game", "receipt-2"], ["storage", "receipt-2"], ["receipt", "receipt-4"]]) {
+    assert(sources.html.includes('src="./js/app.js?v=receipt-5"'));
+    for (const [name, version] of [["app", "receipt-5"], ["game", "receipt-2"], ["storage", "receipt-2"], ["receipt", "receipt-5"]]) {
       const path = "/js/" + name + ".js?v=" + version;
       assertDeepEqual(worker.PRECACHE_URLS.filter((url) => url.startsWith("/js/" + name + ".js?")), [path]);
     }
     assert(sources.app.includes('from "./game.js?v=receipt-2"'));
     assert(sources.app.includes('from "./storage.js?v=receipt-2"'));
-    assert(sources.app.includes('from "./receipt.js?v=receipt-4"'));
+    assert(sources.app.includes('from "./receipt.js?v=receipt-5"'));
     assert(sources.storage.includes('from "./game.js?v=receipt-2"'));
     for (const source of [sources.app, sources.storage]) {
       assert(!source.includes("game.js?v=v3-multipliers-1"));
@@ -162,11 +162,13 @@ export async function runPwaTests(sources) {
     }
   });
 
-  await test("All four receipt backgrounds are precached and available offline", async () => {
+  await test("Exactly six receipt backgrounds are precached and available offline", async () => {
     const worker = workerHarness(sources.worker);
     await worker.lifecycle("install");
     worker.offline = true;
-    for (const name of ["receipt.png", "receipt2.png", "receipt3.png", "receipt4.png"]) {
+    const names = ["receipt.png", "receipt2.png", "receipt3.png", "receipt4.png", "receipt6.png", "receipt7.png"];
+    assertDeepEqual(worker.PRECACHE_URLS.filter((path) => /^\/assets\/receipt\d*\.png$/.test(path)), names.map((name) => "/assets/" + name));
+    for (const name of names) {
       const path = "/assets/" + name;
       assert(worker.PRECACHE_URLS.includes(path));
       assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
@@ -178,7 +180,7 @@ export async function runPwaTests(sources) {
     const worker = workerHarness(sources.worker);
     await worker.lifecycle("install");
     worker.offline = true;
-    for (const path of ["/assets/icecube.png", "/assets/icecube2.png", "/assets/receipt.png", "/js/receipt.js?v=receipt-4", "/css/style.css?v=digital-dice-4"]) {
+    for (const path of ["/assets/icecube.png", "/assets/icecube2.png", "/assets/receipt.png", "/js/receipt.js?v=receipt-5", "/css/style.css?v=digital-dice-4"]) {
       assert(worker.PRECACHE_URLS.includes(path), path);
       assertEqual((await worker.request(path)).body, "cached:" + absolute(path));
     }
@@ -244,7 +246,7 @@ export async function runPwaTests(sources) {
     const worker = workerHarness(sources.worker);
     await worker.lifecycle("install");
     worker.offline = true;
-    for (const path of ["/js/tutorial.js?v=rules-page-1", "/js/tutorial-scenes.js?v=tutorial-2",
+    for (const path of ["/js/tutorial.js?v=receipt-5", "/js/tutorial-scenes.js?v=tutorial-2",
       "/css/tutorial.css?v=tutorial-1", "/js/rules.js?v=rules-page-1", "/assets/Rules.png",
       "/assets/rules_german.png", "/assets/bid.png", "/assets/bid_front.png",
       "/assets/icecube2.png", "/assets/receipt.png", "/assets/d7_flag.png",

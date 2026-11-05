@@ -18,7 +18,7 @@ import {
 import { getCellScoreMultiplier, getScoreBreakdown } from "./scoring.js?v=v3-multipliers-1";
 import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=receipt-2";
 import { createChallengeNote } from "./challenge-note.js?v=rules-page-1";
-import { createReceipt, formatFrostyDollars } from "./receipt.js?v=receipt-4";
+import { createReceipt, formatFrostyDollars } from "./receipt.js?v=receipt-5";
 
 // Shorten the core's explanations, without evaluating placement rules in the UI.
 function placementFeedback(reason) {

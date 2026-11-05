@@ -852,6 +852,30 @@ documents. No browser automation or screenshots were used. Original artwork,
 game rules, core gameplay/scoring/storage, tutorial scenes/styles/animation
 timings, and the existing main stylesheet remain unchanged. No commit or push.
 
+## Additional receipt artwork — Six uniform variants
+
+Extend the existing receipt background collection with the unchanged receipt6.png
+(Frosty Gardens) and receipt7.png (Frosty Charity Run). All six source files are
+1440 × 3200 with matching alpha bounds; the two new designs retain the same
+RECEIPT heading/separators, dynamic accounting area, barcode, and paper edges.
+Reuse the existing layout without design-specific adjustments.
+
+Keep the original uniform random choice on each closed-to-open transition, now
+with a 1/6 probability per design and consecutive repeats permitted. Extend the
+same image preloading and precache lists. All designs retain Challenge #01/#02
+labels, shared values/history/scrolling/stickers/separator lines, animations, and
+close behavior. Do not persist a design or alter game state, scoring, or artwork.
+
+Bump cache v30 to v31 and align the receipt module and its importers at receipt-5;
+other component changes are limited to those import/version references. Update
+focused six-design selection, per-opening/repeat, accounting/history invariance,
+preload, and offline tests. Do not run browser automation, commit, or push.
+
+**Status: Implemented.** Relevant JavaScriptCore tests pass **69/69** (42 receipt,
+27 PWA). The existing component, layout, animations, scoring, game state, and all
+source PNGs remain unchanged; only the background collection/loading/cache lists
+and matching module URL versions were extended. No commit or push.
+
 ## Workflow
 
 Read the specifications, implement the current scope, keep rules deterministic,

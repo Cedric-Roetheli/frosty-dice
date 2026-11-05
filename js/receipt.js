@@ -6,6 +6,8 @@ export const RECEIPT_BACKGROUNDS = Object.freeze([
   "./assets/receipt2.png",
   "./assets/receipt3.png",
   "./assets/receipt4.png",
+  "./assets/receipt6.png",
+  "./assets/receipt7.png",
 ]);
 
 export function chooseReceiptBackground(random = Math.random) {

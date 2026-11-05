@@ -53,10 +53,10 @@ export async function runReceiptTests(sources) {
     }
   }
 
-  test("All four receipt designs have equal quarter-interval probability", () => {
-    assertDeepEqual(RECEIPT_BACKGROUNDS, ["./assets/receipt.png", "./assets/receipt2.png", "./assets/receipt3.png", "./assets/receipt4.png"]);
-    for (let index = 0; index < 4; index += 1) {
-      for (const sample of [index / 4, (index + 0.5) / 4, (index + 1) / 4 - 0.000001]) {
+  test("Exactly six receipt designs have equal one-sixth selection intervals", () => {
+    assertDeepEqual(RECEIPT_BACKGROUNDS, ["./assets/receipt.png", "./assets/receipt2.png", "./assets/receipt3.png", "./assets/receipt4.png", "./assets/receipt6.png", "./assets/receipt7.png"]);
+    for (let index = 0; index < 6; index += 1) {
+      for (const sample of [index / 6, (index + 0.5) / 6, (index + 1) / 6 - 0.000001]) {
         assertEqual(chooseReceiptBackground(() => sample), RECEIPT_BACKGROUNDS[index]);
       }
     }
@@ -64,14 +64,14 @@ export async function runReceiptTests(sources) {
 
   test("Every new opening draws once, permits consecutive repeats, and stays stable during renders and repeated open calls", () => {
     const document = appTestDocument();
-    const samples = [0, 0.25, 0.5, 0.75, 0.75, 0];
+    const samples = [0, 1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6, 5 / 6, 0];
     let draws = 0;
     const receipt = createReceipt(document, createGameState, () => samples[draws++]);
     const image = document.getElementById("receipt-art");
     const dialog = document.getElementById("receipt-dialog");
     const showModal = dialog.showModal.bind(dialog);
     dialog.showModal = () => {
-      assertEqual(image.src, RECEIPT_BACKGROUNDS[Math.floor(samples[draws - 1] * 4)]);
+      assertEqual(image.src, RECEIPT_BACKGROUNDS[Math.floor(samples[draws - 1] * 6)]);
       showModal();
     };
     receipt.render();
@@ -87,17 +87,18 @@ export async function runReceiptTests(sources) {
       receipt.close();
       assertEqual(draws, index + 1);
     }
-    assertDeepEqual(shown, [...RECEIPT_BACKGROUNDS, RECEIPT_BACKGROUNDS[3], RECEIPT_BACKGROUNDS[0]]);
+    assertDeepEqual(shown, [...RECEIPT_BACKGROUNDS, RECEIPT_BACKGROUNDS[5], RECEIPT_BACKGROUNDS[0]]);
   });
 
   test("Every receipt design shares unchanged Board Value, expenses, balance, stickers, and game/Undo data", () => {
     let game = placeGameNumber(createGameState(), "A1", 22);
     game = placeGameNumber(game, "B1", 24);
     game = confirmGameBid(game, 10);
+    game = confirmGameBid(game, 5);
     const before = JSON.stringify(game);
     const document = appTestDocument();
     let draws = 0;
-    const receipt = createReceipt(document, () => game, () => draws++ / 4);
+    const receipt = createReceipt(document, () => game, () => draws++ / 6);
     const image = document.getElementById("receipt-art");
     for (const design of RECEIPT_BACKGROUNDS) {
       receipt.open();
@@ -105,9 +106,10 @@ export async function runReceiptTests(sources) {
       assertEqual(image.src, design);
       assertEqual(image.width, 1440); assertEqual(image.height, 3200);
       assertEqual(document.getElementById("receipt-board-value").textContent, "$68");
-      assertEqual(document.getElementById("receipt-total").textContent, "$58");
+      assertEqual(document.getElementById("receipt-total").textContent, "$53");
       assertEqual(document.getElementById("receipt-sale-sticker").src, "./assets/sale_orange.png");
       assertEqual(history(document)[0].textContent, "1x Challenge #01-$10");
+      assertEqual(history(document)[1].textContent, "1x Challenge #02-$5");
       assert(document.getElementById("receipt-prior-spending").hidden);
       assertEqual(JSON.stringify(game), before);
       receipt.close();
@@ -118,7 +120,7 @@ export async function runReceiptTests(sources) {
     const game = confirmGameBid(placeGameNumber(createGameState(), "A1", 22), 5);
     const { document, storage } = start(game);
     const saved = storage.getItem(STORAGE_KEY);
-    for (let visit = 0; visit < 4; visit += 1) {
+    for (let visit = 0; visit < 6; visit += 1) {
       open(document);
       assert(RECEIPT_BACKGROUNDS.includes(document.getElementById("receipt-art").src));
       assertEqual(document.getElementById("receipt-board-value").textContent, "$44");
@@ -130,7 +132,7 @@ export async function runReceiptTests(sources) {
     }
   });
 
-  test("All four designs preload for the same single receipt image and preserve its natural dimensions", () => {
+  test("All six designs preload for the same single receipt image and preserve its natural dimensions", () => {
     const head = sources.html.split("</head>")[0];
     for (const path of RECEIPT_BACKGROUNDS) assert(head.includes('rel="preload" as="image" href="' + path + '"'));
     assertEqual((sources.html.match(/id="receipt-art"/g) ?? []).length, 1);
