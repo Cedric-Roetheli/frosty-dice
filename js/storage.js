@@ -1,4 +1,4 @@
-import { BOARD_COLUMNS, BOARD_ROW_COUNT, cloneGameState, createGameState, isPrimeNumber, isValidBoard, isValidGameState } from "./game.js?v=receipt-2";
+import { BOARD_COLUMNS, BOARD_ROW_COUNT, cloneGameState, createGameState, isPrimeNumber, isValidBoard, isValidGameState } from "./game.js?v=two-player-1";
 
 export const STORAGE_KEY = "frosty-dice.game";
 export const SAVE_VERSION = 8;

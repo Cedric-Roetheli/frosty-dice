@@ -3,6 +3,12 @@
 > This document is the source of truth for the redesigned game. Physical turns
 > happen at the table; the website records one player's board.
 
+This document defines the default **3P+ classic** mode. The optional shared-device
+**2P** variation is defined separately in [two-player-rules.md](./two-player-rules.md);
+its board geometry, starting row, and column duels do not alter these rules.
+Its horizontal number order increases from the physical left to the physical
+right of the shared screen, including on the rotated Player 1 board.
+
 ## 1. Board
 
 Each player has a 4 × 7 board with columns A–D and rows 1–7.

@@ -876,6 +876,137 @@ preload, and offline tests. Do not run browser automation, commit, or push.
 source PNGs remain unchanged; only the background collection/loading/cache lists
 and matching module URL versions were extended. No commit or push.
 
+## Optional 2P mode — Two opponents on one device
+
+Add a compact 2P / 3P+ switch near the unchanged title, defaulting to classic and
+remembering a separate mode preference. Keep the classic coordinator responsible
+for the existing 4×7 game and expose only active-mode gating, progress, and a
+read-only state snapshot for coordination/tests. Initialize both from a small
+mode entry module; route shared Undo/Reset only to the active controller. Preserve
+classic save version 8 and all existing mechanics and presentation.
+
+Add independent pure 5×3 state, column scoring, and triangle calculations plus a
+small 2P UI/storage module. Share dimension-independent orthogonal relationships,
+cell cloning and the Prime Ice transition with classic; keep classic board constants,
+A1/66 restrictions, error messages, Attack Ice, Streets, and scoring unchanged.
+Reuse the existing repdigit multiplier without Street calculations in 2P.
+
+Confirmed orientation: top Player 1 rotated 180°, bottom Player 2 upright. Start
+in any local row-3 cell, physically nearest the owner. Use one centralized column
+mapping (Player 1 reverses 0–4, Player 2 is identity) for five physical column duels.
+Render ten permanently owned SVG triangles with score, owner-facing orientation,
+positive-leader/tie illumination, and non-color lit markers. Reuse original ice art.
+
+Persist independent boards and one exact pre-placement Undo under a versioned
+2P key. Keep both mode saves when switching: it is allowed by the brief and avoids
+fragile multi-key deletion transactions. Confirm switches with meaningful progress;
+never write/clear during startup, and keep the active mode unchanged if preference
+saving fails. Confirmed Reset clears only the active mode. Validate and safely
+reject incompatible, corrupt, or impossible Undo snapshots.
+
+Keep the shared digital dice component unchanged, retain the classic twelve-step
+tutorial and Full Rules, and only make the tutorial's final focus follow the active
+board. Translate new UI with the existing Rules event. Use owner-oriented inline
+inputs, preserve pending tap targets on blur, and keep columns/triangles aligned
+on narrow screens. No turns, passes, dice assignments, winner dialogs, board locks,
+Challenge/receipt/Attack Ice/Street system in 2P, or new artwork/dependencies.
+
+Document authoritative mode rules separately in two-player-rules.md. Precache new
+modules/styles, align changed importers at two-player-1, and bump cache v31 to v32.
+Preserve all existing assets, static pages, and service-worker lifecycle. Add pure
+and DOM-double tests, then run the existing full suite without weakening classic
+coverage. Manual iPhone checks cover input rotation, tap accuracy, triangle reading,
+mode confirmation, active Reset/Undo, persistence/offline, and classic regression.
+Do not commit or push.
+
+**Status: Implemented for manual evaluation.** The full native JavaScriptCore
+suite passes **588/588** (including 27 2P model/storage cases, 25 mode/UI integration
+cases, and all existing classic coverage). Regressions exercise owner-local input,
+ice/thaw/Undo, mode confirmation/cancellation/storage failure, retained independent
+saves, active Reset, live Digital Dice rolling/collapse/selection, bilingual copy,
+three-digit triangle scores, completed-board continuation, and offline resources.
+Source checks confirm unchanged original assets, classic constants/scoring/save
+format, Digital Dice, receipts, original CSS, tutorial scenes, Rules, manifest,
+and worker lifecycle. Layout geometry is checked mathematically at narrow widths;
+no browser automation or screenshots were used. Manual iPhone evaluation remains.
+No commit or push was performed.
+
+## 2P UI refinement — Compact mode dropdown and continuous playing surface
+
+Replace the segmented switch with one compact active-mode button and chevron.
+Reuse the existing mode manager's switching, confirmation, cancellation, and save
+behavior. A checked two-option menu supports native button activation, arrows,
+Home/End, Escape, outside taps and focus dismissal. Return confirmation/cancellation
+focus to the visible trigger, and keep the title and other header controls unchanged.
+
+Move player feedback beside the outer labels, keeping both existing owner-facing
+orientations. Place the upper board, unchanged five-segment triangle strip, and
+lower board consecutively with 6px gaps. Preserve all cell/triangle dimensions,
+physical mappings, scoring and input behavior. Move the unchanged bilingual 2P
+instructions into the Rules section immediately above How to Play, in normal flow,
+hidden in classic mode. Leave meadow controls and the tutorial itself untouched.
+
+Bump cache v32 to v33 and update only the changed mode UI module, 2P controller,
+and stylesheet URLs to two-player-ui-1. Add focused dropdown, confirmation,
+localization, placement/visibility, alignment and mobile-width geometry regressions;
+run these alongside classic UI and PWA tests. Do not commit or push.
+
+**Status: Implemented for manual evaluation.** Relevant JavaScriptCore tests pass
+**175/175** (33 mode/UI, 114 classic coordination, 28 PWA). Added cases cover menu
+activation/selection, arrows/Home/End/Escape, outside pointer/assistive clicks and
+focus, confirmation cancellation, restored mode labels, translated instruction
+visibility/location, and consecutive aligned board/strip structure. Geometry is
+checked mathematically for 320–430px mobile widths and desktop; actual iPhone
+rendering remains a manual check. No browser automation, screenshots, commit,
+or push. Gameplay, scoring, persistence, instructions, original artwork, existing
+CSS/header dimensions, tutorial, Digital Dice, and Rules page remain unchanged.
+
+## 2P input refinement — Owner-oriented six-button keypad
+
+Replace the 2P-only native numeric inputs with one floating six-button keypad
+and a two-slot draft display. It follows the selected player's board, rotated
+for top Player 1 and upright for bottom Player 2, without changing board or
+triangle layout. A second digit immediately uses the existing guarded placement,
+save, and Undo path. Invalid moves clear the draft but leave the keypad open;
+selection changes, outside taps, Escape, and mode switching discard it. Keep the
+classic 3P+ input unchanged. Update the mode importer and cached CSS/controller
+URLs, and bump the service-worker cache to v35. Add focused 2P interaction,
+orientation, dismissal, and classic regression tests; do not commit or push.
+
+**Status: Implemented for manual evaluation.** The focused JavaScriptCore suite
+passes **182/182** (40 mode/2P UI, 114 classic coordinator, 28 PWA); the full
+suite passes **603/603**. Manual iPhone checks remain for owner-facing placement,
+touch accuracy, and overlay fit.
+
+## 2P Frosty Frontline — Shared physical number direction
+
+In 2P only, use the existing physical-column reversal to make both boards
+increase from the upright screen's left to right. Player 1's logical horizontal
+comparison reverses; Player 2's stays the same. Preserve OR adjacency, vertical
+equality, first row-3 placement, and Prime Ice. Accept older 2P saves and their
+one-step Undo under the former Player 1 direction, while applying the new rule
+to every new placement. Starting rows gain four owner-facing comparison signs
+without changing cell dimensions or touch targets.
+
+Replace ten triangle markers with one 112px SVG Frosty Frontline. Five points
+share the actual physical column centers; vertical positions use Player 1's
+score fraction and zero-score ties remain centered. A shape-preserving cubic
+centerline passes through all five points. Its filled ribbon grows from 5.1px to
+23.8px left to right; 15px colored points indicate column leaders or ties. Fixed,
+owner-facing numbers retain both exact column totals. Derive all display values
+from the existing 2P column scorer. Animate score changes for 280ms unless
+reduced motion is requested. Preserve the classic 3P+ view, game rules, storage
+formats, and all unrelated components.
+
+Precache the new pure geometry module and version changed 2P module/CSS URLs at
+`frontline-1`; bump the service-worker cache from v35 to v36. Add 2P placement,
+saved Undo, geometry, rendering, animation, responsive-center, and offline tests.
+Do not commit or push.
+
+**Status: Implemented for manual evaluation.** The full JavaScriptCore suite
+passes **612/612**. Manual iPhone review remains for the curve, signs, touch
+targets, and score label readability.
+
 ## Workflow
 
 Read the specifications, implement the current scope, keep rules deterministic,

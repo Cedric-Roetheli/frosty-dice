@@ -14,8 +14,10 @@ import { runMeadowTests } from "./meadow.test.js";
 import { runReceiptTests } from "./receipt.test.js";
 import { runDigitalDiceTests } from "./digital-dice.test.js";
 import { runTutorialTests } from "./tutorial.test.js";
+import { runTwoPlayerTests } from "./two-player.test.js";
+import { runGameModesTests } from "./game-modes.test.js";
 
-const results = [...runGameTests(), ...runNumberInputTests(), ...runFrozenPrimeTests(), ...runScoringTests(), ...runGoalTests(), ...runStorageTests(), ...runAppInitializationTests(), ...runUndoTests(), ...runAttackIceTests(), ...runChallengeTests(), ...runRulesTests(), ...await runMeadowTests(), ...await runPwaTests(), ...await runReceiptTests(), ...await runDigitalDiceTests(), ...await runTutorialTests()];
+const results = [...runGameTests(), ...runNumberInputTests(), ...runFrozenPrimeTests(), ...runScoringTests(), ...runGoalTests(), ...runStorageTests(), ...runAppInitializationTests(), ...runUndoTests(), ...runAttackIceTests(), ...runChallengeTests(), ...runRulesTests(), ...await runMeadowTests(), ...await runPwaTests(), ...await runReceiptTests(), ...await runDigitalDiceTests(), ...await runTutorialTests(), ...runTwoPlayerTests(), ...await runGameModesTests()];
 const failed = results.filter((result) => !result.passed).length;
 const summary = document.getElementById("test-summary");
 summary.textContent = `${results.length - failed}/${results.length} tests passed; ${failed} failed.`;

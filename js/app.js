@@ -5,6 +5,7 @@ import {
   canApplyAttackIce,
   canUndo,
   confirmGameBid,
+  cloneGameState,
   createGameState,
   freezeGameCell,
   getCell,
@@ -14,9 +15,9 @@ import {
   placeGameNumber,
   undoLastMove,
   unfreezeGameCell,
-} from "./game.js?v=receipt-2";
+} from "./game.js?v=two-player-1";
 import { getCellScoreMultiplier, getScoreBreakdown } from "./scoring.js?v=v3-multipliers-1";
-import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=receipt-2";
+import { clearSavedGame, loadGame, saveGame } from "./storage.js?v=two-player-1";
 import { createChallengeNote } from "./challenge-note.js?v=rules-page-1";
 import { createReceipt, formatFrostyDollars } from "./receipt.js?v=receipt-5";
 
@@ -37,6 +38,7 @@ function placementFeedback(reason) {
 export function initializeApp(document, storage) {
   const restoredGame = loadGame(storage);
   let game = restoredGame.state;
+  let active = true;
   let selectedCell = null;
   let selectedActionCell = null;
   let resetConfirmOpen = false;
@@ -62,7 +64,7 @@ export function initializeApp(document, storage) {
   const receipt = createReceipt(document, () => game);
 
   function gameModalOpen() {
-    return challengeDialog.open || receipt.isOpen;
+    return !active || challengeDialog.open || receipt.isOpen || document.getElementById("mode-switch-dialog")?.open === true;
   }
 
   function showStorageStatus(message) {
@@ -535,8 +537,23 @@ export function initializeApp(document, storage) {
     showStorageStatus("Saved game restored.");
   }
   render();
+  return {
+    getState: () => cloneGameState(game),
+    hasProgress: () => game.board.some((row) => row.some((cell) => cell !== null))
+      || (game.pointsSpent ?? 0) > 0 || (game.challengeHistory ?? []).length > 0 || game.undo != null,
+    isBusy: () => challengeDialog.open || receipt.isOpen,
+    setActive(value) {
+      active = value;
+      clearEntry();
+      resetConfirmOpen = false;
+      if (!active) { receipt.close(); closeChallenge(); }
+      render();
+    },
+  };
 }
 
-if (typeof document !== "undefined" && document.getElementById("board-rows")) {
+// Keep standalone/older classic shells usable; the current mode entry owns startup.
+if (typeof document !== "undefined" && document.getElementById("board-rows")
+    && !document.getElementById("game-mode-switch")) {
   initializeApp(document);
 }

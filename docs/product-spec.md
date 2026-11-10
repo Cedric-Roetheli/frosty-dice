@@ -3,10 +3,12 @@
 ## 1. Purpose
 
 Frosty Dice is a mobile-first browser companion for a physical tabletop game.
-Each player uses their own phone as a game sheet. Players communicate verbally
+The default 3P+ mode gives each player their own phone as a game sheet. Optional
+2P lets two opposite players share one device. Players communicate verbally
 and may use physical dice or the optional independent Digital Dice Machine.
 
-The redesigned mechanics are defined in [game-rules.md](./game-rules.md).
+Classic mechanics are defined in [game-rules.md](./game-rules.md); the optional
+variation is defined in [two-player-rules.md](./two-player-rules.md).
 The core refactor and compatibility repairs are complete. Gameplay now uses
 cell-first entry: the player chooses a cell and number, and the app validates
 that attempted move. The board layout and frozen-cell treatment stay familiar;
@@ -45,13 +47,113 @@ The app should:
 - Offer optional home-screen installation and offline play after complete local precaching, while keeping the normal website immediately usable.
 - Offer an optional illustrated digital dice machine between the gameplay area and Rules, with an always-visible disclosure toggle independent of the game sheet.
 
-There is no roll counter, number-origin tracking, number-removal action, opponent
-state, synchronization, backend, database, account, cloud
-save, or replacement special action for repeated-digit numbers.
+There is no roll counter, number-origin tracking, number-removal action,
+synchronization, backend, database, account, cloud save, or replacement special
+action for repeated-digit numbers. Classic keeps no opponent state; 2P stores
+only its two independent local boards.
+
+## 3.1 Optional 2P mode on one device
+
+Keep the existing experience as the primary **3P+** default. A compact dropdown
+near the title's upper-right area displays the active 2P / 3P+ mode and a chevron,
+without shrinking or modifying the title artwork. Its menu offers 2 Players /
+3+ Players (2 Spieler / 3+ Spieler), with the active option checked. Reuse existing
+mode confirmation and preference handling. Native buttons, arrow/Home/End keys,
+Escape, Tab/focus dismissal, and outside taps support keyboard and touch; selection
+closes the menu before any confirmation, whose cancellation returns focus to the
+trigger. Opening/closing the menu never changes gameplay or saves.
+Missing/invalid mode preferences
+fall back to 3P+. Store only `2p` or `3p-plus` under `frosty-dice.game-mode`.
+
+2P has two independent 5×3 boards in the existing central game region. Player 1
+sits at the top, with board, numbers and input rotated 180°; Player 2 sits at the
+bottom with an upright board. This orientation was confirmed explicitly. Each
+owner starts anywhere in local row 3, their physical outer row. Keep four-direction
+OR adjacency and Prime freeze/thaw through shared pure helpers. In both boards,
+numbers increase from the physical left to the physical right of the upright
+screen: Player 1's logical A–E direction decreases and Player 2's increases.
+Vertical equality and all other placement rules remain unchanged. Four small
+comparison signs sit across the starting row of each board; Player 1's rotate
+with that board so both screen-facing rows agree with the physical rule.
+The classic A1=66 restriction remains classic-only, because 2P has no D7 route.
+66 is valid in the 2P starting row and later placements under the ordinary rules.
+
+Use normal repdigit doubling and zero scoring for frozen/thawed cells, but no
+Streets, Attack Ice, Challenges, receipt, total-score tiebreaker, or classic goal
+UI. Sum each owner's three-cell columns. Compare physical columns using the
+central mapping `4 - logicalIndex` for rotated Player 1 and identity for Player 2.
+The single SVG Frosty Frontline replaces the ten triangles. Its five control
+points share the board's actual physical column centers. Each point's vertical
+fraction is Player 1's column score divided by both column scores, or 0.5 at
+0:0. The curve passes through all five points and stays in the scoring area;
+its filled ribbon widens from physical left to right. Blue means Player 1 leads,
+pink means Player 2 leads, white marks a positive tie, and a dark point marks
+0:0. These are live indicators, not permanent awards. The owners' exact numeric
+totals remain fixed at the upper and lower edges, each facing the corresponding
+player. The existing equal-weight column victory rules remain unchanged, including
+positive ties counting for both and 0:0 for neither. Keep three-digit values
+readable and honor reduced motion.
+
+Keep Player 1's label above the upper board, facing Player 1, and Player 2's
+label below the lower board, facing Player 2. Feedback stays at these outer edges,
+never between the two boards and the scoring strip. Use 6px vertical gaps on both
+sides of the strip, preserving every cell dimension, all five physical column
+alignments, point positions, orientations, and score formatting.
+
+Both boards accept owner-oriented six-button numeric entry independently; no turn/roll/pass manager,
+active-player marker, automatic dice assignment, automatic winner, or board lock
+is introduced. The players finish the physical roll after the first board fills
+and count won columns themselves. The bilingual explanatory paragraph
+sits in normal flow directly
+above the How-to-Play disclosure in the Rules area, only while 2P is active. Keep
+meadow controls anchored and the instructions clear of their artwork.
+Keep Digital Dice, the classic tutorial, Full Rules, footer, meadow, and
+illustrations available and unchanged. The tutorial's final scroll target follows
+the currently visible game board, without changing its steps or animations.
+
+The classic coordinator owns its existing state/actions. A separate 2P coordinator
+owns `{ player1: { board }, player2: { board }, undo }`, with one complete, deep-cloned
+pre-placement snapshot of both boards and no nested history. Prime status is
+historical and authoritative per player, never reconstructed from current neighbors.
+Rejected input/cancellation leaves state and Undo untouched. Reuse the existing
+Undo and confirmed Reset controls, guarded by active mode; Reset clears only the
+active mode's state/save. Classic-only controls and their board/goal/Street/Attack
+UI are hidden and unfocusable while 2P is visible.
+
+Persist 2P under `frosty-dice.two-player-game`, schema version 1, validating board
+shape, dice values, status restrictions, one freeze per board, and a legal one-move
+Undo snapshot. Restore safely from missing/malformed/unavailable data without
+rewriting the original. Classic save version 8 and migrations remain unchanged.
+
+Meaningful progress on the current mode requires a native confirmation before
+switching. Selection/drafts/tutorial/receipt opening do not count as progress.
+Both independent saves are retained: this permitted option avoids deletion and
+multi-key rollback complexity. The confirmation explicitly says progress remains
+saved. Cancelling changes no board, save or preference. Save the new mode preference
+before changing visible mode; a failed preference write keeps the current mode and
+reports the failure. Startup only reads state/preferences and never erases a game.
+
+All new visible/accessibility copy uses the existing DE/EN preference and language
+event. Language changes preserve boards and Undo; an open keypad closes if the
+player taps the language control outside it. Keep
+new styling scoped to 2P except the compact mode control's necessary header space.
+Precache new modules/CSS, retain existing assets/pages, and preserve the worker
+update strategy. No framework, dependency, server, accounts, or synchronization.
+
+For 2P, selecting an empty cell opens one floating keypad with six buttons,
+1–6, and a two-slot draft display. The keypad faces the cell's owner: Player 1's
+is rotated 180°, Player 2's is upright. It stays within that owner's board area
+without shifting the boards or central scores. A first digit is temporary; the
+second immediately calls the existing guarded placement. A valid move saves and
+closes the keypad. An invalid move keeps it open, clears both digits, and shows
+the existing owner feedback without changing board, score, or Undo. Tapping a
+different empty cell or outside, switching modes, and Escape discard the draft.
+The 2P cells remain buttons and never focus a native numeric input. Classic 3P+
+retains its separate inline input and keyboard behavior.
 
 ## 4. Local game state
 
-Canonical state is `{ board, undo, pointsSpent?, challengeHistory? }`. Missing `pointsSpent` means
+Classic canonical state is `{ board, undo, pointsSpent?, challengeHistory? }`. Missing `pointsSpent` means
 zero; confirmed bids store a nonnegative integer. Each board has seven rows of four cells;
 occupied cells retain a value and a normal/frozen/thawed status. At most one
 cell in each board is currently frozen. Thawed cells are usable but permanently

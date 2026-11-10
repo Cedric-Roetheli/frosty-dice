@@ -35,23 +35,35 @@
     <link rel="stylesheet" href="./css/style.css?v=digital-dice-4">
     <link rel="stylesheet" href="./css/tutorial.css?v=tutorial-1">
     <link rel="stylesheet" href="./css/rules-page.css?v=rules-page-1">
-    <script type="module" src="./js/app.js?v=receipt-5"></script>
+    <link rel="stylesheet" href="./css/two-player.css?v=frontline-visual-1">
+    <script type="module" src="./js/game-modes.js?v=frontline-visual-1"></script>
     <script type="module" src="./js/pwa.js"></script>
     <script type="module" src="./js/rules.js?v=rules-page-1"></script>
     <script type="module" src="./js/digital-dice.js?v=rules-page-1"></script>
-    <script type="module" src="./js/tutorial.js?v=receipt-5"></script>
+    <script type="module" src="./js/tutorial.js?v=two-player-1"></script>
   </head>
   <body>
     <main>
       <header class="page-header">
         <h1 class="page-title"><img src="./assets/frosty_dice_title_cropped.png" alt="Frosty Dice" width="1674" height="1187"></h1>
         <div class="game-stats">
+          <div id="game-mode-switch" class="game-mode-switch" role="group" aria-label="Game mode" data-mode="3p-plus">
+            <button id="game-mode-trigger" class="game-mode-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="game-mode-options">
+              <span id="game-mode-label">3P+</span><span class="game-mode-chevron" aria-hidden="true"></span>
+            </button>
+            <div id="game-mode-options" class="game-mode-options" role="menu" aria-label="Game mode" hidden>
+              <button id="mode-2p" type="button" role="menuitemradio" aria-checked="false" aria-controls="two-player-game" tabindex="-1">2 Players</button>
+              <button id="mode-3p-plus" type="button" role="menuitemradio" aria-checked="true" aria-controls="classic-game" tabindex="-1">3+ Players</button>
+            </div>
+          </div>
           <button id="open-challenge" class="challenge-button" type="button" aria-haspopup="dialog" aria-controls="challenge-dialog">Challenge</button>
           <button id="undo-move" class="undo-button" type="button" aria-label="Undo last move" title="Undo last move" disabled><span aria-hidden="true">↶</span></button>
           <button id="open-receipt" class="receipt-button" type="button" aria-label="Open Frosty Fresh Goods receipt" aria-haspopup="dialog" aria-controls="receipt-dialog">$</button>
         </div>
       </header>
 
+      <p id="mode-status" class="visually-hidden" role="status" aria-atomic="true">3P+ · Classic Frosty Dice</p>
+      <div id="classic-game">
       <div class="board-message">
         <p id="app-status" class="app-status" role="status" aria-atomic="true">Loading board…</p>
       </div>
@@ -78,6 +90,23 @@
       </section>
 
       <p id="storage-status" class="storage-status" role="status" hidden></p>
+      </div>
+      <section id="two-player-game" class="two-player-game" aria-label="Two players on one device" hidden>
+        <div class="two-player-frame">
+          <h2 id="two-player-label-1" class="two-player-label two-player-label--top">Player 1</h2>
+          <p id="two-player-feedback-1" class="two-player-feedback two-player-feedback--top" role="status" aria-atomic="true"></p>
+          <div class="two-player-board-area">
+            <div id="two-player-board-1" class="two-player-board" data-player="1" role="group" aria-label="Player 1 board" tabindex="-1"></div>
+          </div>
+          <svg id="two-player-duels" class="two-player-frontline" role="img" aria-label="Column scores" viewBox="0 0 286 112" preserveAspectRatio="none"></svg>
+          <div class="two-player-board-area">
+            <div id="two-player-board-2" class="two-player-board" data-player="2" role="group" aria-label="Player 2 board" tabindex="-1"></div>
+          </div>
+          <p id="two-player-feedback-2" class="two-player-feedback" role="status" aria-atomic="true"></p>
+          <h2 id="two-player-label-2" class="two-player-label">Player 2</h2>
+        </div>
+        <p id="two-player-storage-status" class="two-player-storage" role="status" hidden></p>
+      </section>
       <section class="reset-panel" aria-labelledby="new-game-heading">
         <h2 id="new-game-heading" class="visually-hidden">New game</h2>
         <div id="reset-confirmation" class="confirmation" hidden>
@@ -134,6 +163,7 @@
         <button id="rules-language-de" class="rules-language-selector__button" type="button" lang="de" aria-label="Deutsch" aria-pressed="false" aria-controls="interactive-tutorial"></button>
         <button id="rules-language-en" class="rules-language-selector__button" type="button" lang="en" aria-label="English" aria-pressed="true" aria-controls="interactive-tutorial"></button>
       </div>
+      <p id="two-player-help" class="two-player-help" hidden></p>
       <button id="tutorial-toggle" class="rules-disclosure" type="button" aria-expanded="false" aria-controls="tutorial-panel">
         <span id="tutorial-toggle-label">HOW TO PLAY</span><span class="rules-disclosure__chevron" aria-hidden="true"></span>
       </button>
@@ -180,6 +210,14 @@
       <img src="./assets/contact_information.png" alt="Frosty Dice contact information" width="4096" height="1714" loading="lazy" decoding="async">
       <a id="full-rules-link" class="rules-page-link" href="./rules.html">FULL RULES</a>
     </footer>
+    <dialog id="mode-switch-dialog" class="mode-switch-dialog" aria-labelledby="mode-switch-heading" aria-describedby="mode-switch-detail">
+      <h2 id="mode-switch-heading">Switch game mode?</h2>
+      <p id="mode-switch-detail">Your current game will stay saved on this device.</p>
+      <div class="mode-switch-dialog__actions">
+        <button id="cancel-mode-switch" class="action-button secondary-button" type="button" autofocus>Cancel</button>
+        <button id="confirm-mode-switch" class="action-button" type="button">Switch</button>
+      </div>
+    </dialog>
     <dialog id="challenge-dialog" class="challenge-dialog" aria-labelledby="challenge-heading" aria-describedby="bid-limit">
       <form id="challenge-form" class="challenge-content" novalidate>
         <h2 id="challenge-heading">MAKE YOUR BID</h2>

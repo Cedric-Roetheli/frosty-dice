@@ -1,5 +1,5 @@
 // Deterministic demonstration data; no live game, storage, randomness, or turns.
-import { applyAttackIce, cloneBoard, createEmptyBoard, placeNumber, removeAttackIce } from "./game.js?v=receipt-2";
+import { applyAttackIce, cloneBoard, createEmptyBoard, placeNumber, removeAttackIce } from "./game.js?v=two-player-1";
 import { getScoreBreakdown } from "./scoring.js?v=v3-multipliers-1";
 
 function freeze(value) {

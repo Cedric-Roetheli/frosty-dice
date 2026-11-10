@@ -111,7 +111,7 @@ export async function runPwaTests(sources) {
   if (!sources) {
     try {
       const paths = { worker: "../service-worker.js", registration: "../js/pwa.js", manifest: "../manifest.webmanifest", html: "../index.html",
-        app: "../js/app.js", storage: "../js/storage.js", css: "../css/style.css", receipt: "../js/receipt.js", rulesHtml: "../rules.html", rulesCss: "../css/rules-page.css" };
+        app: "../js/app.js", storage: "../js/storage.js", css: "../css/style.css", receipt: "../js/receipt.js", rulesHtml: "../rules.html", rulesCss: "../css/rules-page.css", modes: "../js/game-modes.js" };
       sources = Object.fromEntries(await Promise.all(Object.entries(paths).map(async ([name, url]) => {
         const result = await fetch(url, { cache: "no-store" });
         if (!result.ok) throw new Error("Cannot load " + url);
@@ -147,15 +147,16 @@ export async function runPwaTests(sources) {
 
   await test("Receipt release uses fresh matching module URLs in Safari and the offline cache", () => {
     const worker = workerHarness(sources.worker);
-    assert(sources.html.includes('src="./js/app.js?v=receipt-5"'));
-    for (const [name, version] of [["app", "receipt-5"], ["game", "receipt-2"], ["storage", "receipt-2"], ["receipt", "receipt-5"]]) {
+    assert(sources.html.includes('src="./js/game-modes.js?v=frontline-visual-1"'));
+    assert(sources.modes.includes('from "./app.js?v=two-player-1"'));
+    for (const [name, version] of [["app", "two-player-1"], ["game", "two-player-1"], ["storage", "two-player-1"], ["receipt", "receipt-5"]]) {
       const path = "/js/" + name + ".js?v=" + version;
       assertDeepEqual(worker.PRECACHE_URLS.filter((url) => url.startsWith("/js/" + name + ".js?")), [path]);
     }
-    assert(sources.app.includes('from "./game.js?v=receipt-2"'));
-    assert(sources.app.includes('from "./storage.js?v=receipt-2"'));
+    assert(sources.app.includes('from "./game.js?v=two-player-1"'));
+    assert(sources.app.includes('from "./storage.js?v=two-player-1"'));
     assert(sources.app.includes('from "./receipt.js?v=receipt-5"'));
-    assert(sources.storage.includes('from "./game.js?v=receipt-2"'));
+    assert(sources.storage.includes('from "./game.js?v=two-player-1"'));
     for (const source of [sources.app, sources.storage]) {
       assert(!source.includes("game.js?v=v3-multipliers-1"));
       assert(!source.includes("storage.js?v=v3-multipliers-1"));
@@ -246,7 +247,7 @@ export async function runPwaTests(sources) {
     const worker = workerHarness(sources.worker);
     await worker.lifecycle("install");
     worker.offline = true;
-    for (const path of ["/js/tutorial.js?v=receipt-5", "/js/tutorial-scenes.js?v=tutorial-2",
+    for (const path of ["/js/tutorial.js?v=two-player-1", "/js/tutorial-scenes.js?v=two-player-1",
       "/css/tutorial.css?v=tutorial-1", "/js/rules.js?v=rules-page-1", "/assets/Rules.png",
       "/assets/rules_german.png", "/assets/bid.png", "/assets/bid_front.png",
       "/assets/icecube2.png", "/assets/receipt.png", "/assets/d7_flag.png",
@@ -379,6 +380,22 @@ export async function runPwaTests(sources) {
     assert(sources.rulesCss.includes('.contact-illustration > img:nth-of-type(2) { grid-column: 2 / 4; }'));
     assert(!/100vw|width:\s*\d{3,}px/.test(sources.rulesCss));
     assert(/width: 100%;\s*height: auto;/.test(sources.css));
+  });
+
+  await test("Both modes and their shared rule helpers are available offline alongside existing assets", async () => {
+    const worker = workerHarness(sources.worker);
+    assertEqual(worker.CACHE_NAME, "frosty-dice-pwa-v37");
+    await worker.lifecycle("install"); worker.offline = true;
+    for (const path of ["/js/game-modes.js?v=frontline-visual-1", "/js/placement-rules.js?v=two-player-1",
+      "/js/placement-rules.js?v=frontline-1", "/js/two-player-frontline.js?v=frontline-visual-1",
+      "/js/two-player-game.js?v=frontline-1", "/js/two-player-storage.js?v=frontline-1",
+      "/js/two-player-app.js?v=frontline-visual-1", "/css/two-player.css?v=frontline-visual-1",
+      "/js/app.js?v=two-player-1", "/js/game.js?v=two-player-1", "/js/storage.js?v=two-player-1",
+      "/assets/icecube.png", "/assets/digital_dice/dice_machine.png", "/rules.html"]) {
+      assert(worker.PRECACHE_URLS.includes(path), path);
+      assertEqual((await worker.request(path)).body, "cached:" + ORIGIN + path);
+    }
+    assertEqual(worker.networkCalls.length, 0);
   });
 
   await test("Every precached module, icon, and image is available offline without a network request", async () => {

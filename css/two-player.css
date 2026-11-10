@@ -1,0 +1,52 @@
+/* Optional mode integration: leave the title's existing dimensions untouched. */
+.page-header .game-stats { position: relative; }
+.game-mode-switch { position: absolute; right: calc(100% + 8px); top: 50%; transform: translateY(-50%); z-index: 4; }
+.game-mode-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-width: 64px; min-height: 44px; padding: 0.25rem 0.5rem; border: 1px solid rgb(255 255 255 / 65%); border-radius: 0.375rem; color: #fff; background: transparent; font: inherit; font-size: 0.75rem; cursor: pointer; touch-action: manipulation; }
+.game-mode-chevron { width: 0.4rem; height: 0.4rem; margin-top: -0.2rem; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); }
+.game-mode-options { position: absolute; left: 0; right: auto; top: calc(100% + 0.375rem); width: 10rem; max-width: 80vw; padding: 0.25rem; border: 1px solid rgb(255 255 255 / 65%); border-radius: 0.375rem; color: #fff; background: #102436; }
+.game-mode-switch[data-mode="2p"] .game-mode-options { left: auto; right: 0; }
+.game-mode-options button { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 44px; padding: 0.5rem; border: 0; border-radius: 0.25rem; color: inherit; background: transparent; font: inherit; font-size: 0.8125rem; text-align: left; cursor: pointer; touch-action: manipulation; }
+.game-mode-options button[aria-checked="true"] { color: #172b3a; background: #d4f3ff; }
+.game-mode-options button[aria-checked="true"]::after { content: "✓"; }
+.game-mode-switch button:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
+.game-mode-options button[aria-checked="true"]:focus-visible { outline-color: #172b3a; }
+.mode-feedback { color: #fff; font-size: 0.8125rem; text-align: center; }
+.mode-switch-dialog { width: min(22rem, calc(100% - 2rem)); padding: 1.25rem; border: 1px solid rgb(255 255 255 / 45%); border-radius: 0.75rem; background: #102436; color: #fff; }
+.mode-switch-dialog::backdrop { background: rgb(3 2 14 / 80%); }
+.mode-switch-dialog p { margin: 0.75rem 0; }
+.mode-switch-dialog__actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0.5rem; }
+.mode-switch-dialog button:focus-visible { outline-color: #fff; }
+.two-player-game { width: 100%; min-width: 0; }
+.two-player-frame { padding: 4px; border: 1px solid rgb(255 255 255 / var(--board-glass-border-opacity)); border-radius: 0.75rem; background: rgb(255 255 255 / var(--board-glass-opacity)); -webkit-backdrop-filter: blur(var(--board-glass-blur)); backdrop-filter: blur(var(--board-glass-blur)); }
+.two-player-label { margin: 0.25rem 0; color: #fff; font-size: 0.8125rem; font-weight: 600; text-align: center; }
+.two-player-label--top, .two-player-feedback--top { transform: rotate(180deg); }
+.two-player-board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; min-width: 0; }
+.two-player-board[data-player="1"] { transform: rotate(180deg); }
+.two-player-board:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.two-player-board-area { position: relative; min-width: 0; }
+.two-player-cell-slot { position: relative; min-width: 0; }
+.two-player-comparison-sign { position: absolute; right: -8px; top: 50%; z-index: 2; width: 12px; transform: translateY(-50%); color: #fff; font-size: 0.875rem; font-weight: 700; line-height: 1; text-align: center; text-shadow: 0 0 2px #172b3a; pointer-events: none; }
+.two-player-game .two-player-cell { height: clamp(3rem, 12vw, 3.5rem); min-height: 48px; text-align: center; }
+.two-player-cell[data-start="true"] { box-shadow: inset 0 0 0 1px #fff; }
+.two-player-cell[aria-pressed="true"] { outline: 2px solid #66d9ff; outline-offset: -3px; }
+/* A floating keypad within one owner's grid; never displace the boards or scores. */
+.two-player-entry { position: absolute; left: 0; right: 0; z-index: 3; padding: 4px; border: 1px solid rgb(255 255 255 / 65%); border-radius: 0.5rem; color: #fff; background: #102436; }
+.two-player-entry[data-edge="top"] { top: 0; }
+.two-player-entry[data-edge="bottom"] { bottom: 0; }
+.two-player-entry[data-player="1"] { transform: rotate(180deg); }
+.two-player-entry__draft { margin: 0 0 3px; font-size: 0.875rem; line-height: 1.2; text-align: center; font-variant-numeric: tabular-nums; }
+.two-player-entry__keys { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; }
+.two-player-entry__digit { min-width: 0; min-height: 44px; padding: 0; border: 1px solid rgb(255 255 255 / 65%); border-radius: 0.375rem; color: #fff; background: transparent; font: inherit; font-size: 1.125rem; cursor: pointer; touch-action: manipulation; }
+.two-player-entry__digit:active { background: rgb(255 255 255 / 15%); }
+.two-player-entry__digit:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
+.two-player-feedback { min-height: 2.8em; margin: 0.25rem 0; color: #fff; font-size: 0.6875rem; line-height: 1.4; text-align: center; overflow-wrap: anywhere; }
+.two-player-frontline { display: block; width: 100%; height: 112px; margin: 6px 0; overflow: visible; pointer-events: none; }
+.two-player-frontline__ribbon { fill: #e1f8ff; stroke: #224d67; stroke-width: 1; stroke-linejoin: round; }
+.two-player-frontline__centerline { fill: none; stroke: none; }
+.two-player-frontline__point { fill: #263d4b; stroke: #fff; stroke-width: 2.25; }
+.two-player-frontline__point[data-control="player1"] { fill: #78cff4; filter: drop-shadow(0 0 4.5px #78cff4); }
+.two-player-frontline__point[data-control="player2"] { fill: #ec86b8; filter: drop-shadow(0 0 4.5px #ec86b8); }
+.two-player-frontline__point[data-control="tie"] { fill: #fff; filter: drop-shadow(0 0 4.5px #fff); }
+.two-player-frontline__score { fill: #fff; stroke: #172b3a; stroke-width: 1; paint-order: stroke; font: 700 14px system-ui, sans-serif; text-anchor: middle; dominant-baseline: middle; }
+.two-player-help, .two-player-storage { margin: 0.5rem auto; color: #fff; font-size: 0.75rem; line-height: 1.4; text-align: center; }
+.rules-illustration > .two-player-help { max-width: 30rem; margin: 0.75rem auto 0.5rem; font-size: 0.8125rem; }

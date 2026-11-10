@@ -1,6 +1,7 @@
 // Pure rules and canonical board state. Cell names use A1–D7.
 import { BOARD_COLUMNS, BOARD_ROW_COUNT, isPrimeNumber, isValidBoard, isValidBoardCell, isValidNumber } from "./board-state.js?v=v3-multipliers-1";
 import { calculateScore } from "./scoring.js?v=v3-multipliers-1";
+import { cloneCell, hasUsableConnection, orthogonalNeighbors, placeWithPrimeIce, usableValue } from "./placement-rules.js?v=two-player-1";
 
 export { BOARD_COLUMNS, BOARD_ROW_COUNT, isPrimeNumber, isValidBoard, isValidBoardCell, isValidNumber };
 
@@ -67,19 +68,6 @@ export function hasReachedGoal(board) {
   return isCellUsable(board, "D7");
 }
 
-function orthogonalNeighbors(board, row, column) {
-  return {
-    left: column > 0 ? board[row][column - 1] : null,
-    right: column < BOARD_COLUMNS.length - 1 ? board[row][column + 1] : null,
-    above: row > 0 ? board[row - 1][column] : null,
-    below: row < BOARD_ROW_COUNT - 1 ? board[row + 1][column] : null,
-  };
-}
-
-function usableValue(cell) {
-  return cell === null || cell.status === "frozen" || cell.attackIce ? null : cell.value;
-}
-
 export function validatePlacement(board, coordinate, value) {
   return placementValidation(board, coordinate, value);
 }
@@ -113,8 +101,7 @@ function placementValidation(board, coordinate, value, allowStart66 = false) {
   const right = usableValue(neighbors.right);
   const above = usableValue(neighbors.above);
   const below = usableValue(neighbors.below);
-  if ((left !== null && value > left) || (right !== null && value < right)
-      || (above !== null && value === above) || (below !== null && value === below)) {
+  if (hasUsableConnection(neighbors, value)) {
     return { legal: true, reason: null };
   }
 
@@ -147,14 +134,6 @@ export function getLegalTargetCells(board, value) {
     }
   }
   return targets;
-}
-
-function cloneCell(cell) {
-  if (cell === null) return null;
-  // An absent overlay means no Attack Ice; retain only true in canonical records.
-  const copy = { value: cell.value, status: cell.status };
-  if (cell.attackIce) copy.attackIce = true;
-  return copy;
 }
 
 export function cloneBoard(board) {
@@ -198,19 +177,7 @@ function placeBoardNumber(board, coordinate, value, allowStart66 = false) {
 
   const row = Number(coordinate[1]) - 1;
   const column = BOARD_COLUMNS.indexOf(coordinate[0]);
-  // Validate before thawing. Every occupied prime counts as contact, regardless of status.
-  const frozen = isPrimeNumber(value) && Object.values(orthogonalNeighbors(board, row, column))
-    .some((cell) => cell !== null && isPrimeNumber(cell.value));
-  const nextBoard = cloneBoard(board);
-  if (frozen) {
-    for (const entries of nextBoard) {
-      for (const cell of entries) {
-        if (cell?.status === "frozen") cell.status = "thawed";
-      }
-    }
-  }
-  nextBoard[row][column] = { value, status: frozen ? "frozen" : "normal" };
-  return nextBoard;
+  return placeWithPrimeIce(board, row, column, value);
 }
 
 export function createGameState() {

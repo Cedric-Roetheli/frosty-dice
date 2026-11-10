@@ -1,4 +1,4 @@
-import { EXAMPLE_CHALLENGE, EXAMPLE_PLACEMENTS, getTutorialCamera, getTutorialScene, TUTORIAL_STEPS } from "./tutorial-scenes.js?v=tutorial-2";
+import { EXAMPLE_CHALLENGE, EXAMPLE_PLACEMENTS, getTutorialCamera, getTutorialScene, TUTORIAL_STEPS } from "./tutorial-scenes.js?v=two-player-1";
 import { getCellScoreMultiplier } from "./scoring.js?v=v3-multipliers-1";
 import { formatFrostyDollars } from "./receipt.js?v=receipt-5";
 
@@ -338,7 +338,7 @@ export function initializeTutorial(document, options = {}) {
     if (step < 12) goToStep(step + 1);
     else {
       cancel(); phase = settledPhase(); render();
-      const board = byId("game-board");
+      const board = byId("two-player-game")?.hidden === false ? byId("two-player-board-2") : byId("game-board");
       board.scrollIntoView({ behavior: motion.matches ? "auto" : "smooth", block: "start" });
       board.focus({ preventScroll: true });
     }

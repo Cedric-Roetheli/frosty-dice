@@ -437,6 +437,18 @@ export async function runTutorialTests(sources) {
     assertEqual(f.node("interactive-tutorial").lang, "de");
   });
 
+  test("The final tutorial action focuses the visible 2P board without altering either mode", () => {
+    const f = fixture({ reduced: true });
+    const root = f.document.createElement("section"); root.id = "two-player-game"; root.hidden = false;
+    const board = f.document.createElement("div"); board.id = "two-player-board-2"; root.append(board); f.document.root.append(root);
+    const before = f.storage.getItem(STORAGE_KEY);
+    f.open(); f.go(12); f.click("next");
+    assertEqual(f.document.activeElement, board);
+    assertDeepEqual(board.lastScrollOptions, { behavior: "auto", block: "start" });
+    assertEqual(f.storage.getItem(STORAGE_KEY), before);
+    assertEqual(f.tutorial.getState().step, 12);
+  });
+
   test("Reduced motion settles all twelve scenes without timers or rapid dice cycling", () => {
     const f = fixture({ reduced: true }); f.open();
     for (let step = 1; step <= 12; step += 1) {
@@ -521,7 +533,7 @@ export async function runTutorialTests(sources) {
 
   test("Semantic HTML, isolated styling, reduced motion, fixed receipt, and no surprise-mechanic copy", () => {
     assert(sources.html.includes('href="./css/tutorial.css?v=tutorial-1"'));
-    assert(sources.html.includes('src="./js/tutorial.js?v=receipt-5"'));
+    assert(sources.html.includes('src="./js/tutorial.js?v=two-player-1"'));
     for (const [toggle, panel] of [["tutorial-toggle", "tutorial-panel"]]) {
       const button = sources.html.match(new RegExp('<button id="' + toggle + '"[^>]*>'))?.[0];
       assert(button.includes('type="button"'));
