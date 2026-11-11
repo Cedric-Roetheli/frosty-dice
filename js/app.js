@@ -64,7 +64,7 @@ export function initializeApp(document, storage) {
   const receipt = createReceipt(document, () => game);
 
   function gameModalOpen() {
-    return !active || challengeDialog.open || receipt.isOpen || document.getElementById("mode-switch-dialog")?.open === true;
+    return !active || challengeDialog.open || receipt.isOpen || document.getElementById("new-game-menu")?.open === true;
   }
 
   function showStorageStatus(message) {
@@ -418,6 +418,7 @@ export function initializeApp(document, storage) {
   });
 
   newGameButton.addEventListener("click", () => {
+    if (document.getElementById("new-game-menu")) return;
     if (gameModalOpen()) return;
     clearEntry();
     resetConfirmOpen = true;
@@ -431,12 +432,10 @@ export function initializeApp(document, storage) {
     render();
     newGameButton.focus();
   });
-  document.getElementById("confirm-new-game").addEventListener("click", () => {
-    if (gameModalOpen()) return;
-    if (!resetConfirmOpen) return;
+  function resetGame() {
     if (!clearSavedGame(storage)) {
       showStorageStatus("The saved game could not be cleared. Your current game was kept; try again or cancel.");
-      return;
+      return false;
     }
     game = createGameState();
     clearEntry();
@@ -444,7 +443,12 @@ export function initializeApp(document, storage) {
     showStorageStatus("");
     showAppStatus("New game started. Tap an empty cell to enter a number.", "success");
     render();
-    board.focus({ preventScroll: true });
+    return true;
+  }
+  document.getElementById("confirm-new-game").addEventListener("click", () => {
+    if (gameModalOpen()) return;
+    if (!resetConfirmOpen) return;
+    if (resetGame()) board.focus({ preventScroll: true });
   });
 
   function closeChallenge() {
@@ -542,6 +546,8 @@ export function initializeApp(document, storage) {
     hasProgress: () => game.board.some((row) => row.some((cell) => cell !== null))
       || (game.pointsSpent ?? 0) > 0 || (game.challengeHistory ?? []).length > 0 || game.undo != null,
     isBusy: () => challengeDialog.open || receipt.isOpen,
+    dismissDraft: () => cancelEntry(false),
+    resetGame,
     setActive(value) {
       active = value;
       clearEntry();
@@ -554,6 +560,6 @@ export function initializeApp(document, storage) {
 
 // Keep standalone/older classic shells usable; the current mode entry owns startup.
 if (typeof document !== "undefined" && document.getElementById("board-rows")
-    && !document.getElementById("game-mode-switch")) {
+    && !document.getElementById("new-game-menu")) {
   initializeApp(document);
 }

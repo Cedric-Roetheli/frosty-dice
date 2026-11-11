@@ -1,21 +1,15 @@
-/* Optional mode integration: leave the title's existing dimensions untouched. */
-.page-header .game-stats { position: relative; }
-.game-mode-switch { position: absolute; right: calc(100% + 8px); top: 50%; transform: translateY(-50%); z-index: 4; }
-.game-mode-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-width: 64px; min-height: 44px; padding: 0.25rem 0.5rem; border: 1px solid rgb(255 255 255 / 65%); border-radius: 0.375rem; color: #fff; background: transparent; font: inherit; font-size: 0.75rem; cursor: pointer; touch-action: manipulation; }
-.game-mode-chevron { width: 0.4rem; height: 0.4rem; margin-top: -0.2rem; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); }
-.game-mode-options { position: absolute; left: 0; right: auto; top: calc(100% + 0.375rem); width: 10rem; max-width: 80vw; padding: 0.25rem; border: 1px solid rgb(255 255 255 / 65%); border-radius: 0.375rem; color: #fff; background: #102436; }
-.game-mode-switch[data-mode="2p"] .game-mode-options { left: auto; right: 0; }
-.game-mode-options button { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 44px; padding: 0.5rem; border: 0; border-radius: 0.25rem; color: inherit; background: transparent; font: inherit; font-size: 0.8125rem; text-align: left; cursor: pointer; touch-action: manipulation; }
-.game-mode-options button[aria-checked="true"] { color: #172b3a; background: #d4f3ff; }
-.game-mode-options button[aria-checked="true"]::after { content: "✓"; }
-.game-mode-switch button:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
-.game-mode-options button[aria-checked="true"]:focus-visible { outline-color: #172b3a; }
-.mode-feedback { color: #fff; font-size: 0.8125rem; text-align: center; }
-.mode-switch-dialog { width: min(22rem, calc(100% - 2rem)); padding: 1.25rem; border: 1px solid rgb(255 255 255 / 45%); border-radius: 0.75rem; background: #102436; color: #fff; }
-.mode-switch-dialog::backdrop { background: rgb(3 2 14 / 80%); }
-.mode-switch-dialog p { margin: 0.75rem 0; }
-.mode-switch-dialog__actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0.5rem; }
-.mode-switch-dialog button:focus-visible { outline-color: #fff; }
+.new-game-menu { box-sizing: border-box; width: min(21rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); padding: 1rem; overflow-y: auto; border: 1px solid rgb(255 255 255 / 45%); border-radius: 0.75rem; background: #102436; color: #fff; }
+.new-game-menu::backdrop { background: rgb(3 2 14 / 80%); }
+.new-game-menu h2 { margin: 0 0 0.75rem; font-size: 1.125rem; }
+.new-game-menu__options { display: grid; gap: 0.5rem; }
+.new-game-menu__options[hidden] { display: none; }
+.new-game-menu__option { display: grid; gap: 0.2rem; width: 100%; min-height: 64px; padding: 0.65rem 0.75rem; border: 1px solid rgb(255 255 255 / 45%); border-radius: 0.5rem; color: #fff; background: transparent; font: inherit; text-align: left; cursor: pointer; touch-action: manipulation; }
+.new-game-menu__option small { font-size: 0.75rem; opacity: 0.8; }
+.new-game-menu__option[data-current="true"] { border-color: #66d9ff; }
+.new-game-menu__actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.new-game-menu__actions .action-button { min-height: 44px; }
+.new-game-menu button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.mode-feedback { margin-top: 0.75rem; color: #fff; font-size: 0.8125rem; text-align: center; }
 .two-player-game { width: 100%; min-width: 0; }
 .two-player-frame { padding: 4px; border: 1px solid rgb(255 255 255 / var(--board-glass-border-opacity)); border-radius: 0.75rem; background: rgb(255 255 255 / var(--board-glass-opacity)); -webkit-backdrop-filter: blur(var(--board-glass-blur)); backdrop-filter: blur(var(--board-glass-blur)); }
 .two-player-label { margin: 0.25rem 0; color: #fff; font-size: 0.8125rem; font-weight: 600; text-align: center; }
@@ -41,8 +35,14 @@
 .two-player-entry__digit:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
 .two-player-feedback { min-height: 2.8em; margin: 0.25rem 0; color: #fff; font-size: 0.6875rem; line-height: 1.4; text-align: center; overflow-wrap: anywhere; }
 .two-player-frontline { display: block; width: 100%; height: 112px; margin: 6px 0; overflow: visible; pointer-events: none; }
-.two-player-frontline__ribbon { fill: #e1f8ff; stroke: #224d67; stroke-width: 1; stroke-linejoin: round; }
-.two-player-frontline__centerline { fill: none; stroke: none; }
+.two-player-frontline__guide { stroke-width: 3.25; stroke-linecap: round; }
+.two-player-frontline__guide--player1 { stroke: #78cff4; }
+.two-player-frontline__guide--player2 { stroke: #ec86b8; }
+.two-player-frontline__guide-head--player1 { fill: #78cff4; }
+.two-player-frontline__guide-head--player2 { fill: #ec86b8; }
+.two-player-frontline__outline, .two-player-frontline__curve { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.two-player-frontline__outline { stroke: #224d67; stroke-width: 10; }
+.two-player-frontline__curve { stroke: #e1f8ff; stroke-width: 8; }
 .two-player-frontline__point { fill: #263d4b; stroke: #fff; stroke-width: 2.25; }
 .two-player-frontline__point[data-control="player1"] { fill: #78cff4; filter: drop-shadow(0 0 4.5px #78cff4); }
 .two-player-frontline__point[data-control="player2"] { fill: #ec86b8; filter: drop-shadow(0 0 4.5px #ec86b8); }

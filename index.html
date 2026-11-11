@@ -35,8 +35,8 @@
     <link rel="stylesheet" href="./css/style.css?v=digital-dice-4">
     <link rel="stylesheet" href="./css/tutorial.css?v=tutorial-1">
     <link rel="stylesheet" href="./css/rules-page.css?v=rules-page-1">
-    <link rel="stylesheet" href="./css/two-player.css?v=frontline-visual-1">
-    <script type="module" src="./js/game-modes.js?v=frontline-visual-1"></script>
+    <link rel="stylesheet" href="./css/two-player.css?v=frontline-guides-2">
+    <script type="module" src="./js/game-modes.js?v=frontline-guides-2"></script>
     <script type="module" src="./js/pwa.js"></script>
     <script type="module" src="./js/rules.js?v=rules-page-1"></script>
     <script type="module" src="./js/digital-dice.js?v=rules-page-1"></script>
@@ -47,22 +47,12 @@
       <header class="page-header">
         <h1 class="page-title"><img src="./assets/frosty_dice_title_cropped.png" alt="Frosty Dice" width="1674" height="1187"></h1>
         <div class="game-stats">
-          <div id="game-mode-switch" class="game-mode-switch" role="group" aria-label="Game mode" data-mode="3p-plus">
-            <button id="game-mode-trigger" class="game-mode-trigger" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="game-mode-options">
-              <span id="game-mode-label">3P+</span><span class="game-mode-chevron" aria-hidden="true"></span>
-            </button>
-            <div id="game-mode-options" class="game-mode-options" role="menu" aria-label="Game mode" hidden>
-              <button id="mode-2p" type="button" role="menuitemradio" aria-checked="false" aria-controls="two-player-game" tabindex="-1">2 Players</button>
-              <button id="mode-3p-plus" type="button" role="menuitemradio" aria-checked="true" aria-controls="classic-game" tabindex="-1">3+ Players</button>
-            </div>
-          </div>
           <button id="open-challenge" class="challenge-button" type="button" aria-haspopup="dialog" aria-controls="challenge-dialog">Challenge</button>
           <button id="undo-move" class="undo-button" type="button" aria-label="Undo last move" title="Undo last move" disabled><span aria-hidden="true">↶</span></button>
           <button id="open-receipt" class="receipt-button" type="button" aria-label="Open Frosty Fresh Goods receipt" aria-haspopup="dialog" aria-controls="receipt-dialog">$</button>
         </div>
       </header>
 
-      <p id="mode-status" class="visually-hidden" role="status" aria-atomic="true">3P+ · Classic Frosty Dice</p>
       <div id="classic-game">
       <div class="board-message">
         <p id="app-status" class="app-status" role="status" aria-atomic="true">Loading board…</p>
@@ -122,7 +112,7 @@
         <a class="meadow-control rules-link" href="#rules" aria-label="View game rules">
           <img src="./assets/rules_button.png?v=d85019bc" alt="" width="232" height="232" decoding="async">
         </a>
-        <button id="new-game" class="meadow-control reset-snowman" type="button" aria-label="Reset game" aria-controls="reset-confirmation">
+        <button id="new-game" class="meadow-control reset-snowman" type="button" aria-label="New Game" aria-haspopup="dialog" aria-expanded="false" aria-controls="new-game-menu">
           <img src="./assets/reset_button.png" alt="" width="176" height="176" decoding="async">
         </button>
       </div>
@@ -210,13 +200,24 @@
       <img src="./assets/contact_information.png" alt="Frosty Dice contact information" width="4096" height="1714" loading="lazy" decoding="async">
       <a id="full-rules-link" class="rules-page-link" href="./rules.html">FULL RULES</a>
     </footer>
-    <dialog id="mode-switch-dialog" class="mode-switch-dialog" aria-labelledby="mode-switch-heading" aria-describedby="mode-switch-detail">
-      <h2 id="mode-switch-heading">Switch game mode?</h2>
-      <p id="mode-switch-detail">Your current game will stay saved on this device.</p>
-      <div class="mode-switch-dialog__actions">
-        <button id="cancel-mode-switch" class="action-button secondary-button" type="button" autofocus>Cancel</button>
-        <button id="confirm-mode-switch" class="action-button" type="button">Switch</button>
+    <dialog id="new-game-menu" class="new-game-menu" aria-labelledby="new-game-menu-heading">
+      <h2 id="new-game-menu-heading">New Game</h2>
+      <div id="new-game-options" class="new-game-menu__options">
+        <button id="mode-3p-plus" class="new-game-menu__option" type="button" aria-controls="classic-game">
+          <span id="new-game-3p-label">3+ Players</span><small id="new-game-3p-description">Classic Frosty Dice</small>
+        </button>
+        <button id="mode-2p" class="new-game-menu__option" type="button" aria-controls="two-player-game">
+          <span id="new-game-2p-label">2 Players</span><small id="new-game-2p-description">One device · Frosty Frontline</small>
+        </button>
       </div>
+      <div id="new-game-confirmation" hidden>
+        <p id="new-game-warning">Start a new game? Progress in the selected mode will be cleared. Your other game stays saved.</p>
+        <div class="new-game-menu__actions">
+          <button id="cancel-mode-switch" class="action-button secondary-button" type="button">Cancel</button>
+          <button id="confirm-mode-switch" class="action-button" type="button" aria-describedby="new-game-warning">Start New Game</button>
+        </div>
+      </div>
+      <p id="mode-status" class="visually-hidden" role="status" aria-atomic="true"></p>
     </dialog>
     <dialog id="challenge-dialog" class="challenge-dialog" aria-labelledby="challenge-heading" aria-describedby="bid-limit">
       <form id="challenge-form" class="challenge-content" novalidate>

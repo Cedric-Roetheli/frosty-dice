@@ -1,5 +1,5 @@
 import { createTwoPlayerBoard, createTwoPlayerState, getTwoPlayerColumnScores, getTwoPlayerDuels, getTwoPlayerHorizontalDirection, isValidTwoPlayerBoard, isValidTwoPlayerState, mapTwoPlayerColumn, placeTwoPlayerNumber, undoTwoPlayerMove, validateTwoPlayerPlacement } from "../js/two-player-game.js";
-import { createFrontlineGeometry, frontlineFraction, physicalColumnCenter } from "../js/two-player-frontline.js";
+import { createFrontlineGeometry, directionArrowGeometry, FRONTLINE_THICKNESS, frontlineFraction, physicalColumnCenter } from "../js/two-player-frontline.js";
 import { clearTwoPlayerGame, deserializeTwoPlayerGame, GAME_MODE_KEY, loadTwoPlayerGame, readGameMode, saveTwoPlayerGame, serializeTwoPlayerGame, TWO_PLAYER_STORAGE_KEY, writeGameMode } from "../js/two-player-storage.js";
 import { createEmptyBoard, placeNumber, validatePlacement } from "../js/game.js";
 import { assert, assertDeepEqual, assertEqual, assertThrows } from "./assert.js";
@@ -229,7 +229,7 @@ export function runTwoPlayerTests() {
     const duels = scores.map(([a, b], physical) => ({ physical, player1: { score: a }, player2: { score: b } }));
     const geometry = createFrontlineGeometry(duels, 286);
     assertEqual(geometry.points.length, 5);
-    assertEqual((geometry.center.match(/ C /g) ?? []).length, 4);
+    assertEqual((geometry.center.match(/ C /g) ?? []).length, 8);
     assertEqual(geometry.samples.length, 81);
     geometry.points.forEach((point) => {
       const sample = geometry.samples.find((item) => Math.abs(item.x - point.x) < 0.00001);
@@ -242,13 +242,81 @@ export function runTwoPlayerTests() {
       assert(sample.y + sample.thickness / 2 < geometry.height);
     }
     assert(geometry.samples.every((sample, i) => i === 0 || sample.x > geometry.samples[i - 1].x));
-    assert(geometry.samples.every((sample, i) => i === 0 || sample.thickness >= geometry.samples[i - 1].thickness));
-    assertDeepEqual(geometry.points.map((point) => point.thickness), [5.1, 8.5, 11.9, 17, 23.8]);
+    assertEqual(FRONTLINE_THICKNESS, 8);
+    assert(geometry.samples.every((sample) => sample.thickness === FRONTLINE_THICKNESS));
+    assertDeepEqual(geometry.points.map((point) => point.thickness), Array(5).fill(FRONTLINE_THICKNESS));
     const dotOuterRadius = 7.5 + 2.25 / 2 + 4.5;
     for (const point of geometry.points) {
       assert(point.y - dotOuterRadius > 0 && point.y + dotOuterRadius < geometry.height);
     }
     assertDeepEqual(geometry.points.map((point) => point.control), ["player1", "player2", "player1", "player2", "tie"]);
+  });
+
+  test("Equal-height scoring points form a straight centerline at every shared score ratio", () => {
+    const duels = [0, 1, 2, 3, 4].map((physical) => ({ physical, player1: { score: 0 }, player2: { score: 0 } }));
+    for (const fraction of [0, 0.25, 0.5, 0.75, 1]) {
+      const level = createFrontlineGeometry(duels, 286, Array(5).fill(fraction));
+      const y = 30 + 52 * fraction;
+      assert(level.samples.every((sample) => sample.y === y));
+      assert(level.center.match(/-?\d+(?:\.\d+)?/g).map(Number).filter((_, i) => i % 2 === 1).every((value) => value === y));
+      assert(level.samples.every((sample) => sample.thickness === FRONTLINE_THICKNESS));
+      assert(level.points.every((point) => point.thickness === FRONTLINE_THICKNESS));
+    }
+  });
+
+  test("An equal adjacent pair stays horizontal while differing pairs curve through their points", () => {
+    const duels = [0, 1, 2, 3, 4].map((physical) => ({ physical, player1: { score: 0 }, player2: { score: 0 } }));
+    const mixed = createFrontlineGeometry(duels, 286, [0.25, 0.5, 0.5, 0.75, 0.6]);
+    assert(mixed.samples.slice(20, 41).every((sample) => sample.y === 56));
+    const cubics = mixed.center.match(/C [^CML]+/g);
+    for (const cubic of cubics.slice(2, 4)) {
+      assert(cubic.match(/-?\d+(?:\.\d+)?/g).map(Number).filter((_, i) => i % 2 === 1).every((value) => value === 56));
+    }
+    assert(mixed.samples[10].y !== mixed.points[0].y && mixed.samples[10].y !== mixed.points[1].y);
+    for (const point of mixed.points) assert(mixed.samples.some((sample) => sample.x === point.x && sample.y === point.y));
+    const level = createFrontlineGeometry(duels, 286, Array(5).fill(0.5));
+    const near = createFrontlineGeometry(duels, 286, [0.5, 0.50001, 0.5, 0.5, 0.5]);
+    assert(near.samples.every((sample, i) => Math.abs(sample.y - level.samples[i].y) < 0.01));
+    const steep = createFrontlineGeometry(duels, 286, [0, 1, 0, 1, 0]);
+    for (let segment = 0; segment < 4; segment += 1) {
+      const ys = steep.samples.slice(segment * 20, segment * 20 + 21).map((sample) => sample.y);
+      const rising = ys[0] < ys[20];
+      assert(ys.every((value, index) => index === 0 || (rising ? value >= ys[index - 1] : value <= ys[index - 1])));
+    }
+  });
+
+  test("The uniform Frontline ends at the fifth dot; two static guides point right within mobile widths", () => {
+    const duels = [0, 1, 2, 3, 4].map((physical) => ({ physical, player1: { score: 0 }, player2: { score: 0 } }));
+    for (const viewport of [320, 375, 390, 430]) for (const fractions of [
+      [0, 0, 0, 0, 0], [0.5, 0.5, 0.5, 0.5, 0.5], [1, 1, 1, 1, 1],
+      [0, 1, 0, 1, 0], [1, 0, 1, 0, 1], [0.2, 0.4, 0.3, 0.6, 0.55],
+    ]) {
+      const width = Math.min(viewport - 24, 448) - 10;
+      const geometry = createFrontlineGeometry(duels, width, fractions);
+      assertEqual(geometry.arrow, undefined);
+      assertEqual(geometry.ribbon, undefined);
+      assert(geometry.center.startsWith(`M ${Math.round(geometry.points[0].x * 1000) / 1000} ${Math.round(geometry.points[0].y * 1000) / 1000}`));
+      assert(geometry.center.endsWith(`${Math.round(geometry.points[4].x * 1000) / 1000} ${Math.round(geometry.points[4].y * 1000) / 1000}`));
+      assert(geometry.samples.every((sample) => sample.y >= 30 && sample.y <= 82
+        && sample.y - sample.thickness / 2 > 0 && sample.y + sample.thickness / 2 < geometry.height));
+      assert(geometry.samples.every((sample, i) => i === 0 || sample.x > geometry.samples[i - 1].x));
+      const [top, bottom] = directionArrowGeometry(width);
+      assertEqual(top.startX, bottom.startX);
+      assertEqual(top.baseX, bottom.baseX);
+      assertEqual(top.tipX, bottom.tipX);
+      assert(top.startX < geometry.points[0].x && top.tipX > geometry.points[4].x && top.tipX < width);
+      assert(top.baseX < top.tipX && bottom.baseX < bottom.tipX);
+      assertDeepEqual(top.head.split(" ").map((vertex) => Number(vertex.split(",")[0])), [top.baseX, top.tipX, top.baseX]);
+      assertDeepEqual(bottom.head.split(" ").map((vertex) => Number(vertex.split(",")[0])), [bottom.baseX, bottom.tipX, bottom.baseX]);
+      assertEqual(top.y, 1);
+      assertEqual(bottom.y, 111);
+      assertEqual(top.tipX - top.baseX, 11.5);
+      assertEqual(bottom.tipX - bottom.baseX, 11.5);
+      assertEqual(Number(top.head.split(" ")[0].split(",")[1]), top.y - 4.25);
+      assertEqual(Number(bottom.head.split(" ")[2].split(",")[1]), bottom.y + 4.25);
+      assert(top.y < 14 && bottom.y > 98);
+      assertDeepEqual(directionArrowGeometry(width), directionArrowGeometry(width));
+    }
   });
 
   test("Zero, positive ties and leaders give distinct point states without altering column wins", () => {

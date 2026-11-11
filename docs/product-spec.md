@@ -54,16 +54,14 @@ only its two independent local boards.
 
 ## 3.1 Optional 2P mode on one device
 
-Keep the existing experience as the primary **3P+** default. A compact dropdown
-near the title's upper-right area displays the active 2P / 3P+ mode and a chevron,
-without shrinking or modifying the title artwork. Its menu offers 2 Players /
-3+ Players (2 Spieler / 3+ Spieler), with the active option checked. Reuse existing
-mode confirmation and preference handling. Native buttons, arrow/Home/End keys,
-Escape, Tab/focus dismissal, and outside taps support keyboard and touch; selection
-closes the menu before any confirmation, whose cancellation returns focus to the
-trigger. Opening/closing the menu never changes gameplay or saves.
-Missing/invalid mode preferences
-fall back to 3P+. Store only `2p` or `3p-plus` under `frosty-dice.game-mode`.
+Keep the existing experience as the primary **3P+** default. The illustrated
+Reset snowman opens a compact bilingual New Game dialog with 3+ Players and
+2 Players choices. Choosing either starts a fresh game in that mode, including
+when it is already active. The selected mode is indicated subtly. Escape,
+outside taps, and Cancel dismiss the dialog without changing gameplay or saves.
+The snowman and title retain their existing artwork, size, and position.
+Missing/invalid mode preferences fall back to 3P+. Store only `2p` or `3p-plus`
+under `frosty-dice.game-mode`.
 
 2P has two independent 5×3 boards in the existing central game region. Player 1
 sits at the top, with board, numbers and input rotated 180°; Player 2 sits at the
@@ -86,7 +84,9 @@ The single SVG Frosty Frontline replaces the ten triangles. Its five control
 points share the board's actual physical column centers. Each point's vertical
 fraction is Player 1's column score divided by both column scores, or 0.5 at
 0:0. The curve passes through all five points and stays in the scoring area;
-its filled ribbon widens from physical left to right. Blue means Player 1 leads,
+its uniform 8px icy stroke has rounded ends at the first and fifth points.
+Two fixed horizontal arrows between each board and its score labels point toward
+physical screen right: light blue for Player 1 and pink for Player 2. Blue means Player 1 leads,
 pink means Player 2 leads, white marks a positive tie, and a dark point marks
 0:0. These are live indicators, not permanent awards. The owners' exact numeric
 totals remain fixed at the upper and lower edges, each facing the corresponding
@@ -116,8 +116,8 @@ owns `{ player1: { board }, player2: { board }, undo }`, with one complete, deep
 pre-placement snapshot of both boards and no nested history. Prime status is
 historical and authoritative per player, never reconstructed from current neighbors.
 Rejected input/cancellation leaves state and Undo untouched. Reuse the existing
-Undo and confirmed Reset controls, guarded by active mode; Reset clears only the
-active mode's state/save. Classic-only controls and their board/goal/Street/Attack
+Undo and reset actions, guarded by active mode; New Game clears only the selected
+mode's state/save. Classic-only controls and their board/goal/Street/Attack
 UI are hidden and unfocusable while 2P is visible.
 
 Persist 2P under `frosty-dice.two-player-game`, schema version 1, validating board
@@ -125,18 +125,17 @@ shape, dice values, status restrictions, one freeze per board, and a legal one-m
 Undo snapshot. Restore safely from missing/malformed/unavailable data without
 rewriting the original. Classic save version 8 and migrations remain unchanged.
 
-Meaningful progress on the current mode requires a native confirmation before
-switching. Selection/drafts/tutorial/receipt opening do not count as progress.
-Both independent saves are retained: this permitted option avoids deletion and
-multi-key rollback complexity. The confirmation explicitly says progress remains
-saved. Cancelling changes no board, save or preference. Save the new mode preference
-before changing visible mode; a failed preference write keeps the current mode and
-reports the failure. Startup only reads state/preferences and never erases a game.
+Meaningful progress in either the current or selected mode requires confirmation
+before starting a new game. Selection/drafts/tutorial/receipt opening do not count
+as progress. The other mode's save is retained; the selected mode's save is cleared
+only after confirmation. Cancelling changes no board, save, or preference. Save the
+new mode preference before clearing the selected game; a failed preference write
+keeps both games intact. Startup only reads state/preferences and never erases a game.
 
 All new visible/accessibility copy uses the existing DE/EN preference and language
 event. Language changes preserve boards and Undo; an open keypad closes if the
 player taps the language control outside it. Keep
-new styling scoped to 2P except the compact mode control's necessary header space.
+new styling scoped to the New Game dialog and 2P view.
 Precache new modules/CSS, retain existing assets/pages, and preserve the worker
 update strategy. No framework, dependency, server, accounts, or synchronization.
 

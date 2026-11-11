@@ -2,7 +2,7 @@
 // below when adding/removing files or changing their query-string versions.
 // Also version changed modules and their importers for browsers without a worker.
 const CACHE_PREFIX = "frosty-dice-pwa-";
-const CACHE_NAME = CACHE_PREFIX + "v37";
+const CACHE_NAME = CACHE_PREFIX + "v42";
 const APP_SHELL = "/index.html";
 const PRECACHE_URLS = [
   APP_SHELL,
@@ -10,19 +10,19 @@ const PRECACHE_URLS = [
   "/manifest.webmanifest",
   "/css/style.css?v=digital-dice-4",
   "/css/tutorial.css?v=tutorial-1",
-  "/css/two-player.css?v=frontline-visual-1",
-  "/js/game-modes.js?v=frontline-visual-1",
+  "/css/two-player.css?v=frontline-guides-2",
+  "/js/game-modes.js?v=frontline-guides-2",
   "/js/placement-rules.js?v=two-player-1",
   "/js/placement-rules.js?v=frontline-1",
   "/js/two-player-game.js?v=frontline-1",
   "/js/two-player-storage.js?v=frontline-1",
-  "/js/two-player-app.js?v=frontline-visual-1",
-  "/js/two-player-frontline.js?v=frontline-visual-1",
+  "/js/two-player-app.js?v=frontline-guides-2",
+  "/js/two-player-frontline.js?v=frontline-guides-2",
   "/css/rules-page.css?v=rules-page-1",
   "/js/tutorial.js?v=two-player-1",
   "/js/tutorial-scenes.js?v=two-player-1",
   "/js/digital-dice.js?v=rules-page-1",
-  "/js/app.js?v=two-player-1",
+  "/js/app.js?v=new-game-menu-1",
   "/js/receipt.js?v=receipt-5",
   "/js/challenge-note.js?v=rules-page-1",
   "/js/board-state.js?v=v3-multipliers-1",

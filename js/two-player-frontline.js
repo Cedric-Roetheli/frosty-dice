@@ -1,9 +1,10 @@
 // Derived display geometry for the five physical column duels. No game state.
 export const FRONTLINE_HEIGHT = 112;
 const BOARD_GAP = 4;
-const THICKNESS = [5.1, 8.5, 11.9, 17, 23.8];
+export const FRONTLINE_THICKNESS = 8;
 const TOP = 30;
 const TRAVEL = 52;
+const SWING = [5, -4, 5.5, -3.5];
 
 export function frontlineFraction(p1, p2) {
   if (!Number.isFinite(p1) || !Number.isFinite(p2) || p1 < 0 || p2 < 0) throw new RangeError("Column scores must be nonnegative.");
@@ -36,29 +37,43 @@ export function createFrontlineGeometry(duels, width, displayFractions) {
     if (duel.physical !== i) throw new RangeError("Column duels must follow physical order.");
     const a = duel.player1.score, b = duel.player2.score;
     return { physical: i, x: physicalColumnCenter(width, i), y: TOP + TRAVEL * fractions[i], fraction: fractions[i],
-      thickness: THICKNESS[i], control: a > b ? "player1" : b > a ? "player2" : a > 0 ? "tie" : "empty",
+      thickness: FRONTLINE_THICKNESS, control: a > b ? "player1" : b > a ? "player2" : a > 0 ? "tie" : "empty",
       player1: a, player2: b };
   });
   const slopes = monotoneSlopes(points);
   const center = [`M ${rounded(points[0].x)} ${rounded(points[0].y)}`];
-  const upper = [], lower = [], samples = [];
+  const samples = [];
   for (let i = 0; i < 4; i += 1) {
     const a = points[i], b = points[i + 1], span = b.x - a.x;
     const c1 = a.y + slopes[i] * span / 3, c2 = b.y - slopes[i + 1] * span / 3;
-    center.push(`C ${rounded(a.x + span / 3)} ${rounded(c1)} ${rounded(b.x - span / 3)} ${rounded(c2)} ${rounded(b.x)} ${rounded(b.y)}`);
+    // Equal-height points stay level. Moderate differences add an endpoint-smooth
+    // swing, while steep score changes rely on the readable cubic baseline.
+    const difference = Math.abs(b.y - a.y);
+    let swing = SWING[i] * Math.min(1, difference / 12) * Math.max(0, 1 - difference / TRAVEL);
+    const room = (direction) => direction > 0 ? TOP + TRAVEL - Math.max(a.y, b.y) : Math.min(a.y, b.y) - TOP;
+    swing = Math.sign(swing) * Math.min(Math.abs(swing), room(Math.sign(swing)));
+    const middle = (a.y + 3 * c1 + 3 * c2 + b.y) / 8 + swing;
+    center.push(`C ${rounded(a.x + span / 6)} ${rounded((a.y + c1) / 2)} ${rounded(a.x + span / 3)} ${rounded((a.y + 2 * c1 + c2) / 4 + swing)} ${rounded(a.x + span / 2)} ${rounded(middle)}`);
+    center.push(`C ${rounded(a.x + 2 * span / 3)} ${rounded((c1 + 2 * c2 + b.y) / 4 + swing)} ${rounded(a.x + 5 * span / 6)} ${rounded((c2 + b.y) / 2)} ${rounded(b.x)} ${rounded(b.y)}`);
     for (let step = 0; step <= 20; step += 1) {
       if (i > 0 && step === 0) continue;
       const t = step / 20, u = 1 - t;
-      const y = u ** 3 * a.y + 3 * u ** 2 * t * c1 + 3 * u * t ** 2 * c2 + t ** 3 * b.y;
+      const half = t <= 0.5 ? 2 * t : 2 * (1 - t);
+      const bump = half * half * (3 - 2 * half);
+      const y = difference === 0 ? a.y
+        : u ** 3 * a.y + 3 * u ** 2 * t * c1 + 3 * u * t ** 2 * c2 + t ** 3 * b.y + swing * bump;
       const x = a.x + span * t;
-      const smooth = t * t * (3 - 2 * t);
-      const thickness = a.thickness + (b.thickness - a.thickness) * smooth;
-      upper.push([x, y - thickness / 2]); lower.push([x, y + thickness / 2]);
-      samples.push({ x, y, thickness });
+      samples.push({ x, y, thickness: FRONTLINE_THICKNESS });
     }
   }
-  const line = (pair, prefix) => `${prefix} ${rounded(pair[0])} ${rounded(pair[1])}`;
-  const ribbon = [line(upper[0], "M"), ...upper.slice(1).map((point) => line(point, "L")),
-    ...lower.reverse().map((point) => line(point, "L")), "Z"].join(" ");
-  return { points, center: center.join(" "), ribbon, samples, height: FRONTLINE_HEIGHT, width };
+  return { points, center: center.join(" "), samples, height: FRONTLINE_HEIGHT, width };
+}
+
+// Static direction guides share the board's physical coordinates, independent
+// of the scores and of Player 1's rotated labels.
+export function directionArrowGeometry(width) {
+  if (!Number.isFinite(width) || width <= 4 * BOARD_GAP) throw new RangeError("Invalid board width.");
+  const startX = 8, tipX = width - 8, baseX = tipX - 11.5;
+  return [1, 111].map((y) => ({ startX, baseX, tipX, y,
+    head: `${baseX},${y - 4.25} ${tipX},${y} ${baseX},${y + 4.25}` }));
 }

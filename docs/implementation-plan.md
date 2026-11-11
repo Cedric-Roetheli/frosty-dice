@@ -990,9 +990,11 @@ without changing cell dimensions or touch targets.
 
 Replace ten triangle markers with one 112px SVG Frosty Frontline. Five points
 share the actual physical column centers; vertical positions use Player 1's
-score fraction and zero-score ties remain centered. A shape-preserving cubic
-centerline passes through all five points. Its filled ribbon grows from 5.1px to
-23.8px left to right; 15px colored points indicate column leaders or ties. Fixed,
+score fraction and zero-score ties remain centered. A cubic baseline with a
+conditional wave passes through all five points; equal-height neighbors stay
+straight. Its filled ribbon grows from 5.1px to 23.8px left to right and joins
+a separate right-pointing triangular arrow;
+15px colored points indicate column leaders or ties. Fixed,
 owner-facing numbers retain both exact column totals. Derive all display values
 from the existing 2P column scorer. Animate score changes for 280ms unless
 reduced motion is requested. Preserve the classic 3P+ view, game rules, storage
@@ -1004,8 +1006,29 @@ saved Undo, geometry, rendering, animation, responsive-center, and offline tests
 Do not commit or push.
 
 **Status: Implemented for manual evaluation.** The full JavaScriptCore suite
-passes **612/612**. Manual iPhone review remains for the curve, signs, touch
+passes **619/619**. Manual iPhone review remains for the curve, signs, touch
 targets, and score label readability.
+
+The follow-up New Game flow removes the header dropdown and uses the Reset
+snowman to open a bilingual dialog. Starting a game clears only the selected
+mode's save after confirmation when either mode has progress; the other save
+remains. The Frontline arrow now uses a separate open SVG path that fills a
+triangle over the ribbon's short shaft; its outline leaves no internal seam.
+The decorative swing is zero for equal-height neighboring points. Version the
+changed Frontline modules and CSS at `frontline-arrow-3` and the PWA cache at
+v40. Gameplay and scoring remain unchanged.
+
+The next visual pass removes the dynamic arrow and variable-width ribbon. A
+uniform 8px stroked curve ends at the first and fifth scoring dots. Two fixed,
+player-colored right-pointing arrows sit beneath the owner-facing scores in
+the same 112px SVG. The five dots, score placement, curvature, and animation
+remain unchanged. Version the 2P visual modules and CSS at
+`frontline-guides-1` and the PWA cache at v41.
+
+Move the arrows to the outer edges of the same SVG, between each board and its
+score labels. Reduce each shaft from 4.5px to 3.25px and proportionally reduce
+the heads. Keep their horizontal span, the curve, dots, boards, and score labels
+fixed. Version the 2P visual assets at `frontline-guides-2` and cache at v42.
 
 ## Workflow
 

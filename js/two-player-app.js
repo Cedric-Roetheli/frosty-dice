@@ -1,7 +1,7 @@
 import { cloneTwoPlayerState, createTwoPlayerState, getTwoPlayerDuels, getTwoPlayerHorizontalDirection, placeTwoPlayerNumber, TWO_PLAYER_COLUMNS, TWO_PLAYER_START_ROW, undoTwoPlayerMove } from "./two-player-game.js?v=frontline-1";
 import { clearTwoPlayerGame, loadTwoPlayerGame, saveTwoPlayerGame } from "./two-player-storage.js?v=frontline-1";
 import { getCellScoreMultiplier } from "./scoring.js?v=v3-multipliers-1";
-import { createFrontlineGeometry, frontlineFraction } from "./two-player-frontline.js?v=frontline-visual-1";
+import { createFrontlineGeometry, directionArrowGeometry, frontlineFraction } from "./two-player-frontline.js?v=frontline-guides-2";
 
 const copy = {
   en: { player: "Player", empty: "empty", start: "Start", frozen: "Frozen · 0 points · unusable", thawed: "Thawed · permanently 0 points · usable", input: "Choose two digits from 1–6", ready: "Tap an empty cell to enter a number.", placed: "placed at", undone: "Last move undone.", reset: "New two-player game started.", lit: "lit", unlit: "unlit", column: "Physical column", help: "Start in any outer-row cell. Win more columns to win. White points count for both players. No Challenges or Streets. First full board: finish the current roll together.", save: "Local saving is unavailable. Changes may not survive a reload.", invalidSave: "Saved 2P data could not be restored. The old save is kept until you play or reset.", resetFailed: "The saved game could not be cleared. Your game was kept.", board: "board", direction: "Numbers increase from screen left to right", number: "Use two digits from 1–6.", cell: "Choose a cell from A1 to E3.", occupied: "This cell is already occupied.", neighbor: "This number needs a valid usable neighboring connection.", first: "Start in any cell of the outer row.", invalidBoard: "The board could not be read." },
@@ -24,7 +24,7 @@ export function initializeTwoPlayer(document, storage) {
   const snowman = byId("new-game");
   const frontline = byId("two-player-duels");
   let visualFractions = null, targetFractions = null, frameId = null;
-  const available = () => active && !byId("mode-switch-dialog")?.open;
+  const available = () => active && !byId("new-game-menu")?.open;
   const cellId = (player, coordinate) => "two-player-" + player + "-" + coordinate;
   function append(tag, className, parent) {
     const node = document.createElement(tag); node.className = className; parent.append(node); return node;
@@ -34,8 +34,12 @@ export function initializeTwoPlayer(document, storage) {
     for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
     parent.append(node); return node;
   }
-  const ribbon = svg("path", { class: "two-player-frontline__ribbon" }, frontline);
-  const centerline = svg("path", { class: "two-player-frontline__centerline", "aria-hidden": "true" }, frontline);
+  const guides = ["player1", "player2"].map((player) => ({
+    shaft: svg("line", { class: `two-player-frontline__guide two-player-frontline__guide--${player}`, "aria-hidden": "true" }, frontline),
+    head: svg("polygon", { class: `two-player-frontline__guide-head two-player-frontline__guide-head--${player}`, "aria-hidden": "true" }, frontline),
+  }));
+  const outline = svg("path", { class: "two-player-frontline__outline" }, frontline);
+  const curve = svg("path", { class: "two-player-frontline__curve" }, frontline);
   const points = Array.from({ length: 5 }, (_, physical) => {
     const circle = svg("circle", { r: 7.5, class: "two-player-frontline__point" }, frontline);
     circle.dataset.physical = String(physical);
@@ -47,8 +51,14 @@ export function initializeTwoPlayer(document, storage) {
   function paintFrontline(duels, fractions) {
     const geometry = createFrontlineGeometry(duels, frontlineWidth(), fractions);
     frontline.setAttribute("viewBox", `0 0 ${geometry.width} ${geometry.height}`);
-    ribbon.setAttribute("d", geometry.ribbon);
-    centerline.setAttribute("d", geometry.center);
+    directionArrowGeometry(geometry.width).forEach((arrow, i) => {
+      const { shaft, head } = guides[i];
+      shaft.setAttribute("x1", arrow.startX); shaft.setAttribute("x2", arrow.baseX + 1);
+      shaft.setAttribute("y1", arrow.y); shaft.setAttribute("y2", arrow.y);
+      head.setAttribute("points", arrow.head);
+    });
+    outline.setAttribute("d", geometry.center);
+    curve.setAttribute("d", geometry.center);
     geometry.points.forEach((point, i) => {
       points[i].setAttribute("cx", point.x); points[i].setAttribute("cy", point.y);
       points[i].dataset.control = point.control;
@@ -252,6 +262,7 @@ export function initializeTwoPlayer(document, storage) {
     storageMessage = saveTwoPlayerGame(state, storage) ? "" : "save"; render();
   });
   snowman.addEventListener("click", () => {
+    if (byId("new-game-menu")) return;
     if (!available()) return;
     entry = null; resetting = true; render(); byId("cancel-new-game").focus();
   });
@@ -259,11 +270,15 @@ export function initializeTwoPlayer(document, storage) {
     if (!available()) return;
     resetting = false; render(); snowman.focus({ preventScroll: true });
   });
+  function resetGame() {
+    if (!clearTwoPlayerGame(storage)) { storageMessage = "resetFailed"; updateText(); return false; }
+    state = createTwoPlayerState(); entry = null; resetting = false; storageMessage = "";
+    feedback[1] = feedback[2] = { kind: "reset" }; render();
+    return true;
+  }
   byId("confirm-new-game").addEventListener("click", () => {
     if (!available() || !resetting) return;
-    if (!clearTwoPlayerGame(storage)) { storageMessage = "resetFailed"; updateText(); return; }
-    state = createTwoPlayerState(); entry = null; resetting = false; storageMessage = "";
-    feedback[1] = feedback[2] = { kind: "reset" }; render(); byId("two-player-board-2").focus({ preventScroll: true });
+    if (resetGame()) byId("two-player-board-2").focus({ preventScroll: true });
   });
   document.addEventListener("ruleslanguagechange", (event) => { language = event.detail; updateText(); updateEntry(); });
   const Resize = document.defaultView?.ResizeObserver;
@@ -273,6 +288,8 @@ export function initializeTwoPlayer(document, storage) {
   return {
     getState: () => cloneTwoPlayerState(state),
     hasProgress: () => state.player1.board.some((row) => row.some((cell) => cell !== null)) || state.player2.board.some((row) => row.some((cell) => cell !== null)) || state.undo !== null,
+    dismissDraft: () => { if (entry) closeEntry(); },
+    resetGame,
     setActive(value) { active = value; entry = null; resetting = false; byId("two-player-help").hidden = !active; render(); },
   };
 }

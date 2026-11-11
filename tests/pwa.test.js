@@ -147,9 +147,9 @@ export async function runPwaTests(sources) {
 
   await test("Receipt release uses fresh matching module URLs in Safari and the offline cache", () => {
     const worker = workerHarness(sources.worker);
-    assert(sources.html.includes('src="./js/game-modes.js?v=frontline-visual-1"'));
-    assert(sources.modes.includes('from "./app.js?v=two-player-1"'));
-    for (const [name, version] of [["app", "two-player-1"], ["game", "two-player-1"], ["storage", "two-player-1"], ["receipt", "receipt-5"]]) {
+    assert(sources.html.includes('src="./js/game-modes.js?v=frontline-guides-2"'));
+    assert(sources.modes.includes('from "./app.js?v=new-game-menu-1"'));
+    for (const [name, version] of [["app", "new-game-menu-1"], ["game", "two-player-1"], ["storage", "two-player-1"], ["receipt", "receipt-5"]]) {
       const path = "/js/" + name + ".js?v=" + version;
       assertDeepEqual(worker.PRECACHE_URLS.filter((url) => url.startsWith("/js/" + name + ".js?")), [path]);
     }
@@ -384,13 +384,13 @@ export async function runPwaTests(sources) {
 
   await test("Both modes and their shared rule helpers are available offline alongside existing assets", async () => {
     const worker = workerHarness(sources.worker);
-    assertEqual(worker.CACHE_NAME, "frosty-dice-pwa-v37");
+    assertEqual(worker.CACHE_NAME, "frosty-dice-pwa-v42");
     await worker.lifecycle("install"); worker.offline = true;
-    for (const path of ["/js/game-modes.js?v=frontline-visual-1", "/js/placement-rules.js?v=two-player-1",
-      "/js/placement-rules.js?v=frontline-1", "/js/two-player-frontline.js?v=frontline-visual-1",
+    for (const path of ["/js/game-modes.js?v=frontline-guides-2", "/js/placement-rules.js?v=two-player-1",
+      "/js/placement-rules.js?v=frontline-1", "/js/two-player-frontline.js?v=frontline-guides-2",
       "/js/two-player-game.js?v=frontline-1", "/js/two-player-storage.js?v=frontline-1",
-      "/js/two-player-app.js?v=frontline-visual-1", "/css/two-player.css?v=frontline-visual-1",
-      "/js/app.js?v=two-player-1", "/js/game.js?v=two-player-1", "/js/storage.js?v=two-player-1",
+      "/js/two-player-app.js?v=frontline-guides-2", "/css/two-player.css?v=frontline-guides-2",
+      "/js/app.js?v=new-game-menu-1", "/js/game.js?v=two-player-1", "/js/storage.js?v=two-player-1",
       "/assets/icecube.png", "/assets/digital_dice/dice_machine.png", "/rules.html"]) {
       assert(worker.PRECACHE_URLS.includes(path), path);
       assertEqual((await worker.request(path)).body, "cached:" + ORIGIN + path);

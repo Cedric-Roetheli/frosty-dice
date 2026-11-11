@@ -1,7 +1,8 @@
 import { initializeGameModes } from "../js/game-modes.js";
 import { initializeRules, RULES_LANGUAGE_KEY } from "../js/rules.js";
 import { createGameState, placeGameNumber, confirmGameBid } from "../js/game.js";
-import { createTwoPlayerState, placeTwoPlayerNumber } from "../js/two-player-game.js";
+import { createTwoPlayerState, getTwoPlayerDuels, placeTwoPlayerNumber } from "../js/two-player-game.js";
+import { createFrontlineGeometry } from "../js/two-player-frontline.js";
 import { GAME_MODE_KEY, serializeTwoPlayerGame, TWO_PLAYER_STORAGE_KEY } from "../js/two-player-storage.js";
 import { serializeGame, STORAGE_KEY } from "../js/storage.js";
 import { appTestStorage } from "./app-initialization.test.js";
@@ -20,18 +21,8 @@ export function modeFixture({ classic, classicRaw, twoPlayer, preference, langua
   };
   const classicRoot = add("div", "classic-game");
   for (const id of ["game-board", "app-status", "storage-status", "street-bonus", "goal-status", "attack-ice-actions"]) classicRoot.append(document.getElementById(id));
-  const switcher = add("div", "game-mode-switch"); switcher.setAttribute("role", "group");
-  const trigger = add("button", "game-mode-trigger", switcher); trigger.type = "button";
-  trigger.setAttribute("aria-haspopup", "menu"); trigger.setAttribute("aria-controls", "game-mode-options");
-  add("span", "game-mode-label", trigger);
-  const options = add("div", "game-mode-options", switcher); options.hidden = true; options.setAttribute("role", "menu");
-  for (const [id, controls] of [["mode-2p", "two-player-game"], ["mode-3p-plus", "classic-game"]]) {
-    const button = add("button", id, options); button.type = "button"; button.setAttribute("aria-controls", controls);
-    button.setAttribute("role", "menuitemradio"); button.setAttribute("tabindex", "-1");
-  }
   const controls = add("div", "header-controls"); controls.className = "game-stats";
-  controls.append(switcher, document.getElementById("open-challenge"), document.getElementById("undo-move"), document.getElementById("open-receipt"));
-  add("p", "mode-status");
+  controls.append(document.getElementById("open-challenge"), document.getElementById("undo-move"), document.getElementById("open-receipt"));
   const root = add("section", "two-player-game"); root.hidden = true;
   for (const player of [1, 2]) {
     add("h2", "two-player-label-" + player, root);
@@ -44,10 +35,23 @@ export function modeFixture({ classic, classicRaw, twoPlayer, preference, langua
   add("p", "two-player-help", rules).hidden = true;
   if (!document.getElementById("tutorial-toggle")) add("button", "tutorial-toggle", rules);
   add("p", "two-player-storage-status", root);
-  const dialog = add("dialog", "mode-switch-dialog");
-  add("h2", "mode-switch-heading", dialog); add("p", "mode-switch-detail", dialog);
-  add("button", "cancel-mode-switch", dialog).type = "button";
-  add("button", "confirm-mode-switch", dialog).type = "button";
+  const dialog = add("dialog", "new-game-menu");
+  add("h2", "new-game-menu-heading", dialog);
+  const options = add("div", "new-game-options", dialog);
+  for (const [id, label, description, target] of [
+    ["mode-3p-plus", "new-game-3p-label", "new-game-3p-description", "classic-game"],
+    ["mode-2p", "new-game-2p-label", "new-game-2p-description", "two-player-game"],
+  ]) {
+    const button = add("button", id, options); button.type = "button"; button.setAttribute("aria-controls", target);
+    add("span", label, button); add("small", description, button);
+  }
+  const confirmation = add("div", "new-game-confirmation", dialog); confirmation.hidden = true;
+  add("p", "new-game-warning", confirmation);
+  add("button", "cancel-mode-switch", confirmation).type = "button";
+  add("button", "confirm-mode-switch", confirmation).type = "button";
+  add("p", "mode-status", dialog);
+  document.getElementById("new-game").setAttribute("aria-controls", "new-game-menu");
+  document.getElementById("new-game").setAttribute("aria-expanded", "false");
   add("p", "reset-warning", document.getElementById("reset-confirmation")).textContent = "Start a new game? Your board and local save will be cleared.";
   document.getElementById("cancel-new-game").textContent = "Keep current game";
   document.getElementById("confirm-new-game").textContent = "Clear game and start again";
@@ -62,9 +66,9 @@ export function modeFixture({ classic, classicRaw, twoPlayer, preference, langua
     node(id) { return document.getElementById(id); },
     click(id) { this.node(id).emit("click"); },
     change(mode, confirm = true) {
-      if (options.hidden) this.click("game-mode-trigger");
+      if (!dialog.open) this.click("new-game");
       this.click(mode === "2p" ? "mode-2p" : "mode-3p-plus");
-      if (confirm && dialog.open) this.click("confirm-mode-switch");
+      if (confirm && dialog.open && !confirmation.hidden) this.click("confirm-mode-switch");
     },
     select(player, coordinate) {
       this.node("two-player-board-" + player).emit("click", this.node("two-player-" + player + "-" + coordinate));
@@ -104,106 +108,122 @@ export async function runGameModesTests(sources) {
     assertEqual(f.controller.getMode(), "3p-plus");
     assertEqual(f.node("classic-game").hidden, false); assertEqual(f.node("two-player-game").hidden, true);
     assertEqual(f.node("open-challenge").hidden, false); assertEqual(f.node("open-receipt").hidden, false);
-    assertEqual(f.node("mode-3p-plus").getAttribute("aria-checked"), "true");
+    assertEqual(f.node("mode-3p-plus").dataset.current, "true");
     assertDeepEqual(f.writes, []); assertDeepEqual(f.removals, []);
     assertEqual(f.storage.getItem(GAME_MODE_KEY), null);
   });
 
-  test("The compact dropdown starts closed, names the active mode, and exposes two checked-state menu items", () => {
+  test("The snowman opens a compact New Game dialog without changing either save", () => {
     const f = modeFixture();
-    assertEqual(f.node("game-mode-label").textContent, "3P+");
-    assertEqual(f.node("game-mode-trigger").getAttribute("aria-expanded"), "false");
-    assertEqual(f.node("game-mode-trigger").getAttribute("aria-haspopup"), "menu");
-    assertEqual(f.node("game-mode-trigger").getAttribute("aria-controls"), "game-mode-options");
-    assertEqual(f.node("game-mode-options").hidden, true);
-    assertEqual(f.node("mode-2p").textContent, "2 Players");
-    assertEqual(f.node("mode-3p-plus").textContent, "3+ Players");
-    assertEqual(f.node("mode-2p").getAttribute("role"), "menuitemradio");
-    assertEqual(f.node("mode-3p-plus").getAttribute("aria-checked"), "true");
-    f.node("game-mode-trigger").emit("click", f.node("game-mode-trigger"), { detail: 0 });
-    assertEqual(f.node("game-mode-options").hidden, false);
+    assertEqual(f.node("new-game-menu").open, false);
+    assertEqual(f.node("new-game").getAttribute("aria-expanded"), "false");
+    assertEqual(f.node("new-game-menu-heading").textContent, "New Game");
+    assertEqual(f.node("new-game-3p-label").textContent, "3+ Players");
+    assertEqual(f.node("new-game-3p-description").textContent, "Classic Frosty Dice");
+    assertEqual(f.node("new-game-2p-label").textContent, "2 Players");
+    assertEqual(f.node("new-game-2p-description").textContent, "One device · Frosty Frontline");
+    f.click("new-game");
+    assertEqual(f.node("new-game-menu").open, true);
+    assertEqual(f.node("new-game").getAttribute("aria-expanded"), "true");
     assertEqual(f.document.activeElement, f.node("mode-3p-plus"));
-    f.click("game-mode-trigger");
-    assertEqual(f.node("game-mode-options").hidden, true);
+    assertEqual(f.node("new-game-options").hidden, false);
+    assertDeepEqual(f.writes, []); assertDeepEqual(f.removals, []);
+    f.node("new-game-menu").emit("cancel");
+    assertEqual(f.node("new-game-menu").open, false);
+    assertEqual(f.document.activeElement, f.node("new-game"));
+  });
+
+  test("Opening the snowman menu and focusing a choice preserve an in-progress game", () => {
+    const classic = placeGameNumber(createGameState(), "A1", 23);
+    const f = modeFixture({ classic });
+    const saved = f.storage.getItem(STORAGE_KEY);
+    f.click("new-game");
+    f.node("mode-2p").focus();
+    assertEqual(f.controller.getMode(), "3p-plus");
+    assertDeepEqual(f.controller.classic.getState(), classic);
+    assertEqual(f.storage.getItem(STORAGE_KEY), saved);
+    assertDeepEqual(f.writes, []); assertDeepEqual(f.removals, []);
+    f.node("new-game-menu").emit("cancel");
+    assertDeepEqual(f.controller.classic.getState(), classic);
+  });
+
+  test("A saved game in the selected inactive mode also requires confirmation", () => {
+    const two = placeTwoPlayerNumber(createTwoPlayerState(), 2, "A3", 24);
+    const f = modeFixture({ twoPlayer: two, preference: "3p-plus" });
+    const saved = f.storage.getItem(TWO_PLAYER_STORAGE_KEY);
+    f.change("2p", false);
+    assertEqual(f.node("new-game-confirmation").hidden, false);
+    f.click("cancel-mode-switch");
+    assertEqual(f.controller.getMode(), "3p-plus");
+    assertDeepEqual(f.controller.twoPlayer.getState(), two);
+    assertEqual(f.storage.getItem(TWO_PLAYER_STORAGE_KEY), saved);
     assertDeepEqual(f.writes, []); assertDeepEqual(f.removals, []);
   });
 
-  test("Choosing a mode closes the menu and updates its short label; choosing it again does not write", () => {
-    const f = modeFixture(); f.change("2p");
-    assertEqual(f.node("game-mode-label").textContent, "2P");
-    assertEqual(f.node("game-mode-options").hidden, true);
-    assertEqual(f.node("game-mode-trigger").getAttribute("aria-expanded"), "false");
-    assertEqual(f.node("mode-2p").getAttribute("aria-checked"), "true");
-    const count = f.writes.length;
-    f.change("2p");
-    assertEqual(f.writes.length, count);
-    assertEqual(f.node("game-mode-options").hidden, true);
-    assertEqual(f.document.activeElement, f.node("game-mode-trigger"));
+  test("An empty classic game can restart immediately without a confirmation step", () => {
+    const f = modeFixture();
+    f.change("3p-plus", false);
+    assertEqual(f.node("new-game-menu").open, false);
+    assertEqual(f.controller.getMode(), "3p-plus");
+    assertEqual(f.node("new-game-confirmation").hidden, true);
+    assertDeepEqual(f.controller.classic.getState(), createGameState());
+    assertEqual(f.storage.getItem(GAME_MODE_KEY), null);
   });
 
-  test("Arrow keys, Home/End and Escape navigate the dropdown without changing the game", () => {
+  test("Choosing a mode starts a fresh game, including a second game in the same mode", () => {
+    const f = modeFixture(); f.change("2p");
+    assertEqual(f.node("new-game-menu").open, false);
+    assertEqual(f.node("mode-2p").dataset.current, "true");
+    f.type(2, "A3", 24);
+    f.change("2p");
+    assertEqual(f.controller.getMode(), "2p");
+    assertDeepEqual(f.controller.twoPlayer.getState(), createTwoPlayerState());
+    assertEqual(f.storage.getItem(TWO_PLAYER_STORAGE_KEY), null);
+    assertEqual(f.document.activeElement, f.node("two-player-board-2"));
+  });
+
+  test("Native dialog buttons support keyboard focus and Escape without changing the game", () => {
     const f = modeFixture();
-    const trigger = f.node("game-mode-trigger"), menu = f.node("game-mode-options");
-    assertEqual(trigger.emit("keydown", trigger, { key: "ArrowDown" }).defaultPrevented, true);
-    assertEqual(f.document.activeElement, f.node("mode-2p"));
-    menu.emit("keydown", f.document.activeElement, { key: "ArrowDown" });
+    f.node("new-game").emit("click", f.node("new-game"), { detail: 0 });
     assertEqual(f.document.activeElement, f.node("mode-3p-plus"));
-    menu.emit("keydown", f.document.activeElement, { key: "ArrowDown" });
+    f.node("mode-2p").focus();
     assertEqual(f.document.activeElement, f.node("mode-2p"));
-    menu.emit("keydown", f.document.activeElement, { key: "End" });
-    assertEqual(f.document.activeElement, f.node("mode-3p-plus"));
-    menu.emit("keydown", f.document.activeElement, { key: "Home" });
-    assertEqual(f.document.activeElement, f.node("mode-2p"));
-    menu.emit("keydown", f.document.activeElement, { key: "ArrowUp" });
-    assertEqual(f.document.activeElement, f.node("mode-3p-plus"));
+    const menu = f.node("new-game-menu");
     const escape = menu.emit("keydown", f.document.activeElement, { key: "Escape" });
     assertEqual(escape.defaultPrevented, true); assertEqual(escape.propagationStopped, true);
-    assertEqual(menu.hidden, true); assertEqual(f.document.activeElement, trigger);
-    trigger.emit("keydown", trigger, { key: "ArrowUp" });
-    assertEqual(f.document.activeElement, f.node("mode-3p-plus"));
-    trigger.emit("keydown", trigger, { key: "Escape" });
-    assertEqual(menu.hidden, true);
+    assertEqual(menu.open, false); assertEqual(f.document.activeElement, f.node("new-game"));
     assertEqual(f.controller.getMode(), "3p-plus"); assertDeepEqual(f.writes, []);
   });
 
-  test("Outside pointer, assistive clicks and keyboard focus close the menu without stealing focus or saving", () => {
+  test("Backdrop click closes the menu without saving", () => {
     const f = modeFixture();
-    f.click("game-mode-trigger");
-    f.node("full-rules-link").focus();
-    f.document.emit("pointerdown", f.node("full-rules-link"));
-    assertEqual(f.node("game-mode-options").hidden, true);
-    assertEqual(f.document.activeElement, f.node("full-rules-link"));
-    f.click("game-mode-trigger");
-    f.document.emit("click", f.node("full-rules-link"));
-    assertEqual(f.node("game-mode-options").hidden, true);
-    f.click("game-mode-trigger");
-    f.node("open-challenge").focus();
-    f.document.emit("focusin", f.node("open-challenge"));
-    assertEqual(f.node("game-mode-options").hidden, true);
-    assertEqual(f.document.activeElement, f.node("open-challenge"));
+    f.click("new-game");
+    f.node("new-game-menu").emit("click", f.node("new-game-menu"));
+    assertEqual(f.node("new-game-menu").open, false);
+    assertEqual(f.document.activeElement, f.node("new-game"));
     assertDeepEqual(f.writes, []);
   });
 
-  test("Dropdown selection closes before confirmation, and cancellation keeps the mode and returns focus to the trigger", () => {
+  test("Selecting a new game requires confirmation when progress exists; cancellation preserves it", () => {
     const classic = placeGameNumber(createGameState(), "A1", 22);
     const f = modeFixture({ classic }); f.change("2p", false);
-    assertEqual(f.node("mode-switch-dialog").open, true);
-    assertEqual(f.node("game-mode-options").hidden, true);
-    assertEqual(f.node("game-mode-label").textContent, "3P+");
+    assertEqual(f.node("new-game-menu").open, true);
+    assertEqual(f.node("new-game-options").hidden, true);
+    assertEqual(f.node("new-game-confirmation").hidden, false);
     f.click("cancel-mode-switch");
-    assertEqual(f.node("game-mode-label").textContent, "3P+");
-    assertEqual(f.document.activeElement, f.node("game-mode-trigger"));
+    assertEqual(f.node("new-game-menu").open, false);
+    assertEqual(f.document.activeElement, f.node("new-game"));
     assertDeepEqual(f.controller.classic.getState(), classic);
     assertDeepEqual(f.writes, []);
   });
 
-  test("Restored 2P mode starts with a closed, correctly labeled dropdown", () => {
+  test("Restored 2P mode starts with the menu closed and German labels ready", () => {
     const f = modeFixture({ preference: "2p", language: "de" });
-    assertEqual(f.node("game-mode-label").textContent, "2P");
-    assertEqual(f.node("game-mode-options").hidden, true);
-    assertEqual(f.node("mode-2p").textContent, "2 Spieler");
-    assertEqual(f.node("mode-3p-plus").textContent, "3+ Spieler");
-    assertEqual(f.node("game-mode-trigger").getAttribute("aria-label"), "Spielmodus: 2P");
+    assertEqual(f.node("new-game-menu").open, false);
+    assertEqual(f.node("mode-2p").dataset.current, "true");
+    assertEqual(f.node("new-game-2p-label").textContent, "2 Spieler");
+    assertEqual(f.node("new-game-3p-label").textContent, "3+ Spieler");
+    assertEqual(f.node("new-game").getAttribute("aria-label"), "Neues Spiel");
   });
 
   test("The relocated instructions are mode-specific, translated, and outside the game/meadow component", () => {
@@ -216,7 +236,7 @@ export async function runGameModesTests(sources) {
     f.type(1, "A3", 22); const before = f.storage.getItem(TWO_PLAYER_STORAGE_KEY);
     f.language("de");
     assertEqual(help.textContent, "Beginnt in einem beliebigen Feld der äusseren Reihe. Wer mehr Spalten gewinnt, gewinnt. Weisse Punkte zählen für beide. Keine Challenges oder Strassen. Erstes volles Brett: Beendet den aktuellen Wurf gemeinsam.");
-    assertEqual(f.node("mode-2p").textContent, "2 Spieler");
+    assertEqual(f.node("new-game-2p-label").textContent, "2 Spieler");
     assertEqual(f.storage.getItem(TWO_PLAYER_STORAGE_KEY), before);
     f.change("3p-plus"); assertEqual(help.hidden, true);
   });
@@ -250,9 +270,9 @@ export async function runGameModesTests(sources) {
 
   test("Empty-mode switching is immediate, persistent, and restores the selected mode on refresh", () => {
     const f = modeFixture(); f.change("2p");
-    assertEqual(f.node("mode-switch-dialog").open, false);
+    assertEqual(f.node("new-game-menu").open, false);
     assertEqual(f.controller.getMode(), "2p");
-    assertEqual(f.node("mode-2p").getAttribute("aria-checked"), "true");
+    assertEqual(f.node("mode-2p").dataset.current, "true");
     assertEqual(f.storage.getItem(GAME_MODE_KEY), "2p");
     assertEqual(f.node("classic-game").hidden, true);
     assertEqual(f.node("open-challenge").hidden, true); assertEqual(f.node("open-receipt").hidden, true);
@@ -266,7 +286,7 @@ export async function runGameModesTests(sources) {
     const f = modeFixture({ classic });
     const before = f.storage.getItem(STORAGE_KEY);
     f.change("2p", false);
-    assertEqual(f.node("mode-switch-dialog").open, true);
+    assertEqual(f.node("new-game-menu").open, true);
     assertEqual(f.controller.getMode(), "3p-plus");
     assertEqual(f.document.activeElement, f.node("cancel-mode-switch"));
     assertDeepEqual(f.writes, []); assertDeepEqual(f.removals, []);
@@ -277,20 +297,21 @@ export async function runGameModesTests(sources) {
     assertEqual(f.node("undo-move").disabled, false);
   });
 
-  test("Confirmed switches keep separate authoritative games and preserve classic receipts, bids and Undo", () => {
+  test("Starting another mode clears its selected save while retaining the other mode's progress", () => {
     const classic = confirmGameBid(placeGameNumber(createGameState(), "A1", 22), 5);
     const f = modeFixture({ classic }); f.change("2p");
     f.type(2, "A3", 16); const two = f.storage.getItem(TWO_PLAYER_STORAGE_KEY);
     assertEqual(f.storage.getItem(STORAGE_KEY), serializeGame(classic));
     f.change("3p-plus");
     assertEqual(f.node("open-challenge").hidden, false); assertEqual(f.node("open-receipt").hidden, false);
-    assertEqual(f.node("current-score").textContent, "39");
-    assertDeepEqual(f.controller.classic.getState(), classic);
+    assertEqual(f.node("current-score").textContent, "0");
+    assertDeepEqual(f.controller.classic.getState(), createGameState());
+    assertEqual(f.storage.getItem(STORAGE_KEY), null);
     assertEqual(f.storage.getItem(TWO_PLAYER_STORAGE_KEY), two);
-    f.click("open-receipt");
-    assertEqual(f.node("receipt-history").children[0].textContent, "1x Challenge #01-$5");
+    f.click("open-receipt"); assert(!f.node("receipt-history").textContent.includes("Challenge #01"));
     f.click("close-receipt"); f.change("2p");
-    assertEqual(f.controller.twoPlayer.getState().player2.board[2][0].value, 16);
+    assertDeepEqual(f.controller.twoPlayer.getState(), createTwoPlayerState());
+    assertEqual(f.storage.getItem(TWO_PLAYER_STORAGE_KEY), null);
   });
 
   test("Selecting 2P at startup does not clear an existing classic save or its Undo", () => {
@@ -305,7 +326,7 @@ export async function runGameModesTests(sources) {
     const f = modeFixture(); f.click("open-receipt"); f.click("close-receipt");
     f.node("board-rows").emit("click", f.node("cell-A1")); f.node("cell-A1").value = "2";
     f.change("2p");
-    assertEqual(f.controller.getMode(), "2p"); assertEqual(f.node("mode-switch-dialog").open, false);
+    assertEqual(f.controller.getMode(), "2p"); assertEqual(f.node("new-game-menu").open, false);
     assertEqual(f.storage.getItem(STORAGE_KEY), null);
   });
 
@@ -318,18 +339,18 @@ export async function runGameModesTests(sources) {
     assertEqual(f.controller.getMode(), "3p-plus");
     assertEqual(f.node("classic-game").hidden, false);
     assert(f.node("mode-status").textContent.includes("kept"));
-    assertEqual(f.node("mode-3p-plus").getAttribute("aria-checked"), "true");
+    assertEqual(f.node("mode-3p-plus").dataset.current, "true");
   });
 
   test("Confirmation Escape/cancel and repeated taps cannot switch or save twice", () => {
     const f = modeFixture({ classic: placeGameNumber(createGameState(), "A1", 16) });
     f.change("2p", false);
     assertEqual(f.controller.requestMode("2p"), false);
-    f.node("mode-switch-dialog").emit("cancel");
+    f.node("new-game-menu").emit("cancel");
     assertEqual(f.controller.getMode(), "3p-plus");
     f.change("2p", false); f.click("confirm-mode-switch"); f.click("confirm-mode-switch");
     assertEqual(f.writes.filter(([key]) => key === GAME_MODE_KEY).length, 1);
-    assertDeepEqual(f.removals, []);
+    assert(f.removals.includes(TWO_PLAYER_STORAGE_KEY));
   });
 
   test("A preference failure after confirmation preserves active mode, board, Undo, and saved bytes", () => {
@@ -339,11 +360,11 @@ export async function runGameModesTests(sources) {
     f.storage.setItem = () => { throw new Error("Quota exceeded"); };
     f.click("confirm-mode-switch");
     assertEqual(f.controller.getMode(), "3p-plus");
-    assertEqual(f.node("mode-switch-dialog").open, false);
+    assertEqual(f.node("new-game-menu").open, true);
     assertDeepEqual(f.controller.classic.getState(), game);
     assertEqual(f.storage.getItem(STORAGE_KEY), serializeGame(game));
     assertEqual(f.node("undo-move").disabled, false);
-    assertEqual(f.node("mode-3p-plus").getAttribute("aria-checked"), "true");
+    assertEqual(f.node("mode-3p-plus").dataset.current, "true");
   });
 
   test("A real Digital Dice roll, collapse preference, and selections survive switching modes", () => {
@@ -381,36 +402,79 @@ export async function runGameModesTests(sources) {
     assertEqual(frontline.querySelectorAll("path").length, 2);
     assertEqual(frontline.querySelectorAll("circle").length, 5);
     assertEqual(frontline.querySelectorAll("text").length, 10);
-    assertEqual(frontline.querySelectorAll("polygon").length, 0);
+    assertEqual(frontline.querySelectorAll("line").length, 2);
+    assertEqual(frontline.querySelectorAll("polygon").length, 2);
     assert(frontline.querySelectorAll("circle").every((node) => node.dataset.control === "empty"));
     assert(f.node("two-player-help").textContent.includes("current roll"));
   });
 
-  test("Frontline scores, points and ribbon follow placement, tie, Undo, and Reset", () => {
+  test("Frontline scores, points and uniform curve follow placement, tie, Undo, and Reset", () => {
     const f = modeFixture({ preference: "2p" });
     const svg = f.node("two-player-duels"), circles = svg.querySelectorAll("circle");
-    const scores = svg.querySelectorAll("text"), ribbon = svg.querySelectorAll("path")[0];
+    const scores = svg.querySelectorAll("text"), curve = svg.querySelectorAll("path")[1];
+    const level = () => curve.getAttribute("d").match(/-?\d+(?:\.\d+)?/g).map(Number).filter((_, i) => i % 2 === 1).every((y) => y === 56);
     assertEqual(Number(circles[0].getAttribute("cy")), 56);
+    assert(level());
     f.type(1, "E3", 24);
     assertEqual(Number(circles[0].getAttribute("cy")), 82);
+    assert(!level());
     assertEqual(circles[0].dataset.control, "player1");
     assertEqual(scores[0].textContent, "24");
     assertEqual(scores[5].textContent, "0");
-    const before = ribbon.getAttribute("d");
+    const before = curve.getAttribute("d");
     f.type(2, "A3", 24);
     assertEqual(Number(circles[0].getAttribute("cy")), 56);
     assertEqual(circles[0].dataset.control, "tie");
+    assert(level());
     assertEqual(scores[5].textContent, "24");
-    assert(before !== ribbon.getAttribute("d"));
+    assert(before !== curve.getAttribute("d"));
     f.type(2, "A2", 24);
     assert(Math.abs(Number(circles[0].getAttribute("cy")) - (30 + 52 / 3)) < 0.001);
     assertEqual(circles[0].dataset.control, "player2");
+    assert(!level());
     f.click("undo-move");
     assertEqual(Number(circles[0].getAttribute("cy")), 56);
     assertEqual(circles[0].dataset.control, "tie");
-    f.click("new-game"); f.click("confirm-new-game");
+    assert(level());
+    f.change("2p");
     assert(circles.every((circle) => circle.dataset.control === "empty"));
     assert(scores.every((score) => score.textContent === "0"));
+    assert(level());
+  });
+
+  test("Two player-colored arrows stay fixed while the Frontline curves through score updates", () => {
+    const f = modeFixture({ preference: "2p" });
+    const svg = f.node("two-player-duels");
+    const [outline, curve] = svg.querySelectorAll("path");
+    const shafts = svg.querySelectorAll("line"), heads = svg.querySelectorAll("polygon");
+    const fifth = svg.querySelectorAll("circle")[4];
+    const fifthX = Number(fifth.getAttribute("cx"));
+    const fixed = shafts.map((shaft, i) => [shaft.getAttribute("x1"), shaft.getAttribute("x2"), shaft.getAttribute("y1"), heads[i].getAttribute("points")]);
+    const check = () => {
+      const geometry = createFrontlineGeometry(getTwoPlayerDuels(f.controller.twoPlayer.getState()), 286);
+      assertEqual(curve.getAttribute("d"), geometry.center);
+      assertEqual(outline.getAttribute("d"), geometry.center);
+      assertEqual(Number(fifth.getAttribute("cx")), fifthX);
+      assertDeepEqual(shafts.map((shaft, i) => [shaft.getAttribute("x1"), shaft.getAttribute("x2"), shaft.getAttribute("y1"), heads[i].getAttribute("points")]), fixed);
+    };
+    assertEqual(shafts[0].getAttribute("class"), "two-player-frontline__guide two-player-frontline__guide--player1");
+    assertEqual(shafts[1].getAttribute("class"), "two-player-frontline__guide two-player-frontline__guide--player2");
+    assert(Number(shafts[0].getAttribute("x1")) < fifthX && Number(shafts[0].getAttribute("x2")) > fifthX);
+    assertEqual(Number(shafts[0].getAttribute("x1")), Number(shafts[1].getAttribute("x1")));
+    assertEqual(Number(shafts[0].getAttribute("x2")), Number(shafts[1].getAttribute("x2")));
+    assertEqual(Number(shafts[0].getAttribute("y1")), 1);
+    assertEqual(Number(shafts[1].getAttribute("y1")), 111);
+    assertEqual(Number(svg.querySelectorAll("text")[0].getAttribute("y")), 14);
+    assertEqual(Number(svg.querySelectorAll("text")[5].getAttribute("y")), 98);
+    assertEqual(svg.querySelectorAll("text")[0].getAttribute("transform").startsWith("rotate(180"), true);
+    assertEqual(svg.querySelectorAll("text")[5].getAttribute("transform"), null);
+    check();
+    f.type(2, "E3", 24);
+    check();
+    f.click("undo-move");
+    check();
+    assertEqual(svg.querySelectorAll("circle").length, 5);
+    assertEqual(svg.querySelectorAll("text").length, 10);
   });
 
   test("Frontline moves for 280ms and updates immediately with reduced motion", () => {
@@ -429,6 +493,19 @@ export async function runGameModesTests(sources) {
     }
     assertEqual(Number(point.getAttribute("cy")), 82);
     assertEqual(frames.size, 0);
+    const curve = f.node("two-player-duels").querySelectorAll("path")[1];
+    const heads = f.node("two-player-duels").querySelectorAll("polygon");
+    const beforeCurve = curve.getAttribute("d");
+    const fixedHeads = heads.map((head) => head.getAttribute("points"));
+    f.type(2, "E3", 24);
+    for (const time of [300, 440, 580]) {
+      const pending = [...frames.values()]; frames.clear();
+      pending.forEach((callback) => callback(time));
+      if (time === 440) assert(beforeCurve !== curve.getAttribute("d"));
+      if (time === 440) assertDeepEqual(heads.map((head) => head.getAttribute("points")), fixedHeads);
+    }
+    assertEqual(curve.getAttribute("d"), createFrontlineGeometry(getTwoPlayerDuels(f.controller.twoPlayer.getState()), 286).center);
+    assertEqual(Number(f.node("two-player-duels").querySelectorAll("circle")[4].getAttribute("cy")), 30);
     const reduced = rulesDocument({ illustrated: false });
     reduced.defaultView.requestAnimationFrame = () => { throw new Error("Reduced motion must not animate"); };
     reduced.defaultView.matchMedia = () => ({ matches: true });
@@ -602,8 +679,8 @@ export async function runGameModesTests(sources) {
     assertDeepEqual(f.controller.twoPlayer.getState(), createTwoPlayerState());
     f.type(1, "B3", 3); f.click("new-game");
     assertEqual(f.node("two-player-entry").hidden, true);
-    assertEqual(f.node("reset-confirmation").hidden, false);
-    f.click("cancel-new-game"); assertEqual(f.node("two-player-entry").hidden, true);
+    assertEqual(f.node("new-game-menu").open, true);
+    f.node("new-game-menu").emit("cancel"); assertEqual(f.node("two-player-entry").hidden, true);
     assertDeepEqual(f.writes.filter(([key]) => key === TWO_PLAYER_STORAGE_KEY).length, 2);
   });
 
@@ -649,7 +726,7 @@ export async function runGameModesTests(sources) {
     f.click("undo-move");
     assertEqual(f.controller.twoPlayer.getState().player2.board[2][4], null);
     assertDeepEqual(f.controller.classic.getState(), classic);
-    f.click("new-game"); f.click("confirm-new-game");
+    f.change("2p");
     assertDeepEqual(f.controller.twoPlayer.getState(), createTwoPlayerState());
     assertDeepEqual(f.controller.classic.getState(), classic);
     assertEqual(f.storage.getItem(STORAGE_KEY), serializeGame(classic));
@@ -659,13 +736,14 @@ export async function runGameModesTests(sources) {
   test("2P Reset requires confirmation; cancel and failed clearing preserve both boards and Undo", () => {
     const f = modeFixture({ preference: "2p" }); f.type(1, "B3", 16); f.type(2, "D3", 24);
     const before = f.controller.twoPlayer.getState();
-    f.click("confirm-new-game"); assertDeepEqual(f.controller.twoPlayer.getState(), before);
-    f.click("new-game"); assertEqual(f.node("reset-confirmation").hidden, false);
-    f.click("cancel-new-game"); assertDeepEqual(f.controller.twoPlayer.getState(), before);
+    f.click("confirm-mode-switch"); assertDeepEqual(f.controller.twoPlayer.getState(), before);
+    f.click("new-game"); assertEqual(f.node("new-game-menu").open, true);
+    f.click("mode-2p"); assertEqual(f.node("new-game-confirmation").hidden, false);
+    f.click("cancel-mode-switch"); assertDeepEqual(f.controller.twoPlayer.getState(), before);
     f.storage.removeItem = () => { throw new Error("Blocked"); };
-    f.click("new-game"); f.click("confirm-new-game");
+    f.change("2p");
     assertDeepEqual(f.controller.twoPlayer.getState(), before);
-    assertEqual(f.node("reset-confirmation").hidden, false);
+    assertEqual(f.node("new-game-menu").open, true);
     assert(f.node("two-player-storage-status").textContent.includes("kept"));
   });
 
@@ -674,10 +752,10 @@ export async function runGameModesTests(sources) {
     f.change("3p-plus");
     f.placeClassic("A1", 66); assertEqual(f.node("cell-A1").dataset.state, "empty");
     f.placeClassic("A1", 22); assertEqual(f.node("current-score").textContent, "44");
-    f.click("new-game"); f.click("confirm-new-game");
+    f.change("3p-plus");
     assertEqual(f.storage.getItem(STORAGE_KEY), null);
     assertEqual(f.storage.getItem(TWO_PLAYER_STORAGE_KEY), two);
-    assertEqual(f.node("reset-warning").textContent, "Start a new game? Your board and local save will be cleared.");
+    assertEqual(f.node("new-game-warning").textContent, "Start a new game? Progress in the selected mode will be cleared. Your other game stays saved.");
   });
 
   test("Language changes translate new UI without replacing numbers, drafts, Undo, or preference", () => {
@@ -688,11 +766,11 @@ export async function runGameModesTests(sources) {
     assertEqual(f.node("two-player-entry"), input); assertEqual(f.node("two-player-entry-draft").textContent, "1 –");
     assertEqual(f.node("two-player-label-1").textContent, "Spieler 1");
     assert(f.node("two-player-help").textContent.includes("Wurf"));
-    assert(f.node("reset-warning").textContent.includes("Beide Bretter"));
-    assertEqual(f.node("game-mode-switch").getAttribute("aria-label"), "Spielmodus");
+    assertEqual(f.node("new-game-menu-heading").textContent, "Neues Spiel");
+    assertEqual(f.node("new-game-2p-description").textContent, "Ein Gerät · Frosty Frontline");
     assertEqual(f.storage.getItem(TWO_PLAYER_STORAGE_KEY), before);
     f.change("3p-plus", false);
-    assertEqual(f.node("mode-switch-heading").textContent, "Spielmodus wechseln?");
+    assert(f.node("new-game-warning").textContent.includes("Fortschritt"));
     assertEqual(f.node("cancel-mode-switch").textContent, "Abbrechen");
     f.click("cancel-mode-switch");
     assertEqual(f.storage.getItem(GAME_MODE_KEY), "2p");
@@ -731,14 +809,18 @@ export async function runGameModesTests(sources) {
     assertEqual(f.node("two-player-board-2").querySelectorAll("button").filter((cell) => !cell.disabled).length, 15);
     f.type(2, "C3", 16); assertEqual(f.controller.twoPlayer.getState().player2.board[2][2].value, 16);
     assert(f.node("two-player-duels").textContent.includes("396"));
-    assertEqual(f.node("mode-switch-dialog").open, false);
+    assertEqual(f.node("new-game-menu").open, false);
     assert(!/winner-dialog|next-turn|active-player|turn-counter/.test(sources.html));
   });
 
-  test("Mode controls, opposing boards, Frontline geometry, and reduced motion are explicit in source", () => {
-    assert(sources.html.includes('src="./js/game-modes.js?v=frontline-visual-1"'));
-    assert(sources.html.includes('id="mode-2p" type="button" role="menuitemradio" aria-checked="false" aria-controls="two-player-game"'));
-    assert(sources.html.includes('id="mode-3p-plus" type="button" role="menuitemradio" aria-checked="true" aria-controls="classic-game"'));
+  test("The header dropdown is absent, the snowman menu fits mobile, and both boards keep their geometry", () => {
+    assert(sources.html.includes('src="./js/game-modes.js?v=frontline-guides-2"'));
+    assert(!sources.html.includes('id="game-mode-switch"'));
+    assert(!sources.html.includes('id="game-mode-trigger"'));
+    assert(sources.html.includes('id="new-game" class="meadow-control reset-snowman" type="button" aria-label="New Game" aria-haspopup="dialog" aria-expanded="false" aria-controls="new-game-menu"'));
+    assert(sources.html.includes('id="new-game-menu" class="new-game-menu"'));
+    assert(sources.html.includes('id="mode-2p" class="new-game-menu__option" type="button" aria-controls="two-player-game"'));
+    assert(sources.html.includes('id="mode-3p-plus" class="new-game-menu__option" type="button" aria-controls="classic-game"'));
     assert(sources.html.includes('id="two-player-game" class="two-player-game" aria-label="Two players on one device" hidden'));
     assert(sources.html.includes('id="digital-dice"'));
     assert(sources.html.includes('id="interactive-tutorial"'));
@@ -752,35 +834,28 @@ export async function runGameModesTests(sources) {
     assert(sources.twoPlayerCss.includes('pointer-events: none'));
     assert(sources.twoPlayerCss.includes('.two-player-frontline__point[data-control="player1"] { fill: #78cff4;'));
     assert(sources.twoPlayerCss.includes('.two-player-frontline__point[data-control="player2"] { fill: #ec86b8;'));
+    assert(sources.twoPlayerCss.includes('.two-player-frontline__curve { stroke: #e1f8ff; stroke-width: 8; }'));
+    assert(sources.twoPlayerCss.includes('.two-player-frontline__guide--player1 { stroke: #78cff4; }'));
+    assert(sources.twoPlayerCss.includes('.two-player-frontline__guide--player2 { stroke: #ec86b8; }'));
+    assert(sources.twoPlayerApp.includes('from "./two-player-frontline.js?v=frontline-guides-2"'));
+    assert(sources.twoPlayerCss.includes('.two-player-frontline__guide { stroke-width: 3.25;'));
     assert(sources.twoPlayerApp.includes('r: 7.5, class: "two-player-frontline__point"'));
     assert(sources.twoPlayerCss.includes('stroke-width: 2.25;'));
     assert(sources.twoPlayerCss.includes('drop-shadow(0 0 4.5px #78cff4)'));
     assert(!sources.twoPlayerCss.includes('.two-player-triangle'));
     assert(!/\.page-title\s*\{|100vw|scale\(/.test(sources.twoPlayerCss));
     assert(sources.css.includes('width: clamp(4.5rem, 24vw, 6rem)'));
-    assert(/class="game-stats">\s*<div id="game-mode-switch"/.test(sources.html));
-    assert(sources.twoPlayerCss.includes('.page-header .game-stats { position: relative; }'));
-    assert(sources.twoPlayerCss.includes('right: calc(100% + 8px); top: 50%; transform: translateY(-50%)'));
-    assert(!sources.twoPlayerCss.includes('min-height: 6rem'));
-    assert(!sources.twoPlayerCss.includes('margin-top: 44px'));
-    assert(sources.twoPlayerCss.includes('.game-mode-options { position: absolute; left: 0; right: auto;'));
-    assert(sources.twoPlayerCss.includes('.game-mode-switch[data-mode="2p"] .game-mode-options { left: auto; right: 0; }'));
+    assert(/class="game-stats">\s*<button id="open-challenge"/.test(sources.html));
+    assert(!sources.twoPlayerCss.includes('.game-mode-switch'));
+    assert(sources.twoPlayerCss.includes('.new-game-menu { box-sizing: border-box; width: min(21rem, calc(100% - 2rem));'));
+    assert(sources.twoPlayerCss.includes('.new-game-menu__options[hidden] { display: none; }'));
+    assert(sources.twoPlayerCss.includes('max-height: calc(100dvh - 2rem)'));
     for (const width of [320, 375, 390, 430, 1280]) {
       const content = Math.min(width - 24, 448);
       const cell = (content - 10 - 16) / 5;
       assert(cell >= 48);
-      const triggerWidth = 64;
-      const dropdownWidth = Math.min(160, width * 0.8);
-      // Check popup bounds for the classic controls and the Undo-only 2P header.
-      for (const [mode, controlsWidth] of [["3p-plus", 176], ["2p", 48]]) {
-        const controlsLeft = content - controlsWidth;
-        const triggerLeft = controlsLeft - 8 - triggerWidth;
-        const triggerRight = triggerLeft + triggerWidth;
-        assertEqual(controlsLeft - triggerRight, 8);
-        assert(triggerLeft >= 0);
-        const menuLeft = mode === "2p" ? triggerRight - dropdownWidth : triggerLeft;
-        assert(menuLeft >= 0 && menuLeft + dropdownWidth <= content);
-      }
+      const menuWidth = Math.min(336, width - 32);
+      assert(menuWidth > 0 && (width - menuWidth) / 2 >= 16);
       const maximumTextWidth = 3 * 24 * 0.65 * cell / 100;
       assert(maximumTextWidth < cell * 0.5);
     }
