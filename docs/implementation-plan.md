@@ -1030,6 +1030,15 @@ score labels. Reduce each shaft from 4.5px to 3.25px and proportionally reduce
 the heads. Keep their horizontal span, the curve, dots, boards, and score labels
 fixed. Version the 2P visual assets at `frontline-guides-2` and cache at v42.
 
+Extend the existing How to Play disclosure with six bilingual 2P scenes: opposing
+boards, shared dice, starting row and repdigits, physical number direction,
+Frontline column duels, and a fixed 3–2 finish. Reuse the tutorial controller,
+navigation, language, timers, and production 2P placement/scoring/Frontline
+helpers. The Snowman mode manager announces its authoritative mode so tutorial
+steps reset on a mode change; demos never touch live boards or saves. Version
+the tutorial and mode entry points at `two-player-tutorial-1`, precache the new
+scene module and stylesheet, and bump the offline cache to v43.
+
 ## Workflow
 
 Read the specifications, implement the current scope, keep rules deterministic,

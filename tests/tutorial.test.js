@@ -1,5 +1,9 @@
 import { initializeTutorial } from "../js/tutorial.js";
 import { boardFromPlacements, EXAMPLE_CHALLENGE, EXAMPLE_PLACEMENTS, FINAL_PLACEMENTS, getTutorialCamera, getTutorialScene, TUTORIAL_STEPS } from "../js/tutorial-scenes.js";
+import { getTwoPlayerTutorialScene, getTwoPlayerTutorialStageCount, TWO_PLAYER_DEMO_ACTIONS, TWO_PLAYER_TUTORIAL_STEPS } from "../js/two-player-tutorial-scenes.js";
+import { createFrontlineGeometry, frontlineFraction } from "../js/two-player-frontline.js";
+import { createTwoPlayerState, getTwoPlayerDuels, placeTwoPlayerNumber, validateTwoPlayerPlacement } from "../js/two-player-game.js";
+import { serializeTwoPlayerGame, TWO_PLAYER_STORAGE_KEY } from "../js/two-player-storage.js";
 import { applyAttackIce, canApplyAttackIce, confirmGameBid, createEmptyBoard, createGameState, getCell, hasReachedGoal, isValidNumber, placeGameNumber, placeNumber, validatePlacement } from "../js/game.js";
 import { getScoreBreakdown } from "../js/scoring.js";
 import { STORAGE_KEY } from "../js/storage.js";
@@ -46,6 +50,9 @@ function fixture(options = {}) {
   add("div", "tutorial-progress", nav);
   add("button", "tutorial-back", nav).type = "button";
   add("button", "tutorial-next", nav).type = "button";
+  const twoGame = add("section", "two-player-game");
+  twoGame.hidden = options.mode !== "2p";
+  add("div", "two-player-board-2", twoGame);
   const motionListeners = new Set();
   const motion = { matches: options.reduced ?? false,
     addEventListener(type, callback) { motionListeners.add(callback); },
@@ -58,6 +65,10 @@ function fixture(options = {}) {
     go(step) { tutorial.goToStep(step); },
     settle() { real.clock.advance(4000); },
     language(lang) { document.getElementById("rules-language-" + lang).emit("click"); },
+    mode(next) {
+      twoGame.hidden = next !== "2p";
+      document.dispatchEvent(new document.defaultView.CustomEvent("gamemodechange", { detail: next }));
+    },
     resizeStage(next) { width = next; real.resize(512); },
     reduce() { motion.matches = true; motionListeners.forEach((callback) => callback()); },
     cell(coordinate, player = "A") { return document.getElementById("tutorial-" + player + "-" + coordinate); },
@@ -98,6 +109,70 @@ export async function runTutorialTests(sources) {
     assertThrows(() => getTutorialScene(0));
     assertThrows(() => getTutorialScene(13));
     assertThrows(() => getTutorialScene(8, "both"));
+  });
+
+  test("The 2P sequence has exactly six bilingual steps and independent rule-checked demonstration stages", () => {
+    assertEqual(TWO_PLAYER_TUTORIAL_STEPS.length, 6);
+    assertDeepEqual(TWO_PLAYER_TUTORIAL_STEPS.map((scene) => scene.id), [1, 2, 3, 4, 5, 6]);
+    assertEqual(TWO_PLAYER_TUTORIAL_STEPS[0].title.en, "Two Players, One Device");
+    assertEqual(TWO_PLAYER_TUTORIAL_STEPS[5].title.de, "Gewinne die Spaltenduelle");
+    for (const step of TWO_PLAYER_TUTORIAL_STEPS) for (const language of ["en", "de"]) {
+      assert(step.title[language].length > 0 && step.text[language].length > 0);
+      assert(!/Prime Ice|Primzahl|Prim-Eis/i.test(step.title[language] + step.text[language]));
+    }
+    assertThrows(() => getTwoPlayerTutorialScene(0));
+    assertThrows(() => getTwoPlayerTutorialScene(7));
+    for (let step = 1; step <= 6; step += 1) {
+      let state = createTwoPlayerState();
+      assertEqual(getTwoPlayerTutorialStageCount(step), TWO_PLAYER_DEMO_ACTIONS[step].length + 1);
+      for (let stage = 0; stage < getTwoPlayerTutorialStageCount(step); stage += 1) {
+        if (stage > 0) for (const [player, coordinate, value] of TWO_PLAYER_DEMO_ACTIONS[step][stage - 1]) {
+          assert(validateTwoPlayerPlacement(state["player" + player].board, player, coordinate, value).legal, `${step} ${coordinate}`);
+          state = { ...placeTwoPlayerNumber(state, player, coordinate, value), undo: null };
+        }
+        const scene = getTwoPlayerTutorialScene(step, stage);
+        assertDeepEqual(scene.state, state);
+        assertEqual(scene.state.undo, null);
+        assertDeepEqual(scene.duels, getTwoPlayerDuels(state));
+      }
+    }
+  });
+
+  test("2P examples teach outer-row entry, shared physical direction, vertical equality, and repdigit points", () => {
+    const start = getTwoPlayerTutorialScene(3, 0);
+    assert(start.state.player2.board[2].every((cell) => cell === null));
+    const placed = getTwoPlayerTutorialScene(3, 1);
+    assertEqual(placed.state.player2.board[2][0].value, 44);
+    assertEqual(placed.duels[0].player2.score, 88);
+    assertEqual(getTwoPlayerTutorialScene(3, 2).state.player2.board[2][1].value, 46);
+    const direction = getTwoPlayerTutorialScene(4);
+    assertDeepEqual(direction.state.player1.board[2].slice(2).map((cell) => cell.value), [46, 24, 12]);
+    assertDeepEqual(direction.state.player2.board[2].slice(0, 3).map((cell) => cell.value), [12, 24, 46]);
+    assertEqual(direction.state.player1.board[1][3].value, 24);
+    assertEqual(direction.state.player2.board[1][1].value, 24);
+    assertDeepEqual(direction.duels.map((duel) => duel.player1.score), [12, 48, 46, 0, 0]);
+  });
+
+  test("The 2P Frontline demonstrates empty, lead, changing ratio, positive tie, and a final 3–2 win", () => {
+    const empty = getTwoPlayerTutorialScene(5, 0), leader = getTwoPlayerTutorialScene(5, 1);
+    const mixed = getTwoPlayerTutorialScene(5, 2), tie = getTwoPlayerTutorialScene(5, 3);
+    assert(empty.duels.every((duel) => duel.player1.score === 0 && duel.player2.score === 0 && !duel.player1.lit && !duel.player2.lit));
+    assertEqual(frontlineFraction(leader.duels[2].player1.score, leader.duels[2].player2.score), 1);
+    assertEqual(frontlineFraction(mixed.duels[2].player1.score, mixed.duels[2].player2.score), 2 / 3);
+    assertEqual(frontlineFraction(tie.duels[2].player1.score, tie.duels[2].player2.score), 0.5);
+    assertEqual(tie.duels[2].player1.lit, true);
+    assertEqual(tie.duels[2].player2.lit, true);
+    assertEqual(createFrontlineGeometry(empty.duels, 206).points[2].y, 56);
+    assertEqual(createFrontlineGeometry(leader.duels, 206).points[2].y, 82);
+    assertEqual(createFrontlineGeometry(tie.duels, 206).points[2].y, 56);
+    const finish = getTwoPlayerTutorialScene(6);
+    assertEqual(finish.state.player1.board.flat().filter(Boolean).length, 15);
+    assertEqual(finish.state.player2.board.flat().filter(Boolean).length, 15);
+    assertDeepEqual(finish.victories, { player1: 3, player2: 2 });
+    assertDeepEqual(finish.duels.map((duel) => duel.player1.lit), [true, false, true, true, false]);
+    assertDeepEqual(finish.duels.map((duel) => duel.player2.lit), [false, true, false, false, true]);
+    const copy = getTwoPlayerTutorialScene(6); copy.state.player1.board[0][0].value = 66;
+    assertEqual(getTwoPlayerTutorialScene(6).state.player1.board[0][0].value, 56);
   });
 
   test("Every required placement passes the current engine; B2 connects through its right neighbor", () => {
@@ -212,6 +287,118 @@ export async function runTutorialTests(sources) {
     assertEqual(f.toggle.getAttribute("aria-expanded"), "true");
     assertEqual(f.tutorialPanel.hidden, false);
     assertEqual(f.tutorial.getState().step, 1);
+  });
+
+  test("2P mode uses the shared tutorial navigation with six dots and opposing demo boards", () => {
+    const f = fixture({ mode: "2p", reduced: true });
+    assertEqual(f.node("tutorial-progress").children.length, 6);
+    assertEqual(f.tutorial.getState().mode, "2p");
+    f.open();
+    assertEqual(f.node("tutorial-title").textContent, "Two Players, One Device");
+    assertEqual(f.node("tutorial-progress").getAttribute("aria-label"), "Step 1 of 6");
+    assertEqual(f.node("tutorial-back").disabled, true);
+    const demo = childByClass(f.stage, "tutorial-two-player");
+    assertEqual(demo.hidden, false);
+    assertEqual(demo.descendants().filter((node) => node.className === "tutorial-two-player__cell").length, 30);
+    const svg = demo.querySelectorAll("svg")[0];
+    assertEqual(svg.querySelectorAll("circle").length, 5);
+    assertEqual(svg.querySelectorAll("line").length, 2);
+    assertEqual(svg.querySelectorAll("polygon").length, 2);
+    assertEqual(svg.querySelectorAll("text").length, 10);
+    assert(svg.querySelectorAll("circle").every((dot) => dot.dataset.control === "empty"));
+    assert(svg.getAttribute("aria-label").includes("both point right"));
+    assert(svg.getAttribute("aria-label").includes("unlit"));
+    assertEqual(svg.querySelectorAll("line")[0].getAttribute("class").includes("player1"), true);
+    assertEqual(svg.querySelectorAll("line")[1].getAttribute("class").includes("player2"), true);
+    assertEqual(Number(svg.querySelectorAll("line")[0].getAttribute("y1")), 1);
+    assertEqual(Number(svg.querySelectorAll("line")[1].getAttribute("y1")), 111);
+    assert(svg.querySelectorAll("text")[0].getAttribute("transform").startsWith("rotate(180"));
+    assertEqual(svg.querySelectorAll("text")[5].getAttribute("transform"), null);
+    assertEqual(f.tutorial.goToStep(7), false);
+    f.click("next");
+    assertEqual(f.tutorial.getState().step, 2);
+    assertEqual(f.node("tutorial-dice").hidden, false);
+    f.click("back");
+    assertEqual(f.tutorial.getState().step, 1);
+    f.go(3);
+    assertEqual(f.node("tutorial-legend").textContent, "44 → 2× points");
+    assert(demo.textContent.includes("44"));
+    assert(demo.textContent.includes("2×"));
+    f.go(4);
+    assertEqual(demo.descendants().filter((node) => node.className === "tutorial-two-player__sign").length, 8);
+    assert(f.node("tutorial-legend").textContent.includes("One valid neighbor"));
+    f.go(5);
+    assertEqual(svg.querySelectorAll("circle")[2].dataset.control, "tie");
+    assertEqual(svg.querySelectorAll("circle")[0].dataset.control, "empty");
+    assert(svg.getAttribute("aria-label").includes("tie: both lead"));
+    f.go(6);
+    assertEqual(f.node("tutorial-next").textContent, "LET’S PLAY!");
+    assertEqual(f.node("tutorial-progress").getAttribute("aria-label"), "Step 6 of 6");
+    assertEqual(f.node("tutorial-legend").textContent, "Player 1 wins: 3–2\nNo Challenges or Streets in 2P mode.");
+  });
+
+  test("2P demo animation, dice sharing, language, and mode switching never alter saved games", () => {
+    const f = fixture({ mode: "2p", game: placeGameNumber(createGameState(), "A1", 16) });
+    const saved = serializeTwoPlayerGame(placeTwoPlayerNumber(createTwoPlayerState(), 1, "E3", 14));
+    f.storage.setItem(TWO_PLAYER_STORAGE_KEY, saved);
+    const classicBefore = f.storage.getItem(STORAGE_KEY);
+    const diceBefore = f.real.controller.getState();
+    f.open(); f.go(2);
+    assertEqual(f.tutorial.getState().phase.rolling, true);
+    f.clock.advance(1000);
+    assertDeepEqual(f.tutorial.getState().phase.faces, [1, 2, 4, 6]);
+    assertEqual(f.node("tutorial-dice").textContent.includes("16 / 61"), true);
+    assertEqual(f.real.randomCalls, 0);
+    f.go(3);
+    assertEqual(f.tutorial.getState().scene.stage, 0);
+    f.clock.advance(400);
+    assertEqual(f.tutorial.getState().scene.stage, 1);
+    f.clock.advance(600);
+    assertEqual(f.tutorial.getState().scene.stage, 2);
+    f.go(5);
+    f.clock.advance(350);
+    const svg = f.stage.querySelectorAll("svg").find((node) => node.getAttribute("class")?.includes("tutorial-two-player__frontline"));
+    const dot = svg.querySelectorAll("circle")[2];
+    assertEqual(dot.dataset.control, "player1");
+    f.clock.advance(140);
+    assert(Number(dot.getAttribute("cy")) > 56 && Number(dot.getAttribute("cy")) < 82);
+    f.language("de");
+    assertEqual(f.tutorial.getState().step, 5);
+    assertEqual(f.node("tutorial-title").textContent, "Die Frosty Frontline");
+    assertEqual(f.node("tutorial-progress").getAttribute("aria-label"), "Schritt 5 von 6");
+    const stale = [...f.clock.pending.values()].map((entry) => entry.callback);
+    f.mode("3p-plus");
+    assertEqual(f.tutorial.getState().step, 1);
+    assertEqual(f.node("tutorial-progress").children.length, 12);
+    assertEqual(f.node("tutorial-title").textContent, "Das Spielziel");
+    stale.forEach((callback) => callback());
+    assertEqual(f.tutorial.getState().mode, "3p-plus");
+    f.mode("2p");
+    assertEqual(f.node("tutorial-progress").children.length, 6);
+    assertEqual(f.tutorial.getState().step, 1);
+    assertEqual(f.node("tutorial-title").textContent, "Zwei Spieler, ein Handy");
+    assertEqual(f.storage.getItem(TWO_PLAYER_STORAGE_KEY), saved);
+    assertEqual(f.storage.getItem(STORAGE_KEY), classicBefore);
+    assertDeepEqual(f.real.controller.getState(), diceBefore);
+    assertEqual(f.clock.pending.size, 0);
+  });
+
+  test("The compact 2P tutorial geometry fits 320–430px screens without moving either board", () => {
+    assert(sources.tutorialCss.includes('width: min(206px, 100%);'));
+    assert(sources.tutorialCss.includes('.tutorial-two-player__board[data-player="1"] { transform: rotate(180deg); }'));
+    assert(sources.tutorialCss.includes('.tutorial-stage[data-mode="2p"] { --tutorial-stage-height: 29rem; }'));
+    const boardsAndFrontline = 2 * (3 * 38 + 2 * 4) + 2 * 18 + 112 + 2 * 6;
+    assert(boardsAndFrontline + 3.2 * 16 <= 29 * 16);
+    for (const viewport of [320, 375, 390, 430]) {
+      const width = viewport - 24;
+      assert(206 <= width);
+      const f = fixture({ mode: "2p", reduced: true, stageWidth: width });
+      f.open(); f.go(6);
+      const svg = f.stage.querySelectorAll("svg").find((node) => node.getAttribute("class")?.includes("tutorial-two-player__frontline"));
+      assertEqual(svg.getAttribute("viewBox"), "0 0 206 112");
+      assert(svg.querySelectorAll("circle").every((node) => Number(node.getAttribute("cx")) > 0 && Number(node.getAttribute("cx")) < 206));
+      assert(svg.querySelectorAll("polygon").every((node) => Number(node.getAttribute("points").split(" ")[1].split(",")[0]) < 206));
+    }
   });
 
   test("Next/Back boundaries and repeated navigation reconstruct rather than accumulate placements", () => {
@@ -438,15 +625,14 @@ export async function runTutorialTests(sources) {
   });
 
   test("The final tutorial action focuses the visible 2P board without altering either mode", () => {
-    const f = fixture({ reduced: true });
-    const root = f.document.createElement("section"); root.id = "two-player-game"; root.hidden = false;
-    const board = f.document.createElement("div"); board.id = "two-player-board-2"; root.append(board); f.document.root.append(root);
+    const f = fixture({ reduced: true, mode: "2p" });
+    const board = f.node("two-player-board-2");
     const before = f.storage.getItem(STORAGE_KEY);
-    f.open(); f.go(12); f.click("next");
+    f.open(); f.go(6); f.click("next");
     assertEqual(f.document.activeElement, board);
     assertDeepEqual(board.lastScrollOptions, { behavior: "auto", block: "start" });
     assertEqual(f.storage.getItem(STORAGE_KEY), before);
-    assertEqual(f.tutorial.getState().step, 12);
+    assertEqual(f.tutorial.getState().step, 6);
   });
 
   test("Reduced motion settles all twelve scenes without timers or rapid dice cycling", () => {
@@ -532,8 +718,8 @@ export async function runTutorialTests(sources) {
   });
 
   test("Semantic HTML, isolated styling, reduced motion, fixed receipt, and no surprise-mechanic copy", () => {
-    assert(sources.html.includes('href="./css/tutorial.css?v=tutorial-1"'));
-    assert(sources.html.includes('src="./js/tutorial.js?v=two-player-1"'));
+    assert(sources.html.includes('href="./css/tutorial.css?v=two-player-tutorial-1"'));
+    assert(sources.html.includes('src="./js/tutorial.js?v=two-player-tutorial-1"'));
     for (const [toggle, panel] of [["tutorial-toggle", "tutorial-panel"]]) {
       const button = sources.html.match(new RegExp('<button id="' + toggle + '"[^>]*>'))?.[0];
       assert(button.includes('type="button"'));

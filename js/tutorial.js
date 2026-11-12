@@ -1,4 +1,6 @@
 import { EXAMPLE_CHALLENGE, EXAMPLE_PLACEMENTS, getTutorialCamera, getTutorialScene, TUTORIAL_STEPS } from "./tutorial-scenes.js?v=two-player-1";
+import { getTwoPlayerTutorialScene, getTwoPlayerTutorialStageCount, TWO_PLAYER_TUTORIAL_STEPS } from "./two-player-tutorial-scenes.js?v=two-player-tutorial-1";
+import { createFrontlineGeometry, directionArrowGeometry, frontlineFraction } from "./two-player-frontline.js?v=frontline-guides-2";
 import { getCellScoreMultiplier } from "./scoring.js?v=v3-multipliers-1";
 import { formatFrostyDollars } from "./receipt.js?v=receipt-5";
 
@@ -7,6 +9,16 @@ const copy = {
   de: { how: "SPIELANLEITUNG", name: "Interaktive Spielanleitung", back: "ZURÜCK", next: "WEITER", play: "JETZT SPIELEN!", navigation: "Navigation der Spielanleitung", step: "Schritt", of: "von", player: "Spieler", start: "Start", empty: "leer", ice: "Attack Ice; keine nutzbare Verbindung", roll: "Vier Würfel werden geworfen", dice: "Vier Würfel", unused: "Die übrigen zwei Würfel stehen allen Mitspielern zur Verfügung.", neighbors: "↑ ↓ ← → · × Diagonal\nAuch bei Nachbarfeldern gelten die Zahlenregeln.", right: "✓ 12 < 24 < 46 · × 35 < 46\nHier verbindet die linke Nachbarzahl.", vertical: "46 oben = 46 unten", left: "✓ 35 < 46 · 35 ≠ 24\nEine gültige Verbindung genügt.", challenge: "Spieler A → Spieler B\nDer normale Würfelzug folgt danach.", secret: "Verdecktes Gebot", confirmed: "Bestätigt", tie: "Gleiche Gebote? Bietet erneut, bis ein Gewinner feststeht.", waiting: "Beide Gebote bleiben bis zum Aufdecken verdeckt.", choose: "Genau EINE Aktion wählen", freeze: "EINFRIEREN", unfreeze: "AUFTAUEN", freezeExample: "B2 von Spieler A einfrieren", unfreezeExample: "B2 von Spieler B auftauen", then: "Danach wird gewürfelt!", board: "BRETT", receipt: "BELEG", view: "Beispielansicht", boardValue: "BRETTWERT", spending: "CHALLENGE", balance: "SALDO", later: "Später im selben Spiel…", goal: "A1 → D7", target: "D7 erreicht", alternative: "12 ↔ 21" },
 };
 const finalDice = [1, 2, 4, 6];
+const twoCopy = {
+  en: { pass: "If the active player passes, the opponent may choose from all four dice.",
+    start: "Five starting cells", repdigit: "44 → 2× points", direction: "12 < 24 < 46 · 24 = 24\nOne valid neighbor is enough.",
+    tie: "0:0 is unlit · a positive tie counts for both players.", winner: "Player 1 wins: 3–2", special: "No Challenges or Streets in 2P mode.",
+    arrows: "Player 1 light-blue arrow and Player 2 pink arrow both point right.", leaders: ["unlit", "Player 1 leads", "Player 2 leads", "tie: both lead"] },
+  de: { pass: "Passt der aktive Spieler, darf der Gegner aus allen vier Würfeln wählen.",
+    start: "Fünf Startfelder", repdigit: "44 → 2× Punkte", direction: "12 < 24 < 46 · 24 = 24\nEin gültiger Nachbar genügt.",
+    tie: "0:0 leuchtet nicht · ein positiver Gleichstand zählt für beide.", winner: "Spieler 1 gewinnt: 3–2", special: "Im 2P-Modus gibt es keine Challenges oder Streets.",
+    arrows: "Der hellblaue Pfeil für Spieler 1 und der pinke für Spieler 2 zeigen beide nach rechts.", leaders: ["unbeleuchtet", "Spieler 1 führt", "Spieler 2 führt", "Gleichstand: beide führen"] },
+};
 
 export function initializeTutorial(document, options = {}) {
   const view = document.defaultView;
@@ -28,6 +40,7 @@ export function initializeTutorial(document, options = {}) {
   let step = 1;
   let action = "freeze";
   let receiptView = false;
+  let mode = byId("two-player-game")?.hidden === false ? "2p" : "3p-plus";
   let language = byId("rules-language-de")?.getAttribute("aria-pressed") === "true" ? "de" : "en";
   let cameraBounds = { width: 284, height: 416 };
   let phase = settledPhase();
@@ -110,11 +123,65 @@ export function initializeTutorial(document, options = {}) {
     return { die, image: art("digital_dice/dice_" + value + ".png", "", die) };
   });
   const number = make("p", "tutorial-number", diceArea);
-  const dots = TUTORIAL_STEPS.map(() => {
-    const dot = make("span", "", byId("tutorial-progress"));
-    dot.setAttribute("aria-hidden", "true");
-    return dot;
-  });
+  const twoDemo = make("div", "tutorial-two-player", stage);
+  twoDemo.hidden = true;
+  function miniBoard(player) {
+    const labelClass = "tutorial-two-player__label" + (player === 1 ? " tutorial-two-player__label--top" : "");
+    const label = player === 1 ? make("p", labelClass, twoDemo) : null;
+    const board = make("div", "tutorial-two-player__board", twoDemo);
+    const ownerLabel = label ?? make("p", labelClass, twoDemo);
+    board.dataset.player = String(player);
+    board.setAttribute("role", "img");
+    const cells = [];
+    for (let row = 1; row <= 3; row += 1) for (const col of "ABCDE") {
+      const coordinate = col + row;
+      const slot = make("div", "tutorial-two-player__slot", board);
+      const cell = make("div", "tutorial-two-player__cell", slot);
+      cell.dataset.coordinate = coordinate;
+      const value = make("span", "tutorial-two-player__value", cell);
+      const multiplier = make("span", "tutorial-two-player__multiplier", cell);
+      if (row === 3 && col !== "E") {
+        const sign = make("span", "tutorial-two-player__sign", slot);
+        sign.textContent = player === 1 ? ">" : "<";
+        sign.setAttribute("aria-hidden", "true");
+      }
+      cells.push({ coordinate, cell, value, multiplier });
+    }
+    return { label: ownerLabel, board, cells };
+  }
+  const mini1 = miniBoard(1);
+  const miniFrontline = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  miniFrontline.setAttribute("class", "two-player-frontline tutorial-two-player__frontline");
+  miniFrontline.setAttribute("role", "img");
+  miniFrontline.setAttribute("viewBox", "0 0 206 112");
+  twoDemo.append(miniFrontline);
+  function miniSvg(tag, attrs) {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+    miniFrontline.append(node);
+    return node;
+  }
+  const miniGuides = ["player1", "player2"].map((player) => ({
+    shaft: miniSvg("line", { class: `two-player-frontline__guide two-player-frontline__guide--${player}`, "aria-hidden": "true" }),
+    head: miniSvg("polygon", { class: `two-player-frontline__guide-head two-player-frontline__guide-head--${player}`, "aria-hidden": "true" }),
+  }));
+  const miniOutline = miniSvg("path", { class: "two-player-frontline__outline" });
+  const miniCurve = miniSvg("path", { class: "two-player-frontline__curve" });
+  const miniDots = Array.from({ length: 5 }, () => miniSvg("circle", { r: 7.5, class: "two-player-frontline__point" }));
+  const miniUpperScores = Array.from({ length: 5 }, () => miniSvg("text", { y: 14, class: "two-player-frontline__score" }));
+  const miniLowerScores = Array.from({ length: 5 }, () => miniSvg("text", { y: 98, class: "two-player-frontline__score" }));
+  const mini2 = miniBoard(2);
+  let dots = [];
+  function setProgressDots() {
+    const progress = byId("tutorial-progress");
+    progress.replaceChildren();
+    dots = Array.from({ length: mode === "2p" ? TWO_PLAYER_TUTORIAL_STEPS.length : TUTORIAL_STEPS.length }, () => {
+      const dot = make("span", "", progress);
+      dot.setAttribute("aria-hidden", "true");
+      return dot;
+    });
+  }
+  setProgressDots();
 
   function drawConnection(svg, x1, y1, x2, y2, symbol, className = "") {
     const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -202,12 +269,111 @@ export function initializeTutorial(document, options = {}) {
     if (step === 12) return phase.goal ? t.target + "\n" + formatFrostyDollars(scene.scoring.baseSum + scene.scoring.streetBonus) + " − $30 = " + formatFrostyDollars(scene.scoring.score) : t.later;
     return "";
   }
+  function renderNavigation(total) {
+    const text = copy[language];
+    byId("tutorial-back").textContent = text.back;
+    byId("tutorial-back").disabled = step === 1;
+    byId("tutorial-next").textContent = step === total ? text.play : text.next;
+    byId("tutorial-navigation").setAttribute("aria-label", text.navigation);
+    byId("tutorial-progress").setAttribute("aria-label", `${text.step} ${step} ${text.of} ${total}`);
+    dots.forEach((dot, index) => { dot.dataset.current = String(index + 1 === step); });
+  }
+  function paintMiniBoard(target, player, scene) {
+    const board = scene.state["player" + player].board;
+    const occupied = [];
+    target.label.textContent = copy[language].player + " " + player;
+    for (const { coordinate, cell, value, multiplier } of target.cells) {
+      const record = board[Number(coordinate[1]) - 1]["ABCDE".indexOf(coordinate[0])];
+      cell.dataset.occupied = String(record !== null);
+      cell.dataset.start = String(step === 3 && coordinate[1] === "3" && scene.stage === 0);
+      cell.dataset.emphasis = String(scene.highlights.some(([owner, selected]) => owner === player && selected === coordinate));
+      value.textContent = record?.value ?? "";
+      multiplier.textContent = record && getCellScoreMultiplier(record) > 1 ? "2×" : "";
+      if (record) occupied.push(coordinate + " " + record.value);
+    }
+    target.board.setAttribute("aria-label", `${copy[language].player} ${player}: ${occupied.join("; ") || copy[language].empty}`);
+  }
+  function paintMiniFrontline(scene) {
+    const width = 206;
+    const geometry = createFrontlineGeometry(scene.duels, width, phase.visualFractions);
+    miniFrontline.setAttribute("viewBox", `0 0 ${width} ${geometry.height}`);
+    directionArrowGeometry(width).forEach((arrow, index) => {
+      const { shaft, head } = miniGuides[index];
+      shaft.setAttribute("x1", arrow.startX); shaft.setAttribute("x2", arrow.baseX + 1);
+      shaft.setAttribute("y1", arrow.y); shaft.setAttribute("y2", arrow.y);
+      head.setAttribute("points", arrow.head);
+    });
+    miniOutline.setAttribute("d", geometry.center);
+    miniCurve.setAttribute("d", geometry.center);
+    geometry.points.forEach((point, index) => {
+      miniDots[index].setAttribute("cx", point.x); miniDots[index].setAttribute("cy", point.y);
+      miniDots[index].dataset.control = point.control;
+      miniUpperScores[index].setAttribute("x", point.x);
+      miniUpperScores[index].setAttribute("transform", `rotate(180 ${point.x} 14)`);
+      miniUpperScores[index].textContent = point.player1;
+      miniLowerScores[index].setAttribute("x", point.x);
+      miniLowerScores[index].textContent = point.player2;
+    });
+    miniFrontline.setAttribute("aria-label", twoCopy[language].arrows + " " + scene.duels.map((duel) => {
+      const leader = duel.player1.lit ? duel.player2.lit ? 3 : 1 : duel.player2.lit ? 2 : 0;
+      return `${language === "de" ? "Spalte" : "Column"} ${duel.physical + 1}: ${copy[language].player} 1 ${duel.player1.score}, ${copy[language].player} 2 ${duel.player2.score}; ${twoCopy[language].leaders[leader]}`;
+    }).join(". "));
+  }
+  function paintTwoPlayerDice() {
+    const text = copy[language];
+    diceArea.setAttribute("aria-label", phase.rolling ? text.roll : text.dice + ": " + finalDice.join(", "));
+    dice.forEach(({ die, image }, index) => {
+      image.src = "./assets/digital_dice/dice_" + phase.faces[index] + ".png";
+      die.dataset.selected = String(!phase.rolling && (index === 0 || index === 3));
+      die.dataset.secondary = String(!phase.rolling && (index === 1 || index === 2));
+    });
+    number.textContent = phase.rolling ? "" : "[1] [6] → 16 / 61";
+    if (!phase.rolling) {
+      const other = make("small", "", number);
+      other.textContent = "[2] [4] → 24 / 42";
+    }
+  }
+  function renderTwoPlayer() {
+    const scene = getTwoPlayerTutorialScene(step, phase.demo);
+    const text = copy[language], example = twoCopy[language];
+    root.lang = language;
+    root.setAttribute("aria-label", text.name);
+    byId("tutorial-toggle-label").textContent = text.how;
+    byId("tutorial-title").textContent = scene.title[language];
+    byId("tutorial-explanation").textContent = scene.text[language];
+    stage.dataset.mode = "2p";
+    stage.dataset.step = String(step);
+    stage.dataset.paired = "false";
+    stage.dataset.instant = String(phase.instant || motion.matches);
+    boards.A.figure.hidden = true;
+    boards.B.figure.hidden = true;
+    twoDemo.hidden = step === 2;
+    diceArea.hidden = step !== 2;
+    byId("tutorial-receipt").hidden = true;
+    byId("tutorial-ice-options").hidden = true;
+    byId("tutorial-final-views").hidden = true;
+    if (step === 2) paintTwoPlayerDice();
+    else {
+      paintMiniBoard(mini1, 1, scene);
+      paintMiniBoard(mini2, 2, scene);
+      paintMiniFrontline(scene);
+    }
+    byId("tutorial-legend").textContent = step === 2 ? example.pass
+      : step === 3 ? (scene.stage === 0 ? example.start : example.repdigit)
+      : step === 4 ? example.direction
+      : step === 5 ? example.tie
+      : step === 6 ? (scene.stage === 5 ? example.winner + "\n" : "") + example.special : "";
+    renderNavigation(TWO_PLAYER_TUTORIAL_STEPS.length);
+  }
   function render() {
+    if (mode === "2p") { renderTwoPlayer(); return; }
     const scene = getTutorialScene(step, action);
     const text = copy[language];
     const paired = step >= 9 && step <= 11;
     root.lang = language;
     root.setAttribute("aria-label", text.name);
+    stage.dataset.mode = "3p-plus";
+    twoDemo.hidden = true;
     byId("tutorial-toggle-label").textContent = text.how;
     byId("tutorial-title").textContent = scene.title[language];
     byId("tutorial-explanation").textContent = scene.text[language];
@@ -260,22 +426,53 @@ export function initializeTutorial(document, options = {}) {
     byId("tutorial-board-value").textContent = formatFrostyDollars(scene.scoring.baseSum + scene.scoring.streetBonus);
     byId("tutorial-spending").textContent = "-" + formatFrostyDollars(scene.pointsSpent);
     byId("tutorial-balance").textContent = formatFrostyDollars(scene.scoring.score);
-    byId("tutorial-back").textContent = text.back;
-    byId("tutorial-back").disabled = step === 1;
-    byId("tutorial-next").textContent = step === 12 ? text.play : text.next;
-    byId("tutorial-navigation").setAttribute("aria-label", text.navigation);
-    byId("tutorial-progress").setAttribute("aria-label", `${text.step} ${step} ${text.of} 12`);
-    dots.forEach((dot, index) => { dot.dataset.current = String(index + 1 === step); });
+    renderNavigation(TUTORIAL_STEPS.length);
     renderCamera();
   }
 
   function enter(target, animate) {
-    if (disposed || !expanded || !Number.isInteger(target) || target < 1 || target > 12) return false;
+    const total = mode === "2p" ? TWO_PLAYER_TUTORIAL_STEPS.length : TUTORIAL_STEPS.length;
+    if (disposed || !expanded || !Number.isInteger(target) || target < 1 || target > total) return false;
     cancel();
     step = target;
     started = true;
     receiptView = false;
     phase = settledPhase();
+    if (mode === "2p") {
+      phase.demo = getTwoPlayerTutorialStageCount(step) - 1;
+      phase.visualFractions = null;
+      if (animate && !motion.matches) {
+        phase.demo = 0;
+        if (step === 2) {
+          phase.rolling = true;
+          let frame = 0;
+          const cycle = () => {
+            if (!phase.rolling) return;
+            phase.faces = finalDice.map((_, index) => (frame + index) % 6 + 1);
+            frame += 1;
+            paintTwoPlayerDice();
+            schedule(80, cycle, false);
+          };
+          cycle();
+          schedule(1000, () => { cancel(); phase.rolling = false; phase.faces = [...finalDice]; });
+        }
+        const delays = { 3: [400, 1000], 4: [300, 700, 1100, 1500],
+          5: [350, 1000, 1700], 6: [300, 600, 900, 1200, 1500] }[step] ?? [];
+        delays.forEach((delay, index) => schedule(delay, () => {
+          const from = getTwoPlayerTutorialScene(step, phase.demo).duels.map((duel) => frontlineFraction(duel.player1.score, duel.player2.score));
+          phase.demo = index + 1;
+          const to = getTwoPlayerTutorialScene(step, phase.demo).duels.map((duel) => frontlineFraction(duel.player1.score, duel.player2.score));
+          phase.visualFractions = from;
+          for (let frame = 1; frame <= 7; frame += 1) schedule(frame * 40, () => {
+            const eased = (frame / 7) ** 2 * (3 - 2 * frame / 7);
+            phase.visualFractions = from.map((value, i) => value + (to[i] - value) * eased);
+          });
+        }));
+      }
+      render();
+      if (byId("tutorial-back").disabled && document.activeElement === byId("tutorial-back")) byId("tutorial-next").focus({ preventScroll: true });
+      return true;
+    }
     if (animate && !motion.matches) {
       if (step === 1) { phase.focus = "A1"; schedule(600, () => { phase.focus = "D7"; }); schedule(1100, () => { phase.focus = ""; }); }
       if (step === 2) {
@@ -335,7 +532,7 @@ export function initializeTutorial(document, options = {}) {
   listen(byId("tutorial-back"), "click", () => { if (step > 1) goToStep(step - 1); });
   listen(byId("tutorial-next"), "click", () => {
     if (!expanded || disposed) return;
-    if (step < 12) goToStep(step + 1);
+    if (step < (mode === "2p" ? TWO_PLAYER_TUTORIAL_STEPS.length : TUTORIAL_STEPS.length)) goToStep(step + 1);
     else {
       cancel(); phase = settledPhase(); render();
       const board = byId("two-player-game")?.hidden === false ? byId("two-player-board-2") : byId("game-board");
@@ -355,7 +552,20 @@ export function initializeTutorial(document, options = {}) {
     if (expanded && !disposed && step === 12 && phase.goal) { cancel(); receiptView = receipt; render(); }
   });
   listen(document, "ruleslanguagechange", (event) => { language = event.detail; render(); });
-  listen(view, "resize", renderCamera);
+  listen(document, "gamemodechange", (event) => {
+    if (event.detail !== "2p" && event.detail !== "3p-plus" || event.detail === mode) return;
+    cancel();
+    mode = event.detail;
+    step = 1;
+    started = false;
+    action = "freeze";
+    receiptView = false;
+    phase = settledPhase();
+    setProgressDots();
+    if (expanded) enter(1, true);
+    else render();
+  });
+  listen(view, "resize", () => { if (mode === "3p-plus") renderCamera(); });
   listen(view, "pagehide", () => { cancel(); phase = settledPhase(); render(); });
   listen(motion, "change", () => { if (motion.matches) { cancel(); phase = settledPhase(); render(); } });
   panel.hidden = true;
@@ -363,7 +573,8 @@ export function initializeTutorial(document, options = {}) {
   render();
   return {
     goToStep,
-    getState() { return { step, expanded, action, receiptView, language, phase: { ...phase, faces: [...phase.faces] }, scene: getTutorialScene(step, action) }; },
+    getState() { return { mode, step, expanded, action, receiptView, language, phase: { ...phase, faces: [...phase.faces], visualFractions: phase.visualFractions ? [...phase.visualFractions] : null },
+      scene: mode === "2p" ? getTwoPlayerTutorialScene(step, phase.demo) : getTutorialScene(step, action) }; },
     destroy() { if (disposed) return; cancel(); disposed = true; panel.hidden = true; toggle.setAttribute("aria-expanded", "false"); unlisten.forEach((remove) => remove()); },
   };
 }

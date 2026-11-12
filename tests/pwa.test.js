@@ -147,7 +147,7 @@ export async function runPwaTests(sources) {
 
   await test("Receipt release uses fresh matching module URLs in Safari and the offline cache", () => {
     const worker = workerHarness(sources.worker);
-    assert(sources.html.includes('src="./js/game-modes.js?v=frontline-guides-2"'));
+    assert(sources.html.includes('src="./js/game-modes.js?v=two-player-tutorial-1"'));
     assert(sources.modes.includes('from "./app.js?v=new-game-menu-1"'));
     for (const [name, version] of [["app", "new-game-menu-1"], ["game", "two-player-1"], ["storage", "two-player-1"], ["receipt", "receipt-5"]]) {
       const path = "/js/" + name + ".js?v=" + version;
@@ -247,8 +247,9 @@ export async function runPwaTests(sources) {
     const worker = workerHarness(sources.worker);
     await worker.lifecycle("install");
     worker.offline = true;
-    for (const path of ["/js/tutorial.js?v=two-player-1", "/js/tutorial-scenes.js?v=two-player-1",
-      "/css/tutorial.css?v=tutorial-1", "/js/rules.js?v=rules-page-1", "/assets/Rules.png",
+    for (const path of ["/js/tutorial.js?v=two-player-tutorial-1", "/js/tutorial-scenes.js?v=two-player-1",
+      "/js/two-player-tutorial-scenes.js?v=two-player-tutorial-1", "/css/tutorial.css?v=two-player-tutorial-1",
+      "/js/rules.js?v=rules-page-1", "/assets/Rules.png",
       "/assets/rules_german.png", "/assets/bid.png", "/assets/bid_front.png",
       "/assets/icecube2.png", "/assets/receipt.png", "/assets/d7_flag.png",
       ...[1, 2, 3, 4, 5, 6].map((value) => "/assets/digital_dice/dice_" + value + ".png")]) {
@@ -384,9 +385,9 @@ export async function runPwaTests(sources) {
 
   await test("Both modes and their shared rule helpers are available offline alongside existing assets", async () => {
     const worker = workerHarness(sources.worker);
-    assertEqual(worker.CACHE_NAME, "frosty-dice-pwa-v42");
+    assertEqual(worker.CACHE_NAME, "frosty-dice-pwa-v43");
     await worker.lifecycle("install"); worker.offline = true;
-    for (const path of ["/js/game-modes.js?v=frontline-guides-2", "/js/placement-rules.js?v=two-player-1",
+    for (const path of ["/js/game-modes.js?v=two-player-tutorial-1", "/js/placement-rules.js?v=two-player-1",
       "/js/placement-rules.js?v=frontline-1", "/js/two-player-frontline.js?v=frontline-guides-2",
       "/js/two-player-game.js?v=frontline-1", "/js/two-player-storage.js?v=frontline-1",
       "/js/two-player-app.js?v=frontline-guides-2", "/css/two-player.css?v=frontline-guides-2",

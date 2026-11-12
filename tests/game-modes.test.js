@@ -103,6 +103,18 @@ export async function runGameModesTests(sources) {
     } catch (error) { return [{ name: "Mode sources are available", passed: false, message: error.message }]; }
   }
 
+  test("Mode activation announces the authoritative mode for the shared tutorial", () => {
+    const document = rulesDocument({ illustrated: false });
+    const changes = [];
+    document.addEventListener("gamemodechange", (event) => changes.push(event.detail));
+    const f = modeFixture({ document });
+    assertDeepEqual(changes, ["3p-plus"]);
+    f.change("2p");
+    assertDeepEqual(changes, ["3p-plus", "2p"]);
+    f.change("3p-plus");
+    assertDeepEqual(changes, ["3p-plus", "2p", "3p-plus"]);
+  });
+
   test("New users default to classic with intact controls and no startup writes or deletes", () => {
     const f = modeFixture();
     assertEqual(f.controller.getMode(), "3p-plus");
@@ -814,7 +826,7 @@ export async function runGameModesTests(sources) {
   });
 
   test("The header dropdown is absent, the snowman menu fits mobile, and both boards keep their geometry", () => {
-    assert(sources.html.includes('src="./js/game-modes.js?v=frontline-guides-2"'));
+    assert(sources.html.includes('src="./js/game-modes.js?v=two-player-tutorial-1"'));
     assert(!sources.html.includes('id="game-mode-switch"'));
     assert(!sources.html.includes('id="game-mode-trigger"'));
     assert(sources.html.includes('id="new-game" class="meadow-control reset-snowman" type="button" aria-label="New Game" aria-haspopup="dialog" aria-expanded="false" aria-controls="new-game-menu"'));

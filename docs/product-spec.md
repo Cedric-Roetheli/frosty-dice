@@ -107,9 +107,13 @@ and count won columns themselves. The bilingual explanatory paragraph
 sits in normal flow directly
 above the How-to-Play disclosure in the Rules area, only while 2P is active. Keep
 meadow controls anchored and the instructions clear of their artwork.
-Keep Digital Dice, the classic tutorial, Full Rules, footer, meadow, and
-illustrations available and unchanged. The tutorial's final scroll target follows
-the currently visible game board, without changing its steps or animations.
+Keep Digital Dice, Full Rules, footer, meadow, and illustrations available and
+unchanged. The existing How to Play disclosure shows the unchanged twelve-step
+classic tutorial in 3P+ and a bilingual six-step 2P tutorial in 2P. Mode changes
+reset the tutorial to step one; language changes preserve its step. The 2P
+demonstrations use separate, deterministic boards and the same Frontline geometry,
+without writing game state. Both sequences share navigation, progress, and the
+final scroll to the currently visible game board.
 
 The classic coordinator owns its existing state/actions. A separate 2P coordinator
 owns `{ player1: { board }, player2: { board }, undo }`, with one complete, deep-cloned

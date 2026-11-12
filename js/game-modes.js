@@ -63,6 +63,7 @@ export function initializeGameModes(document, storage) {
     byId("open-challenge").hidden = mode === "2p";
     byId("open-receipt").hidden = mode === "2p";
     renderText();
+    document.dispatchEvent(new document.defaultView.CustomEvent("gamemodechange", { detail: mode }));
   }
 
   function closeMenu(returnFocus = true) {
